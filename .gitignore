@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+coverage
+.DS_Store
+*.log
+clound
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
