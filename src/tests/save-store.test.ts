@@ -17,8 +17,8 @@ describe("save manager", () => {
     const oldState = structuredClone(state);
     oldState.version = "0.1.0";
     for (const faction of Object.values(oldState.factions)) {
-      (faction as Record<string, unknown>).cliques = undefined;
-      (faction as Record<string, unknown>).administrationBase = undefined;
+      delete (faction as unknown as Record<string, unknown>).cliques;
+      delete (faction as unknown as Record<string, unknown>).administrationBase;
     }
 
     const migrated = migrateGameState(oldState as typeof state);
