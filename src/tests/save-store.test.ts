@@ -7,7 +7,7 @@ describe("save manager", () => {
   it("creates versioned save objects", () => {
     const state = createMvpScenario("ming", 1);
     const save = createSaveGame("测试存档", state, defaultPlayerDecision);
-    expect(save.version).toBe("0.1.0");
+    expect(save.version).toBe("0.3.0");
     expect(save.state.currentDate).toBe("1573-01");
   });
 });

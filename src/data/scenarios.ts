@@ -33,12 +33,19 @@ const rebelFaction: FactionState = {
     defensePriority: 40,
     warEndurance: 30
   },
-  status: "active"
+  status: "active",
+  cliques: [
+    { cliqueId: "donglin", support: 30, strength: 0, activeModifier: 0 },
+    { cliqueId: "eunuchs", support: 30, strength: 0, activeModifier: 0 },
+    { cliqueId: "gentry", support: 30, strength: 0, activeModifier: 0 },
+    { cliqueId: "generals", support: 30, strength: 0, activeModifier: 0 },
+  ],
+  administrationBase: 20,
 };
 
 export function createMvpScenario(playerFactionId = "ming", seed = 157301): GameState {
   return {
-    version: "0.1.0",
+    version: "0.3.0",
     currentDate: "1573-01",
     endDate: "1621-12",
     seed,

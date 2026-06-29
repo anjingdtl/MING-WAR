@@ -1,4 +1,17 @@
-import type { FactionState } from "../core/types";
+import type { FactionState, FactionCliqueState } from "../core/types";
+
+function defaultCliques(overrides: Partial<Record<string, number>> = {}): FactionCliqueState[] {
+  const merged = Object.assign(
+    { donglin: 50, eunuchs: 50, gentry: 50, generals: 50 },
+    overrides,
+  );
+  return Object.entries(merged).map(([cliqueId, support]) => ({
+    cliqueId,
+    support: support as number,
+    strength: 0,
+    activeModifier: 0,
+  }));
+}
 
 export const factionTemplates: Record<string, FactionState> = {
   ming: {
@@ -14,7 +27,7 @@ export const factionTemplates: Record<string, FactionState> = {
     corruption: 34,
     centralization: 68,
     warExhaustion: 5,
-    capitalRegionId: "beijing",
+    capitalRegionId: "beizhili",
     primaryColor: "#C63D32",
     traits: ["庞大官僚体系", "两京制度", "边军体系", "天下正统"],
     aiProfile: {
@@ -26,7 +39,9 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 70,
       warEndurance: 45
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques({ donglin: 55, eunuchs: 47 }),
+    administrationBase: 72,
   },
   tumed: {
     id: "tumed",
@@ -53,7 +68,9 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 45,
       warEndurance: 55
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques(),
+    administrationBase: 38,
   },
   jianzhou: {
     id: "jianzhou",
@@ -80,7 +97,9 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 52,
       warEndurance: 70
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques({ generals: 58, gentry: 45 }),
+    administrationBase: 32,
   },
   chahar: {
     id: "chahar",
@@ -107,7 +126,9 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 44,
       warEndurance: 56
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques(),
+    administrationBase: 30,
   },
   haixi: {
     id: "haixi",
@@ -134,7 +155,9 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 55,
       warEndurance: 48
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques(),
+    administrationBase: 28,
   },
   bozhou: {
     id: "bozhou",
@@ -161,6 +184,8 @@ export const factionTemplates: Record<string, FactionState> = {
       defensePriority: 72,
       warEndurance: 50
     },
-    status: "active"
+    status: "active",
+    cliques: defaultCliques({ gentry: 55 }),
+    administrationBase: 34,
   }
 };

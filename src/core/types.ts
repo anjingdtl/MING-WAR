@@ -16,6 +16,30 @@ export type DomesticFocus =
   | "frontier";
 export type MapLayer = "control" | "population" | "grain" | "tax" | "stability" | "army" | "controlLevel";
 
+export type FactionCliqueId = string;
+
+export interface CliqueDef {
+  id: FactionCliqueId;
+  name: string;
+  shortName: string;
+  description: string;
+  primaryTrait: string;
+  policyAffinities: Record<DomesticFocus, number>;
+}
+
+export interface FactionCliqueState {
+  cliqueId: FactionCliqueId;
+  support: number;
+  strength: number;
+  activeModifier: number;
+}
+
+export interface CliqueReaction {
+  cliqueId: FactionCliqueId;
+  delta: number;
+  reason: string;
+}
+
 export interface AiProfile {
   aggression: number;
   riskTolerance: number;
@@ -67,6 +91,8 @@ export interface FactionState {
   traits: string[];
   aiProfile: AiProfile;
   status: FactionStatus;
+  cliques: FactionCliqueState[];
+  administrationBase: number;
 }
 
 export interface PlayerDecision {

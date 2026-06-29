@@ -16,7 +16,7 @@ describe("domain types", () => {
       corruption: 34,
       centralization: 68,
       warExhaustion: 5,
-      capitalRegionId: "beijing",
+      capitalRegionId: "beizhili",
       primaryColor: "#C63D32",
       traits: ["bureaucracy"],
       aiProfile: {
@@ -28,12 +28,19 @@ describe("domain types", () => {
         defensePriority: 70,
         warEndurance: 45
       },
-      status: "active"
+      status: "active",
+      cliques: [
+        { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0 },
+      ],
+      administrationBase: 72,
     };
 
     const region: RegionState = {
-      id: "beijing",
-      name: "北京",
+      id: "beizhili",
+      name: "北直隶",
       terrain: "plain",
       climate: "temperate",
       ownerFactionId: "ming",
@@ -49,18 +56,18 @@ describe("domain types", () => {
       grainStock: 650000,
       garrison: 80000,
       coreFactionIds: ["ming"],
-      connections: ["liaoxi"],
+      connections: ["liaodong"],
       activeDisasters: [],
       rebelPressure: 0
     };
 
     const decision: PlayerDecision = {
-      targetRegionId: "liaoxi",
+      targetRegionId: "liaodong",
       posture: "balanced",
       domesticFocus: "administration"
     };
 
     expect(faction.capitalRegionId).toBe(region.id);
-    expect(decision.targetRegionId).toBe("liaoxi");
+    expect(decision.targetRegionId).toBe("liaodong");
   });
 });
