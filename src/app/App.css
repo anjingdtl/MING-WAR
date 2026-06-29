@@ -524,6 +524,151 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.clique-bar {
+  display: grid;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgb(141 113 75 / 18%);
+}
+
+.clique-bar__title {
+  font-size: 12px;
+  color: #66594c;
+  font-weight: 800;
+}
+
+.clique-bar__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.clique-card {
+  position: relative;
+  padding: 6px 8px;
+  border: 1px solid rgb(141 113 75 / 18%);
+  border-radius: 5px;
+  background: rgb(248 241 228 / 60%);
+  cursor: default;
+}
+
+.clique-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.clique-card__name {
+  font-weight: 700;
+  color: #312922;
+}
+
+.clique-card__support {
+  color: #66594c;
+  font-size: 11px;
+}
+
+.clique-card__modifier {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.clique-card__bar {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 2px;
+  background: rgb(200 185 160 / 40%);
+  overflow: hidden;
+}
+
+.clique-card__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.clique-card__tooltip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  padding: 8px 10px;
+  border: 1px solid rgb(141 113 75 / 38%);
+  border-radius: 6px;
+  background: rgb(252 245 225 / 96%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  font-size: 11px;
+}
+
+.clique-card__full-name {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #312922;
+}
+
+.clique-card__desc {
+  margin: 0 0 4px;
+  color: #66594c;
+  line-height: 1.4;
+}
+
+.clique-card__stat {
+  margin: 2px 0;
+  color: #5e5145;
+}
+
+.focus-tooltip {
+  position: absolute;
+  z-index: 10;
+  padding: 8px 12px;
+  border: 1px solid rgb(141 113 75 / 38%);
+  border-radius: 6px;
+  background: rgb(252 245 225 / 96%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.focus-tooltip__title {
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #312922;
+}
+
+.focus-tooltip__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 2px 0;
+}
+
+.focus-tooltip__delta--positive {
+  color: #4a7c59;
+  font-weight: 700;
+}
+
+.focus-tooltip__delta--negative {
+  color: #8a3a3a;
+  font-weight: 700;
+}
+
+.focus-tooltip__delta--neutral {
+  color: #66594c;
+}
+
+.focus-tooltip__admin {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgb(141 113 75 / 18%);
+  font-weight: 700;
+  color: #312922;
+}
+
 .stat-badge {
   display: grid;
   gap: 2px;

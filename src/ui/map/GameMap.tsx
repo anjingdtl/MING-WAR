@@ -4,6 +4,9 @@ import type { DomesticFocus, GameState, MapLayer, MilitaryPosture, PlayerDecisio
 import { getValidMilitaryTargets } from "../../core/decisions";
 import { mapRegions } from "../../map/mapConfig";
 import { eastAsiaLandPaths, majorRiverPaths } from "../../map/physicalMap";
+import { CliqueBar } from "../panels/CliqueBar";
+import { cliqueTemplates } from "../../data/cliques";
+import { computeCliqueReactions, computeAdministrationModifier } from "../../core/clique";
 
 /* ------------------------------------------------------------------ */
 /*  constants                                                         */
@@ -104,6 +107,9 @@ export function GameMap({
   /* flag that signals "a drag happened in the current pointer sequence" —
      consumed by click handlers to suppress region selection */
   const gestureFlagRef = useRef(false);
+
+  /* ---- focus tooltip state ----------------------------------------- */
+  const [focusTooltip, setFocusTooltip] = useState<DomesticFocus | null>(null);
 
   /* ---- document-level drag listeners (stable, registered once) ---- */
   useEffect(() => {
@@ -422,17 +428,32 @@ export function GameMap({
 
             <div className="focus-grid" aria-label="内政重点">
               {focusOptions.map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={currentDecision.domesticFocus === value ? "is-active" : ""}
-                  onClick={() => onDecisionChange?.({ domesticFocus: value })}
-                  disabled={!onDecisionChange}
-                >
-                  {label}
-                </button>
+                <div key={value} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className={currentDecision.domesticFocus === value ? "is-active" : ""}
+                    onClick={() => onDecisionChange?.({ domesticFocus: value })}
+                    onMouseEnter={() => setFocusTooltip(value)}
+                    onMouseLeave={() => setFocusTooltip(null)}
+                    disabled={!onDecisionChange}
+                  >
+                    {label}
+                  </button>
+                  {focusTooltip === value && (
+                    <FocusTooltip
+                      focus={value}
+                      currentFocus={currentDecision.domesticFocus}
+                      playerFaction={state.factions[state.playerFactionId]}
+                    />
+                  )}
+                </div>
               ))}
             </div>
+
+            <CliqueBar
+              cliques={state.factions[state.playerFactionId]?.cliques ?? []}
+              cliqueDefs={cliqueTemplates}
+            />
           </>
         ) : selectedRegion ? (
           <p className="muted" style={{ textAlign: "center", padding: "8px 0" }}>
@@ -478,4 +499,66 @@ function portraitKey(fid: string): string {
   if (fid === "jianzhou" || fid === "haixi") return "khan";
   if (fid === "tumed" || fid === "chahar") return "general";
   return "minister";
+}
+
+const focusLabels: Record<DomesticFocus, string> = {
+  agriculture: "劝课农桑",
+  finance: "整顿财政",
+  military: "整军备战",
+  administration: "澄清吏治",
+  recovery: "休养生息",
+  frontier: "经略边疆",
+};
+
+function FocusTooltip({
+  focus,
+  currentFocus,
+  playerFaction,
+}: {
+  focus: DomesticFocus;
+  currentFocus: DomesticFocus;
+  playerFaction: import("../../core/types").FactionState;
+}) {
+  if (!playerFaction?.cliques?.length) return null;
+
+  const reactions = computeCliqueReactions(
+    focus,
+    currentFocus,
+    playerFaction.cliques,
+    cliqueTemplates,
+  );
+
+  // Estimate admin modifier change
+  const projectedCliques = playerFaction.cliques.map((cs) => {
+    const reaction = reactions.find((r) => r.cliqueId === cs.cliqueId);
+    const newSupport = Math.max(0, Math.min(100, cs.support + (reaction?.delta ?? 0)));
+    return { ...cs, support: newSupport };
+  });
+  const projectedModifier = computeAdministrationModifier(projectedCliques);
+  const currentModifier = computeAdministrationModifier(playerFaction.cliques);
+  const modDelta = projectedModifier - currentModifier;
+
+  return (
+    <div className="focus-tooltip">
+      <p className="focus-tooltip__title">切换到「{focusLabels[focus]}」</p>
+      {reactions.map((r) => {
+        const def = cliqueTemplates[r.cliqueId];
+        if (!def) return null;
+        const cls = r.delta > 0 ? "positive" : r.delta < 0 ? "negative" : "neutral";
+        return (
+          <div key={r.cliqueId} className="focus-tooltip__row">
+            <span>{def.shortName}</span>
+            <span className={`focus-tooltip__delta--${cls}`}>
+              {r.delta > 0 ? `+${r.delta}` : r.delta}
+            </span>
+          </div>
+        );
+      })}
+      {modDelta !== 0 && (
+        <p className="focus-tooltip__admin">
+          行政效率 {modDelta > 0 ? `+${modDelta}` : modDelta}
+        </p>
+      )}
+    </div>
+  );
 }
