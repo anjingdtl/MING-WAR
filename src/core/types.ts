@@ -115,8 +115,9 @@ export interface Modifier {
   label: string;
   scope: "faction" | "region" | "global";
   targetId?: string;
-  remainingMonths: number;
+  remainingMonths?: number;
   effects: Partial<Record<string, number>>;
+  stacking?: "add" | "multiply" | "replace";
 }
 
 export interface MonthlyReport {

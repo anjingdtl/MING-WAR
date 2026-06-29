@@ -9,6 +9,7 @@ import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
 import { resolveBattle } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
+import { expireModifiers } from "./modifiers";
 import { mvpEvents } from "../data/events";
 import type { GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -18,6 +19,9 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const reports: MonthlyReport[] = [];
   const playerDecision = normalizePlayerDecision(state, input.playerDecision);
   const aiDecisions = chooseAllAiDecisions(state);
+
+  // P0-3: expire modifiers at month start (decrement remaining, drop expired)
+  state.activeModifiers = expireModifiers(state.activeModifiers);
 
   // Build per-faction decisions lookup so each faction's regions use that faction's own focus
   const decisionsLookup: Record<string, PlayerDecision> = {
