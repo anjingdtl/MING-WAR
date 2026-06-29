@@ -13,11 +13,11 @@ describe("decision validation", () => {
   it("replaces invalid player targets with a valid target", () => {
     const state = createMvpScenario("ming");
     const decision = normalizePlayerDecision(state, {
-      targetRegionId: "jiangnan",
+      targetRegionId: "guangdong",
       posture: "balanced",
       domesticFocus: "administration"
     });
-    expect(decision.targetRegionId).not.toBe("jiangnan");
+    expect(decision.targetRegionId).not.toBe("guangdong");
   });
 });
 

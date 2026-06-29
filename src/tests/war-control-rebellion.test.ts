@@ -24,8 +24,8 @@ describe("warfare", () => {
 describe("control", () => {
   it("raises control for legitimate core holders", () => {
     const state = createMvpScenario();
-    const before = state.regions.beijing.control;
-    const after = updateControl(state.regions.beijing, state.factions.ming);
+    const before = state.regions.beizhili.control;
+    const after = updateControl(state.regions.beizhili, state.factions.ming);
     expect(after.control).toBeGreaterThanOrEqual(before);
   });
 });

@@ -6,10 +6,10 @@ import { createMvpScenario } from "../data/scenarios";
 describe("population", () => {
   it("grows stable regions and harms starving regions", () => {
     const state = createMvpScenario();
-    const jiangnan = state.regions.jiangnan;
-    expect(calculatePopulation(jiangnan, "recovery").nextPopulation).toBeGreaterThan(jiangnan.population);
+    const nanzhili = state.regions.nanzhili;
+    expect(calculatePopulation(nanzhili, "recovery").nextPopulation).toBeGreaterThan(nanzhili.population);
 
-    const starving = { ...jiangnan, grainStock: 1, stability: 35 };
+    const starving = { ...nanzhili, grainStock: 1, stability: 35 };
     expect(calculatePopulation(starving, "finance").nextPopulation).toBeLessThan(starving.population);
   });
 });
@@ -17,9 +17,9 @@ describe("population", () => {
 describe("economy", () => {
   it("collects taxes and updates grain stock", () => {
     const state = createMvpScenario();
-    const result = calculateRegionEconomy(state.regions.jiangnan, state.factions.ming, "finance");
+    const result = calculateRegionEconomy(state.regions.nanzhili, state.factions.ming, "finance");
     expect(result.taxCollected).toBeGreaterThan(0);
-    expect(result.region.grainStock).not.toBe(state.regions.jiangnan.grainStock);
+    expect(result.region.grainStock).not.toBe(state.regions.nanzhili.grainStock);
   });
 
   it("charges military and bureaucracy maintenance", () => {
