@@ -154,7 +154,8 @@ export function projectCliqueReactions(
       cliqueId: pc.id,
       support: pc.newSupport,
       strength: 1,
-      activeModifier: 0
+      activeModifier: 0,
+      approval: 50
     }))
   );
   const currentModifier = computeAdministrationModifier(faction.cliques);

@@ -37,10 +37,10 @@ const rebelFaction: FactionState = {
   },
   status: "active",
   cliques: [
-    { cliqueId: "donglin", support: 30, strength: 0, activeModifier: 0 },
-    { cliqueId: "eunuchs", support: 30, strength: 0, activeModifier: 0 },
-    { cliqueId: "gentry", support: 30, strength: 0, activeModifier: 0 },
-    { cliqueId: "generals", support: 30, strength: 0, activeModifier: 0 },
+    { cliqueId: "donglin", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "eunuchs", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "gentry", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "generals", support: 30, strength: 0, activeModifier: 0, approval: 50 },
   ],
   administrationBase: 20,
 };

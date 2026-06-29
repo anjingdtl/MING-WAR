@@ -10,6 +10,7 @@ function defaultCliques(overrides: Partial<Record<string, number>> = {}): Factio
     support: support as number,
     strength: 0,
     activeModifier: 0,
+    approval: 50, // S3b: 中性起步，每月由成员 pop 生活水平/税负/政策契合重算
   }));
 }
 

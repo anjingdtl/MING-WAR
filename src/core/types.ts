@@ -92,6 +92,9 @@ export interface CliqueDef {
   description: string;
   primaryTrait: string;
   policyAffinities: Record<DomesticFocus, number>;
+  /** S3/S4: 语义化法律标签（减税/开海/清丈…），S4 法律系统对接具体 LawId。 */
+  preferredLaws: string[];
+  opposedLaws: string[];
 }
 
 export interface FactionCliqueState {
@@ -99,6 +102,12 @@ export interface FactionCliqueState {
   support: number;
   strength: number;
   activeModifier: number;
+  /**
+   * S3b: 集团对当前政策/处境的满意/不满（0-100），由成员 pop 的生活水平、
+   * 税负、政策契合驱动。与 support（执政支持度）正交——一个强而不满的集团
+   * 会推动政治运动（S3c）。support 仍驱动 administration 公式（不变）。
+   */
+  approval: number;
 }
 
 export interface CliqueReaction {
@@ -218,6 +227,19 @@ export interface HistoricalRecord {
   controlledRegions: Record<FactionId, number>;
 }
 
+/** S3c: 政治运动诉求类型。 */
+export type MovementDemand = "reduce-tax" | "open-sea" | "army-pay" | "autonomy";
+
+/** S3c: 一场由利益集团发起的政治运动（减税/开海/索饷/自治）。 */
+export interface PoliticalMovement {
+  id: string;
+  factionId: FactionId;
+  cliqueId: FactionCliqueId;
+  demand: MovementDemand;
+  progress: number; // 0-100，到 100 即成功结算
+  monthsActive: number;
+}
+
 export interface GameState {
   version: string;
   currentDate: string;
@@ -235,6 +257,8 @@ export interface GameState {
   gameStatus: "playing" | "paused" | "finished";
   lastDomesticFocus?: DomesticFocus;
   ledgerHistory?: import("./ledger").MonthlyLedger[];
+  /** S3c: 进行中的政治运动（强而不满的集团推动）。 */
+  activeMovements?: PoliticalMovement[];
 }
 
 export interface SimulationInput {

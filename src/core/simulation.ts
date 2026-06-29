@@ -8,7 +8,8 @@ import { calculatePopulation } from "./population";
 import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
 import { resolveBattle, advanceWar } from "./warfare";
-import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
+import { applyNaturalDecay, computeAdministrationModifier, computeCliqueApproval, computeFactionCliqueStrengthFromPops } from "./clique";
+import { advancePoliticalMovements, DEMAND_LABEL } from "./politics";
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
 import { applyLedgerToState, type LedgerEntry } from "./ledger";
@@ -30,6 +31,7 @@ import {
   updateMarketPrices
 } from "./market";
 import { mvpEvents } from "../data/events";
+import { cliqueTemplates } from "../data/cliques";
 import type { FactionState, GameState, GoodId, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
@@ -312,7 +314,23 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   // indefinitely at 0 controlled regions.
   eliminateDefeatedFactions(state, reports);
 
-  updateFactionCliques(state);
+  updateFactionCliques(state, decisionsLookup);
+
+  // S3c: advance political movements. Strong & displeased cliques push demands
+  // (reduce-tax/open-sea/army-pay/autonomy); successful ones apply S1 modifiers,
+  // closing the society→politics→consequence loop.
+  const settledMovements = advancePoliticalMovements(state);
+  for (const m of settledMovements) {
+    const factionName = state.factions[m.factionId]?.name ?? m.factionId;
+    reports.push({
+      id: `${m.id}-report`,
+      date: state.currentDate,
+      type: "event",
+      title: `${factionName}·${DEMAND_LABEL[m.demand]}运动取得让步`,
+      body: `利益集团持续施压的${DEMAND_LABEL[m.demand]}诉求迫使朝廷让步，相关政令随之调整。`,
+      severity: "warning",
+    });
+  }
 
   const decisions: Record<string, PlayerDecision> = {
     [state.playerFactionId]: playerDecision,
@@ -569,7 +587,7 @@ function eliminateDefeatedFactions(state: GameState, reports: MonthlyReport[]): 
   }
 }
 
-function updateFactionCliques(state: GameState): void {
+function updateFactionCliques(state: GameState, decisionsLookup: Record<string, PlayerDecision>): void {
   for (const faction of Object.values(state.factions)) {
     if (faction.status !== "active") continue;
     if (!faction.cliques || faction.cliques.length === 0) continue;
@@ -580,16 +598,22 @@ function updateFactionCliques(state: GameState): void {
       faction.administrationBase = faction.administration;
     }
 
-    // 2. Recompute clique strength from controlled regions
+    // 2. Recompute clique strength from controlled regions' pop wealth (S3a).
+    //    Strength now comes from the wealth of the pops a clique represents,
+    //    not from region-attribute mapping — this is the social base that S3
+    //    political power rests on.
     const regions = Object.values(state.regions).filter(
       (r) => r.controllerFactionId === faction.id,
     );
-    faction.cliques = computeFactionCliqueStrength(faction.cliques, regions);
+    faction.cliques = computeFactionCliqueStrengthFromPops(faction.cliques, regions);
 
     // 3. Apply natural decay toward 50
     faction.cliques = applyNaturalDecay(faction.cliques);
 
-    // 4. Recompute activeModifier for each clique
+    // S3b: this faction's current policy focus (player or AI decision)
+    const focus = decisionsLookup[faction.id]?.domesticFocus ?? "recovery";
+
+    // 4. Recompute activeModifier + S3b approval for each clique
     for (const cs of faction.cliques) {
       if (cs.support > 60) {
         cs.activeModifier = Math.round(((cs.support - 60) / 40) * (cs.strength / 100) * 5);
@@ -598,6 +622,17 @@ function updateFactionCliques(state: GameState): void {
       } else {
         cs.activeModifier = 0;
       }
+      // S3b: approval = member pops' living standard + policy fit − tax pressure.
+      // Orthogonal to support — a strong & displeased clique drives political
+      // movements (S3c). Living standard is the dominant term (S2→S3 gear).
+      cs.approval = computeCliqueApproval(
+        cs.cliqueId,
+        focus,
+        regions,
+        cliqueTemplates,
+        state.activeModifiers,
+        faction.id,
+      );
     }
 
     // 5. Apply total modifier to administration based on stable base

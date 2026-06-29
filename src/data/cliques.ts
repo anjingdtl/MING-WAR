@@ -15,6 +15,9 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: 6,
       frontier: -2,
     },
+    // S3/S4: 东林代表士绅+城市工商业资本，主张低税、清流、反对皇权敛财。
+    preferredLaws: ["low-tax", "clean-admin", "relief-priority"],
+    opposedLaws: ["mining-tax", "commercial-tax", "land-survey"],
   },
   eunuchs: {
     id: "eunuchs",
@@ -31,6 +34,9 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: -2,
       frontier: 0,
     },
+    // S3/S4: 宦党依附皇权，主张扩张财源（矿税商税）、中央集敛。
+    preferredLaws: ["mining-tax", "commercial-tax", "treasury-centralization"],
+    opposedLaws: ["low-tax", "local-autonomy"],
   },
   gentry: {
     id: "gentry",
@@ -47,6 +53,9 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: 4,
       frontier: -4,
     },
+    // S3/S4: 缙绅代表在乡地主+小农共同体，反对清丈、主张地方自治与低税。
+    preferredLaws: ["low-tax", "local-autonomy", "land-protection"],
+    opposedLaws: ["land-survey", "commercial-tax"],
   },
   generals: {
     id: "generals",
@@ -62,5 +71,8 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: -4,
       frontier: 6,
     },
+    // S3/S4: 勋贵追求军费倾斜与边疆军事自主，反对文官节制与财政紧缩。
+    preferredLaws: ["military-funding", "frontier-autonomy"],
+    opposedLaws: ["civilian-control", "austerity"],
   },
 };

@@ -72,12 +72,20 @@ export function migrateGameState(state: GameState): GameState {
   for (const faction of Object.values(migrated.factions)) {
     if (!faction.cliques || faction.cliques.length === 0) {
       faction.cliques = [
-        { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0 },
-        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0 },
-        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0 },
-        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0, approval: 50 },
       ];
     }
+    // S3b: backfill approval on cliques from older saves (pre-S3 had no field)
+    faction.cliques = faction.cliques.map((cs) => ({
+      cliqueId: cs.cliqueId,
+      support: cs.support,
+      strength: cs.strength,
+      activeModifier: cs.activeModifier,
+      approval: cs.approval ?? 50,
+    }));
     if (faction.administrationBase === undefined) {
       faction.administrationBase = faction.administration;
     }

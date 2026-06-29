@@ -2,7 +2,7 @@
 
 > 对应文档：`docs/v2-optimization-spec.md`（S1–S6）
 > 编写日期：2026-06-29
-> 本轮范围：**S1（修正系统激活 + 账本驱动）+ S2（市场—人口—生产整合）**，S3–S6 列里程碑
+> 本轮范围：**S1（修正系统激活 + 账本驱动）+ S2（市场—人口—生产整合）+ S3（利益集团政治力量）**，S4–S6 列里程碑
 
 ---
 
@@ -82,16 +82,38 @@
 
 ---
 
-## 3. S3–S6 里程碑（本轮不实施，先立锚）
+## 3. S3　利益集团政治力量（社会—政治环）
 
-- **S3 利益集团政治力量**：clique strength 来自 pop wealth/官职/土地；集团 approval 驱动政治运动。依赖 S2 的 wealth。
+### S3a　clique strength 来自 pop wealth
+- 新增 `CLIQUE_POP_AFFINITY`（东林←gentry/merchant/artisan/official；宦党←official；缙绅←peasant/tenant；勋贵←soldier），migrant 无归属。
+- 新增 `computeFactionCliqueStrengthFromPops`：strength = Σ pop.size×wealth×affinity 归一化到 0–100（控制的社会政治财富份额）；无 pop 数据 fallback 旧地区属性映射。旧 `computeRegionCliqueWeights`/`computeFactionCliqueStrength` 保留（测试覆盖 + fallback）。
+- wealth 已含 S2c 产业 ownership 利润分配，故覆盖"财富+人口+土地"，官职由 official pop 体现。
+
+### S3b　approval 系统
+- `FactionCliqueState` 加 `approval`（0–100），与 `support`（执政支持/administration）正交。`CliqueDef` 加 `preferredLaws`/`opposedLaws`（S4 对接）。
+- `computeCliqueApproval`：`50 + clamp(avgSat−50, −30, +20) + 政策契合×3 − tax-mult×50`。生活水平封顶贡献——富裕不顶满，确保加税/饥荒能压到运动阈值。
+
+### S3c　政治运动 PoliticalMovement
+- 强（strength≥30）+ 不满（approval≤35）的集团推动诉求：东林→减税、宦党→开海、缙绅→自治、勋贵→索饷。
+- progress≥100 结算 → 施加 faction-scope S1 modifier（接通后果环）+ 该集团 support 回升；12 月 cooldown（让步 modifier 存续期）防运动失控。
+- 让步强度极温和（control-flat −1 / tax-mult −0.05 等）：S3 是危机放大器，无危机时几乎无感，有危机时温和显现。
+
+### S3d　因果链 + 全量验收
+- 端到端测试：加税（tax-mult modifier + finance focus）→ approval 降 → 强不满集团推动运动。
+- 不同政权集团结构差异（大明东林主导 vs 边疆勋贵主导）。
+- batch 100×240 errorRuns=0，大明存活 0.86，控制区 19.45；diagnose seed7 大明 active、人口 −11.3%（与 S1c 基准一致）。
+
+---
+
+## 4. S4–S6 里程碑（先立锚）
+
 - **S4 法律与改革**：改革流程（提出→博弈→落实），落实写入 S1 modifier。依赖 S3。
 - **S5 外交博弈与战线战争**：DiplomaticRelation + 战线 + 和平谈判。依赖 S2 财政/S4 制度。
 - **S6 历史局势与完整周期**：SituationState 承载主线，1573–1662 多结局。
 
 ---
 
-## 4. 本轮交付清单
+## 5. 本轮交付清单
 
 - [x] 回归 fix（7 类缺陷，见 SPEC v2 §1）
 - [x] SPEC v2 + 本 PLAN
@@ -102,4 +124,8 @@
 - [x] S2b pop 财富积累与分化（needsSatisfaction=购买力，wealth 月累积，famine 仍由 grainPerCapita）
 - [x] S2c 白银货币约束（产业利润按 ownership 流向 pop，财富分化为 S3 政治力量铺路）
 - [x] S2d 因果链测试（粮价→购买力→激进化；江南 vs 辽东分化；全量回归 300 测试 + batch errorRuns=0）
+- [x] S3a clique strength 改由 pop wealth 聚合（CLIQUE_POP_AFFINITY + computeFactionCliqueStrengthFromPops，旧地区映射保留作 fallback）
+- [x] S3b approval 系统（FactionCliqueState.approval；生活水平封顶+政策契合+加税惩罚；与 support 正交）
+- [x] S3c 政治运动（强+不满集团推动诉求，结算施加 S1 modifier 接通后果环，12 月 cooldown 防失控）
+- [x] S3d 因果链+全量验收（加税→approval降→运动；313 测试；batch errorRuns=0 存活 0.86；seed7 active −11.3%）
 - 每项附单元测试 + 回归验证

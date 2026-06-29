@@ -5,7 +5,11 @@ import type {
   CliqueReaction,
   RegionState,
   DomesticFocus,
+  PopType,
+  Modifier,
+  FactionId,
 } from "./types";
+import { queryModifier } from "./modifiers";
 
 interface CliqueWeight {
   cliqueId: FactionCliqueId;
@@ -146,6 +150,130 @@ export function applyNaturalDecay(cliques: FactionCliqueState[]): FactionCliqueS
     const delta = c.support > 50 ? -1 : 1;
     return { ...c, support: c.support + delta };
   });
+}
+
+/**
+ * S3a: 利益集团的社会基础——按 pop 类型的归属亲和度（0-1）。
+ *
+ * 一个集团的力量来自它所代言的 pop 群体的财富与人口，而非地区属性映射。
+ * pop.wealth 已包含产业 ownership 的利润分配（S2c: gentry←farmland,
+ * merchant←marketTown, soldier←militaryTown, peasant←community），所以
+ * 这里只读 pop.wealth 即可覆盖"财富+人口+土地"。官职由 official pop 体现。
+ *
+ * 设计依据（晚明史）：
+ *   - 东林党：江南士大夫(gentry) + 城市商业资本(merchant/artisan) + 清流文官
+ *   - 宦党：  依附皇权的官僚系统(矿税官/内廷)，社会基础薄弱——失皇权即灭
+ *   - 缙绅：  在乡地主 + 依附的自耕农/佃户（乡村利益共同体）
+ *   - 勋贵：  世袭军户
+ * migrant（流民）无政治组织，不归属任何集团。
+ */
+export const CLIQUE_POP_AFFINITY: Record<FactionCliqueId, Partial<Record<PopType, number>>> = {
+  donglin: { gentry: 1.0, merchant: 0.8, artisan: 0.6, official: 0.5 },
+  eunuchs: { official: 0.5 },
+  gentry: { peasant: 1.0, tenant: 0.9 },
+  generals: { soldier: 1.0 },
+};
+
+/**
+ * S3a: 从 faction 控制区的 popGroups 聚合集团力量（strength 真相来源）。
+ *
+ *   rawPower(clique) = Σ pop.size × pop.wealth × affinity(clique, pop.type)
+ *   strength(clique) = rawPower(clique) / Σ_all rawPower × 100
+ *
+ * 归一化到 0-100：strength 表示该集团控制的"社会政治财富份额"。士绅/商人
+ * 因 wealth 高（S2c 利润分配）自然占大头——这正是 S3 想要的"财富驱动力量"，
+ * 取代旧的 commerce/agriculture 地区属性映射。
+ *
+ * 无 popGroups 数据（如裸 region）时 fallback 到旧地区属性映射，保证健壮性
+ * 且不破坏现有单元测试。
+ */
+export function computeFactionCliqueStrengthFromPops(
+  cliques: FactionCliqueState[],
+  regions: RegionState[],
+): FactionCliqueState[] {
+  const rawPower: Record<string, number> = {};
+  for (const c of cliques) rawPower[c.cliqueId] = 0;
+
+  let totalPower = 0;
+  for (const region of regions) {
+    if (!region.popGroups) continue;
+    for (const g of region.popGroups) {
+      const size = Math.max(0, g.size);
+      const wealth = Math.max(0, g.wealth);
+      for (const c of cliques) {
+        const aff = CLIQUE_POP_AFFINITY[c.cliqueId]?.[g.type] ?? 0;
+        if (aff <= 0) continue;
+        const power = size * wealth * aff;
+        rawPower[c.cliqueId] += power;
+        totalPower += power;
+      }
+    }
+  }
+
+  // 无 pop 数据或财富全 0 → fallback 旧地区属性映射（保现有测试 + 裸 region）
+  if (totalPower <= 0) {
+    return computeFactionCliqueStrength(cliques, regions);
+  }
+
+  return cliques.map((c) => ({
+    ...c,
+    strength: Math.round((rawPower[c.cliqueId] / totalPower) * 100),
+  }));
+}
+
+/**
+ * S3b: 计算集团 approval（对当前政策/处境的满意/不满，0-100）。
+ *
+ *   approval = 50 + clamp(avgSat−50, −30, +20) + 政策契合×3 − 显式加税×50
+ *
+ * 三路驱动，把 S2 的经济闭环接入政治：
+ *   1. 生活水平（封顶贡献）：加权平均归属 pop 的 needsSatisfaction，贡献钳在
+ *      [−30, +20]——富裕时 approval 偏高但不顶满，确保加税/饥荒仍能压到运动
+ *      阈值以下。这是 S2→S3 的齿轮（购买力→政治不满）。
+ *   2. 政策契合（×3）：当前 domesticFocus 与 clique policyAffinity 的方向。
+ *      玩家 focus=finance（整顿财政=加税）→ 反感加税的东林/缙绅 approval 降。
+ *   3. 显式加税（×50）：玩家写 tax-mult modifier（加税政策）直接重击。
+ *
+ * approval 与 support 正交：support 是历史执政支持（驱动 administration），
+ * approval 是当下处境感受（驱动政治运动 S3c）。无成员 pop 数据时生活水平锚 50。
+ */
+export function computeCliqueApproval(
+  cliqueId: FactionCliqueId,
+  focus: DomesticFocus,
+  regions: RegionState[],
+  defs: Record<FactionCliqueId, CliqueDef>,
+  modifiers: Modifier[] = [],
+  factionId?: FactionId,
+): number {
+  const affinity = defs[cliqueId]?.policyAffinities[focus] ?? 0;
+
+  // 成员 pop 生活水平（按亲和度×人口加权）—— approval 的主导信号
+  let satSum = 0;
+  let satWeight = 0;
+  for (const r of regions) {
+    if (!r.popGroups) continue;
+    for (const g of r.popGroups) {
+      const aff = CLIQUE_POP_AFFINITY[cliqueId]?.[g.type] ?? 0;
+      if (aff <= 0) continue;
+      const w = aff * Math.max(0, g.size);
+      satSum += g.needsSatisfaction * w;
+      satWeight += w;
+    }
+  }
+  const avgSat = satWeight > 0 ? satSum / satWeight : 50;
+
+  // 玩家显式加税（faction 级 tax-mult modifier）惩罚
+  const taxPressure = factionId
+    ? queryModifier(modifiers, "faction", factionId, "tax-mult")
+    : 0;
+
+  // 生活水平贡献钳在 [−30, +20]：sat=100 仅 +20（避免富裕时 approval 爆表，
+  // 让加税/饥荒仍能把 approval 压到运动阈值以下）；sat 低最多 −30。这样太平
+  // 盛世集团 approval 偏高但不顶满，一旦加税/整军/灾荒即可跌破 35 触发运动。
+  const satContrib = Math.max(-30, Math.min(20, avgSat - 50));
+
+  const approval = 50 + satContrib + affinity * 3 - taxPressure * 50;
+  return Math.max(0, Math.min(100, Math.round(approval)));
 }
 
 function focusLabel(focus: DomesticFocus): string {
