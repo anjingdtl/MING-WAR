@@ -12,7 +12,7 @@ import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueS
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
 import { mvpEvents } from "../data/events";
-import type { GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
+import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
