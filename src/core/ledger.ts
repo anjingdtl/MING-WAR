@@ -35,6 +35,7 @@ export type LedgerCategory =
   | "grain-transport-loss" // 运输损耗
   | "grain-trade"        // 粮食贸易
   | "grain-relief"       // 赈灾发放
+  | "grain-tribute"      // 漕粮上缴（民间→中央转移）
   | "military-casualties" // 军事损耗
   | "military-recruitment" // 募兵
   | "military-disbandment" // 复员
@@ -71,33 +72,47 @@ export function sumLedger(
 }
 
 /**
- * Apply ledger entries to faction/region state.
- * Treasury entries go to faction treasury, grain entries go to region stock or faction reserve.
+ * Apply ledger entries to faction/region state — the SOLE driver of treasury
+ * and grain balances (SPEC v2 S1c). Simulation pushes every fiscal/grain
+ * change as a ledger entry and calls this to settle; no scattered
+ * `treasury +=` / `grainReserve -=` exists elsewhere.
+ *
+ * Routing — each entry lands in exactly ONE balance, never two:
+ * - Silver (income-* / expense-*): faction.treasury += amount (by factionId).
+ * - Grain (grain-*): routed by target id —
+ *     • regionId present → region.grainStock (folk / local granary)
+ *     • else factionId   → faction.grainReserve (central strategic reserve)
+ *   A pool-to-pool transfer (relief, tribute) is recorded as TWO entries,
+ *   one per pool, so total grain is conserved. This fixes the latent
+ *   double-count where a grain entry carrying BOTH factionId and regionId
+ *   was added to reserve AND stock.
+ * - military-* / other: recorded for history & trend only, not applied
+ *   here (army headcount changes are handled directly in simulation).
  */
 export function applyLedgerToState(state: GameState, entries: LedgerEntry[]): void {
   for (const e of entries) {
-    if (e.factionId) {
+    const isSilver = e.category.startsWith("income-") || e.category.startsWith("expense-");
+    if (isSilver) {
+      if (!e.factionId) continue;
       const faction = state.factions[e.factionId];
-      if (!faction) continue;
-      // Income goes to treasury
-      if (e.category.startsWith("income-")) {
-        faction.treasury += e.amount;
-      }
-      // Expenses come out of treasury
-      else if (e.category.startsWith("expense-")) {
-        faction.treasury += e.amount; // e.amount is already negative
-      }
-      // Grain entries go to faction reserve if factionId specified
-      else if (e.category.startsWith("grain-") && e.goodId === "grain") {
-        faction.grainReserve += e.amount;
-      }
+      if (faction) faction.treasury += e.amount;
+      continue;
     }
+    if (!e.category.startsWith("grain-")) continue; // military-*, other → record-only
+    // Grain: single-pool routing. regionId wins (folk/local event); a
+    // reserve entry carries factionId only — so one entry never hits both.
+    // Grain pools are FLOORED at 0: grain is a physical stock, and a deficit
+    // must surface as famine through pop dynamics — NOT as a negative counter
+    // that makes computeGrainPerCapita negative and explodes death rates
+    // (the regression seen when unclamped grain ran to -millions). Silver
+    // (treasury) is intentionally NOT floored: negative = debt, allowed so
+    // Δtreasury stays exactly equal to the ledger silver net (SPEC v2 S1c).
     if (e.regionId) {
       const region = state.regions[e.regionId];
-      if (!region) continue;
-      if (e.category.startsWith("grain-") && e.goodId === "grain") {
-        region.grainStock += e.amount;
-      }
+      if (region) region.grainStock = Math.max(0, region.grainStock + e.amount);
+    } else if (e.factionId) {
+      const faction = state.factions[e.factionId];
+      if (faction) faction.grainReserve = Math.max(0, faction.grainReserve + e.amount);
     }
   }
 }

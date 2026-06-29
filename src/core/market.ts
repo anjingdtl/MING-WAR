@@ -1,4 +1,4 @@
-import type { GameState, GoodId, IndustryState, IndustryType, RegionId } from "./types";
+import type { GameState, GoodId, IndustryState, IndustryType, PopGroup, PopType, RegionId } from "./types";
 
 /**
  * Default base prices for goods (silver units per unit).
@@ -447,5 +447,87 @@ export function summarizeMarkets(markets: Record<RegionId, MarketState>): {
     totalSupply,
     highestPriceGood: highestGood ? { good: highestGood, price: highestPrice } : null,
     lowestPriceGood: lowestGood ? { good: lowestGood, price: lowestPrice } : null
+  };
+}
+
+/**
+ * Per-capita monthly need baskets by pop type (SPEC v2 S2a/S2b).
+ * Grain is the universal staple; elite types also demand cloth/tea/salt.
+ * The grain figure (0.065) matches the legacy economy consumption rate so
+ * total grain demand stays at the same magnitude as before — what changes
+ * is that the grain now flows through the market (supply → consumption)
+ * instead of being computed alongside it.
+ */
+export const POP_NEEDS: Record<PopType, Partial<Record<GoodId, number>>> = {
+  peasant: { grain: 0.065 },
+  tenant: { grain: 0.065 },
+  artisan: { grain: 0.065, cloth: 0.004 },
+  merchant: { grain: 0.065, cloth: 0.008, tea: 0.0015 },
+  gentry: { grain: 0.065, cloth: 0.012, tea: 0.004 },
+  official: { grain: 0.065, cloth: 0.015, tea: 0.006 },
+  soldier: { grain: 0.075, salt: 0.003 },
+  migrant: { grain: 0.05 }
+};
+
+/**
+ * Map an industry's ownership to the pop type that collects its profits
+ * (SPEC v2 S2c / §8.2). State-owned industries fund the treasury via taxation
+ * rather than a direct pop payout, so they map to undefined.
+ */
+export const INDUSTRY_OWNERSHIP_TO_POP: Record<IndustryState["ownership"], PopType | undefined> = {
+  state: undefined,
+  gentry: "gentry",
+  merchant: "merchant",
+  military: "soldier",
+  community: "peasant"
+};
+
+export interface PopConsumptionResult {
+  /** 0–100, value-weighted share of the need basket actually purchased. */
+  satisfaction: number;
+  consumed: Partial<Record<GoodId, number>>;
+  demand: Partial<Record<GoodId, number>>;
+}
+
+/**
+ * Pop groups purchase their need baskets from the regional market.
+ * Demand is aggregated by good, then withdrawn from supply (capped at what's
+ * available). Satisfaction is the value-weighted share of the basket the
+ * market could fill — the single source of pop living-standard (SPEC v2 S2a).
+ * This is the consumption side of the unified grain/goods flow: industry +
+ * agriculture fill supply, pops drain it, the residual becomes grainStock.
+ */
+export function consumePopNeeds(popGroups: PopGroup[], market: MarketState): PopConsumptionResult {
+  const demand: Record<string, number> = {};
+  let totalNeedValue = 0;
+  for (const g of popGroups) {
+    const needs = POP_NEEDS[g.type] ?? {};
+    for (const [good, perCap] of Object.entries(needs)) {
+      const qty = perCap * g.size;
+      demand[good] = (demand[good] ?? 0) + qty;
+      totalNeedValue += qty * BASE_PRICES[good as GoodId];
+    }
+  }
+
+  const consumed: Record<string, number> = {};
+  let satisfiedValue = 0;
+  for (const [good, qty] of Object.entries(demand)) {
+    const gid = good as GoodId;
+    market.demand[gid] = (market.demand[gid] ?? 0) + qty;
+    const avail = market.supply[gid] ?? 0;
+    const taken = Math.min(qty, avail);
+    consumed[good] = taken;
+    // NOTE: supply is NOT drained here. Supply represents this month's
+    // available output, used for price formation (supply/demand ratio) and
+    // for inter-regional trade (surplus = supply − demand). Draining it would
+    // collapse trade surpluses; consumption only records demand + filled qty.
+    satisfiedValue += taken * BASE_PRICES[gid];
+  }
+
+  const satisfaction = totalNeedValue > 0 ? Math.round((satisfiedValue / totalNeedValue) * 100) : 100;
+  return {
+    satisfaction,
+    consumed: consumed as Partial<Record<GoodId, number>>,
+    demand: demand as Partial<Record<GoodId, number>>
   };
 }

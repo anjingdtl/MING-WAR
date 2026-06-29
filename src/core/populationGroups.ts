@@ -1,4 +1,5 @@
-import type { PopType, PopGroup, RegionId, GameState } from "./types";
+import type { GoodId, PopType, PopGroup, RegionId, GameState } from "./types";
+import { POP_NEEDS, BASE_PRICES } from "./market";
 
 /**
  * Distribution profiles for initial population seeding by terrain.
@@ -15,10 +16,28 @@ const DEFAULT_DISTRIBUTION: Record<PopType, number> = {
   migrant: 0.04    // 流民
 };
 
+/**
+ * Monthly per-capita income by pop type (silver). Combined with the need
+ * basket cost at market prices, this drives wealth accumulation and the
+ * purchasing-power living standard (SPEC v2 S2b).
+ */
+export const POP_INCOME: Record<PopType, number> = {
+  peasant: 0.5,
+  tenant: 0.45,
+  artisan: 0.9,
+  merchant: 2.0,
+  gentry: 4.0,
+  official: 6.0,
+  soldier: 0.6,
+  migrant: 0.15
+};
+
 export interface PopDynamicsInput {
   region: { id: RegionId; population: number; stability: number; agriculture: number; taxCapacity: number; control: number; rebelPressure: number };
   grainPerCapita: number; // grain / population ratio
   taxRate: number;
+  /** Current market prices, used to price each pop's need basket (S2b). */
+  marketPrices?: Partial<Record<GoodId, number>>;
 }
 
 /**
@@ -115,13 +134,22 @@ export function advancePopGroups(groups: PopGroup[], input: PopDynamicsInput): P
     next.employed = Math.min(next.size, Math.round(next.size * (employmentCapacity / 100)));
     next.employment = next.employed; // alias for legacy fields
 
-    // Needs satisfaction based on grain availability & tax burden
-    const grainSatisfaction = Math.min(100, input.grainPerCapita * 100); // 1.0 = 100%
-    next.needsSatisfaction = Math.max(0, Math.round(
-      grainSatisfaction * 0.7 + (100 - next.taxBurden * 100) * 0.3
-    ));
+    // S2b: needsSatisfaction is a purchasing-power ratio — after-tax monthly
+    // income vs the cost of the need basket at current market prices. A dear
+    // harvest raises the basket cost and erodes living standards even before
+    // folk literally starve (grainPerCapita still drives famine death below).
+    // This is the Victoria-3 link: market price → purchasing power → SoL.
+    const needs = POP_NEEDS[next.type] ?? {};
+    const basketCost = Object.entries(needs).reduce(
+      (sum, [good, qty]) => sum + (qty as number) * (input.marketPrices?.[good as GoodId] ?? BASE_PRICES[good as GoodId]),
+      0
+    );
+    const income = (POP_INCOME[next.type] ?? 0.2) * (1 - next.taxBurden);
+    next.wealth = Math.max(0, Math.round((next.wealth + income - basketCost) * 100) / 100);
+    const purchasingPower = basketCost > 0 ? income / basketCost : 1;
+    next.needsSatisfaction = Math.max(0, Math.min(100, Math.round(purchasingPower * 50)));
 
-    // Subsistence
+    // Subsistence still tracks physical grain per capita (famine proxy).
     next.subsistence = Math.min(100, Math.round(input.grainPerCapita * 100));
 
     // Radicalism rises with famine, falls with stability
@@ -192,8 +220,11 @@ function combinePopGroups(groups: PopGroup[]): PopGroup[] {
  */
 export function computeGrainPerCapita(grainStock: number, totalPopulation: number): number {
   if (totalPopulation === 0) return 1;
-  // 1 person needs roughly 0.25 grain per month
-  return grainStock / (totalPopulation * 0.25);
+  // 1 person needs roughly 0.25 grain per month.
+  // Floor the stock at 0: a negative grainStock is a bookkeeping deficit,
+  // not "anti-food" — clamp it so the famine death-rate formula
+  // (0.4 - grainPerCapita) * 0.05 can't run away to catastrophic values.
+  return Math.max(0, grainStock) / (totalPopulation * 0.25);
 }
 
 /**

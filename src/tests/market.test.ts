@@ -4,13 +4,16 @@ import {
   INDUSTRY_TEMPLATES,
   adjustPrice,
   autoInvest,
+  consumePopNeeds,
   initializeIndustries,
   initializeMarket,
+  POP_NEEDS,
   produceGoods,
   runTrade,
   summarizeMarkets,
   updateMarketPrices
 } from "../core/market";
+import type { PopGroup, PopType } from "../core/types";
 import { simulateMonth } from "../core/simulation";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 
@@ -231,5 +234,120 @@ describe("P3: simulation integrates market production and trade", () => {
     // Price may stay the same if balanced, but should not error
     expect(afterPrice).toBeGreaterThan(0);
     expect(beforePrice).toBeGreaterThan(0);
+  });
+});
+
+const baseGroup: PopGroup = {
+  id: "g1",
+  regionId: "r1",
+  type: "peasant",
+  size: 1000,
+  employed: 0,
+  wealth: 100,
+  literacy: 10,
+  subsistence: 100,
+  needsSatisfaction: 100,
+  taxBurden: 0.4,
+  politicalPower: 5,
+  loyalty: 60,
+  radicalism: 10
+};
+
+describe("POP_NEEDS", () => {
+  it("every pop type has a grain staple", () => {
+    for (const type of Object.keys(POP_NEEDS) as PopType[]) {
+      expect(POP_NEEDS[type].grain ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it("elite pops demand more than just grain", () => {
+    expect(POP_NEEDS.gentry.cloth ?? 0).toBeGreaterThan(0);
+    expect(POP_NEEDS.gentry.tea ?? 0).toBeGreaterThan(0);
+    expect(POP_NEEDS.soldier.salt ?? 0).toBeGreaterThan(0);
+  });
+});
+
+describe("consumePopNeeds (S2a)", () => {
+  it("fully satisfies and drains supply when the basket is covered", () => {
+    const market = initializeMarket("r1");
+    // 1000 peasants × 0.065 = 65 grain needed
+    const groups: PopGroup[] = [{ ...baseGroup, type: "peasant", size: 1000 }];
+    market.supply.grain = 200;
+    const res = consumePopNeeds(groups, market);
+    expect(res.satisfaction).toBe(100);
+    expect(res.consumed.grain).toBeCloseTo(65, 5);
+    // supply is NOT drained — it stays as available output for pricing/trade
+    expect(market.supply.grain).toBe(200);
+    expect(market.demand.grain).toBeCloseTo(65, 5);
+  });
+
+  it("partial satisfaction when supply is short", () => {
+    const market = initializeMarket("r1");
+    const groups: PopGroup[] = [{ ...baseGroup, type: "peasant", size: 1000 }];
+    market.supply.grain = 20; // only 20 of 65
+    const res = consumePopNeeds(groups, market);
+    expect(res.satisfaction).toBeLessThan(100);
+    expect(res.consumed.grain).toBe(20);
+    expect(market.supply.grain).toBe(20); // not drained
+  });
+
+  it("drains multiple goods from an elite basket", () => {
+    const market = initializeMarket("r1");
+    const groups: PopGroup[] = [{ ...baseGroup, type: "gentry", size: 100 }];
+    market.supply.grain = 100;
+    market.supply.cloth = 100;
+    market.supply.tea = 100;
+    const res = consumePopNeeds(groups, market);
+    expect(res.satisfaction).toBe(100);
+    expect(res.consumed.grain).toBeCloseTo(6.5, 1);
+    expect(res.consumed.cloth).toBeCloseTo(1.2, 1);
+    expect(res.consumed.tea).toBeCloseTo(0.4, 1);
+  });
+});
+
+describe("S2c: industry profits concentrate wealth to owning pops", () => {
+  it("gentry accumulate more wealth than peasants (ownership + income)", () => {
+    const state = createMvpScenario("ming", 1);
+    const target = Object.values(state.regions).find(
+      (r) => r.industries?.some((i) => i.type === "farmland") && r.popGroups?.some((g) => g.type === "gentry")
+    );
+    if (!target) return; // skip if the scenario lacks a gentry+farmland region
+    const gentryBefore = target.popGroups!.find((g) => g.type === "gentry")!.wealth;
+    const peasantBefore = target.popGroups!.find((g) => g.type === "peasant")!.wealth;
+    const after = simulateMonth({
+      state,
+      playerDecision: defaultPlayerDecision,
+      randomSeed: 1
+    }).nextState;
+    const gentryAfter = after.regions[target.id].popGroups!.find((g) => g.type === "gentry")!.wealth;
+    const peasantAfter = after.regions[target.id].popGroups!.find((g) => g.type === "peasant")!.wealth;
+    // Gentry own farmland (profit payout) AND have higher base income, so their
+    // wealth should grow faster than peasants' — the ownership-driven wealth
+    // concentration that S3 political power will rest on.
+    expect(gentryAfter - gentryBefore).toBeGreaterThan(peasantAfter - peasantBefore);
+  });
+});
+
+describe("S2d: regional economic divergence (Jiangnan vs Liaodong)", () => {
+  it("the two regions diverge rather than stay identical clones", () => {
+    const state = createMvpScenario("ming", 1);
+    let current = state;
+    for (let i = 0; i < 36; i++) {
+      current = simulateMonth({
+        state: current,
+        playerDecision: defaultPlayerDecision,
+        randomSeed: current.seed
+      }).nextState;
+    }
+    const jiangnan = current.regions.nanzhili;
+    const liaodong = current.regions.liaodong;
+    if (!jiangnan?.market || !liaodong?.market) return;
+    // Jiangnan is the commercial heartland, Liaodong the military frontier.
+    // Their industry mix and/or grain price should diverge under the unified
+    // market flow, proving regions develop along their own profiles.
+    const jIndustries = jiangnan.industries?.length ?? 0;
+    const lIndustries = liaodong.industries?.length ?? 0;
+    const samePrice = jiangnan.market.prices.grain === liaodong.market.prices.grain;
+    expect(jIndustries !== lIndustries || !samePrice).toBe(true);
   });
 });

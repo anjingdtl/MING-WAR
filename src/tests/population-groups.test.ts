@@ -78,8 +78,11 @@ describe("advancePopGroups", () => {
     }
     const advanced = advancePopGroups(groups, {
       region: { id: "test", population: 10000, stability: 50, agriculture: 50, taxCapacity: 50, control: 50, rebelPressure: 0 },
-      grainPerCapita: 0.1, // Severe famine forces needsSatisfaction well below 30
-      taxRate: 0.5
+      grainPerCapita: 0.1,
+      taxRate: 0.5,
+      // S2b: a sky-high grain price crashes peasant purchasing power
+      // (basket cost >> income) → low needsSatisfaction → radicalism → migration.
+      marketPrices: { grain: 10 }
     });
     // Migrant count should be > initial
     const initialMigrants = groups.find((g) => g.type === "migrant")!.size;
@@ -100,11 +103,56 @@ describe("advancePopGroups", () => {
     const advanced = advancePopGroups(groups, {
       region: { id: "test", population: 10000, stability: 50, agriculture: 50, taxCapacity: 50, control: 50, rebelPressure: 0 },
       grainPerCapita: 0.1,
-      taxRate: 0.5
+      taxRate: 0.5,
+      marketPrices: { grain: 10 } // trigger radicalization via S2b purchasing power
     });
     const after = sumPopulation(advanced);
     // 流民化必须守恒：总人口不得因身份转化而增加（仅允许饥荒死亡的减少）
     expect(after).toBeLessThanOrEqual(before);
+  });
+
+  it("S2b: a dear harvest crashes purchasing power and living standard", () => {
+    const input = (grainPrice: number) => ({
+      region: { id: "test", population: 10000, stability: 80, agriculture: 60, taxCapacity: 50, control: 80, rebelPressure: 0 },
+      grainPerCapita: 2,
+      taxRate: 0.3,
+      marketPrices: { grain: grainPrice }
+    });
+    const cheap = advancePopGroups(initializePopGroups("test", 10000), input(1)).find((g) => g.type === "peasant")!;
+    const dear = advancePopGroups(initializePopGroups("test", 10000), input(10)).find((g) => g.type === "peasant")!;
+    // Sky-high grain price → basket cost >> income → lower purchasing-power SoL
+    expect(dear.needsSatisfaction).toBeLessThan(cheap.needsSatisfaction);
+  });
+
+  it("S2b: wealth accumulates when income exceeds the basket cost", () => {
+    const groups = initializePopGroups("test", 10000);
+    const before = groups.find((g) => g.type === "peasant")!.wealth;
+    const advanced = advancePopGroups(groups, {
+      region: { id: "test", population: 10000, stability: 80, agriculture: 60, taxCapacity: 50, control: 80, rebelPressure: 0 },
+      grainPerCapita: 2,
+      taxRate: 0.3,
+      marketPrices: { grain: 1 }
+    });
+    const after = advanced.find((g) => g.type === "peasant")!.wealth;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it("S2d: a sustained dear harvest radicalizes peasants", () => {
+    let groups = initializePopGroups("test", 10000);
+    const startRad = groups.find((g) => g.type === "peasant")!.radicalism;
+    for (let i = 0; i < 6; i++) {
+      groups = advancePopGroups(groups, {
+        region: { id: "test", population: 10000, stability: 80, agriculture: 60, taxCapacity: 50, control: 80, rebelPressure: 0 },
+        grainPerCapita: 2,
+        taxRate: 0.3,
+        marketPrices: { grain: 10 }
+      });
+    }
+    const endRad = groups.find((g) => g.type === "peasant")!.radicalism;
+    // Months of sky-high grain price → basket cost >> income → low SoL →
+    // radicalism climbs. This is the full S2 chain: price → purchasing
+    // power → living standard → unrest.
+    expect(endRad).toBeGreaterThan(startRad);
   });
 });
 

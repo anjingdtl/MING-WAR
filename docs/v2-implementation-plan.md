@@ -95,8 +95,11 @@
 
 - [x] 回归 fix（7 类缺陷，见 SPEC v2 §1）
 - [x] SPEC v2 + 本 PLAN
-- [ ] S1a 修正查询接口 + 税收接入
-- [ ] S1b 扩展修正接入面
-- [ ] S1c 账本驱动财政
-- [ ] S2a–S2d 市场整合（视 S1 进度）
+- [x] S1a 修正查询接口 + 税收接入
+- [x] S1b 扩展修正接入面
+- [x] S1c 账本驱动财政（applyLedgerToState 修双重记账；散点加减清零；Δtreasury===账本净额 不变量测试通过）
+- [x] S2a 统一粮食流（产业+农业→市场 supply，pop 篮子→demand，价格真实化，consumePopNeeds 不扣 supply）
+- [x] S2b pop 财富积累与分化（needsSatisfaction=购买力，wealth 月累积，famine 仍由 grainPerCapita）
+- [x] S2c 白银货币约束（产业利润按 ownership 流向 pop，财富分化为 S3 政治力量铺路）
+- [x] S2d 因果链测试（粮价→购买力→激进化；江南 vs 辽东分化；全量回归 300 测试 + batch errorRuns=0）
 - 每项附单元测试 + 回归验证

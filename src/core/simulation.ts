@@ -11,7 +11,7 @@ import { resolveBattle, advanceWar } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
-import type { LedgerEntry } from "./ledger";
+import { applyLedgerToState, type LedgerEntry } from "./ledger";
 import {
   advancePopGroups,
   computeGrainPerCapita,
@@ -20,6 +20,10 @@ import {
 } from "./populationGroups";
 import {
   autoInvest,
+  BASE_PRICES,
+  consumePopNeeds,
+  INDUSTRY_OWNERSHIP_TO_POP,
+  INDUSTRY_TEMPLATES,
   produceGoods,
   runTrade,
   summarizeMarkets,
@@ -58,12 +62,104 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     nextRegion = rebellion.region;
     nextRegion = applyRebellionConsequences(nextRegion, controller, reports, state.currentDate, state);
     state.regions[region.id] = nextRegion;
-    controller.treasury += economy.treasuryDelta;
-    // NOTE: the regional grain delta already updates region.grainStock inside
-    // calculateRegionEconomy. We deliberately do NOT also add it to the
-    // controller's grainReserve — that double-counted the same grain (grain
-    // was effectively spent twice) and violated SPEC §5.2. The central
-    // reserve now only shrinks via army maintenance and relief transfers.
+
+    // S1c: settle regional production / consumption / tax through the ledger.
+    // economy no longer mutates grainStock; the delta is applied here as grain
+    // entries (region pool) and tax (faction treasury). Applying immediately
+    // keeps the relief/popGroups/tribute logic below reading up-to-date
+    // balances — same timing as before, just routed through one function
+    // instead of scattered `+=`. This makes the ledger the sole truth source
+    // for treasury & grain, satisfying SPEC §21.2 Δtreasury === ledger net.
+    const econEntries: LedgerEntry[] = [];
+    if (economy.grainProduced > 0) {
+      econEntries.push({
+        category: "grain-production",
+        source: `${region.name} 农业产出`,
+        amount: economy.grainProduced,
+        regionId: region.id,
+        goodId: "grain"
+      });
+    }
+    if (economy.grainConsumed > 0) {
+      econEntries.push({
+        category: "grain-consumption",
+        source: `${region.name} 口粮消费`,
+        amount: -economy.grainConsumed,
+        regionId: region.id,
+        goodId: "grain"
+      });
+    }
+    if (economy.treasuryDelta !== 0) {
+      econEntries.push({
+        category: economy.treasuryDelta > 0 ? "income-tax" : "expense-bureaucrat",
+        source: `${region.name} 田赋`,
+        amount: economy.treasuryDelta,
+        factionId: controller.id,
+        regionId: region.id
+      });
+    }
+    applyLedgerToState(state, econEntries);
+    ledgerEntries.push(...econEntries);
+
+    // S2a: unified goods flow — industry + agriculture output fills market
+    // supply, pop groups register their need baskets as demand. The market is
+    // now the single venue where grain & goods move; prices reflect real
+    // supply/demand instead of a synthetic injected constant. grainStock still
+    // settles via the ledger above, so pop famine / relief behavior is
+    // unchanged — wealth-driven purchasing power arrives in S2b.
+    if (nextRegion.market) {
+      for (const good of Object.keys(nextRegion.market.supply) as GoodId[]) {
+        nextRegion.market.supply[good] = 0;
+        nextRegion.market.demand[good] = 0;
+        nextRegion.market.imports[good] = 0;
+        nextRegion.market.exports[good] = 0;
+      }
+      const prodResult = nextRegion.industries
+        ? produceGoods(nextRegion.industries, nextRegion.market, nextRegion, nextRegion.activeDisasters ?? [])
+        : null;
+      // Route agricultural grain output through the market (the economy module
+      // computes total farm output; S2a sends it to supply rather than only
+      // to grainStock, so market grain price reflects the harvest).
+      if (economy.grainProduced > 0) {
+        nextRegion.market.supply.grain += economy.grainProduced;
+      }
+      if (nextRegion.popGroups && nextRegion.popGroups.length > 0) {
+        consumePopNeeds(nextRegion.popGroups, nextRegion.market);
+      }
+      // Garrison rations are a separate grain demand on the market.
+      const garrisonGrain = nextRegion.garrison * 0.1;
+      if (garrisonGrain > 0) {
+        nextRegion.market.demand.grain += garrisonGrain;
+      }
+      // S2c: route industry profits to the pop groups that own them. Wealth
+      // concentrates by ownership (gentry←farmland, merchant←market town,
+      // soldier←military town, peasant←community works) — the political-power
+      // base for S3 cliques. State-owned industries fund the treasury through
+      // taxation instead, so they have no direct pop payout here.
+      if (prodResult && nextRegion.popGroups) {
+        for (const r of prodResult.results) {
+          const ind = nextRegion.industries?.find((i) => i.id === r.industryId);
+          if (!ind) continue;
+          const tpl = INDUSTRY_TEMPLATES[ind.type];
+          if (!tpl) continue;
+          const prices = nextRegion.market.prices;
+          const outPrice = prices[tpl.output] ?? BASE_PRICES[tpl.output];
+          const revenue = r.actualOutput * outPrice;
+          const inputCost = Object.entries(tpl.inputs).reduce(
+            (s, [g, q]) => s + (q as number) * ind.level * (prices[g as GoodId] ?? BASE_PRICES[g as GoodId]),
+            0
+          );
+          const profit = revenue - inputCost;
+          if (profit <= 0) continue;
+          const ownerType = INDUSTRY_OWNERSHIP_TO_POP[ind.ownership];
+          if (!ownerType) continue;
+          const owners = nextRegion.popGroups.find((g) => g.type === ownerType);
+          if (owners && owners.size > 0) {
+            owners.wealth = Math.round((owners.wealth + profit / owners.size) * 100) / 100;
+          }
+        }
+      }
+    }
 
     // P2: advance pop groups (employment, needs satisfaction, famine deaths, identity transitions)
     if (nextRegion.popGroups && nextRegion.popGroups.length > 0) {
@@ -76,12 +172,19 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       if (nextRegion.grainStock < reliefThreshold && controller.grainReserve > 0) {
         const target = nextRegion.population * 0.25; // ~one month of folk consumption
         const needed = Math.max(0, target - nextRegion.grainStock);
-        // Cap each region's monthly draw at 8% of the reserve so a single
+        // Cap each region's monthly draw at 5% of the reserve so a single
         // starving province can't drain the whole empire in one tick.
         const transfer = Math.min(needed, controller.grainReserve * 0.05);
         if (transfer > 0) {
-          nextRegion.grainStock += transfer;
-          controller.grainReserve = Math.max(0, controller.grainReserve - transfer);
+          // S1c: relief is a reserve→folk grain transfer, booked as two grain
+          // entries (central −, region +) so total grain is conserved and the
+          // ledger stays the single source of truth.
+          const reliefEntries: LedgerEntry[] = [
+            { category: "grain-relief", source: `${region.name} 赈灾支取`, amount: -transfer, factionId: controller.id, goodId: "grain" },
+            { category: "grain-relief", source: `${region.name} 赈灾到户`, amount: transfer, regionId: region.id, goodId: "grain" }
+          ];
+          applyLedgerToState(state, reliefEntries);
+          ledgerEntries.push(...reliefEntries);
         }
       }
       const grainPerCapita = computeGrainPerCapita(
@@ -91,7 +194,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       nextRegion.popGroups = advancePopGroups(nextRegion.popGroups, {
         region: nextRegion,
         grainPerCapita,
-        taxRate: 0.3
+        taxRate: 0.3,
+        marketPrices: nextRegion.market?.prices
       });
       // Sync total population from groups
       const totalFromGroups = sumPopulation(nextRegion.popGroups);
@@ -103,32 +207,17 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       if (grainSurplus > 0 && controller.id !== "rebels") {
         const tribute = Math.round(grainSurplus * 0.12);
         if (tribute > 0) {
-          nextRegion.grainStock -= tribute;
-          controller.grainReserve += tribute;
+          // S1c: 漕粮 is a folk→reserve transfer, two grain entries
+          // (region −, central +), grain-conserving, ledger-driven.
+          const tributeEntries: LedgerEntry[] = [
+            { category: "grain-tribute", source: `${region.name} 漕粮上缴`, amount: -tribute, regionId: region.id, goodId: "grain" },
+            { category: "grain-tribute", source: `${controller.name} 漕粮入储`, amount: tribute, factionId: controller.id, goodId: "grain" }
+          ];
+          applyLedgerToState(state, tributeEntries);
+          ledgerEntries.push(...tributeEntries);
         }
       }
       state.regions[region.id] = nextRegion;
-    }
-
-    // P1: record ledger entries (income from grain & tax, grain consumption)
-    if (economy.treasuryDelta !== 0) {
-      ledgerEntries.push({
-        category: economy.treasuryDelta > 0 ? "income-tax" : "expense-bureaucrat",
-        source: `${region.name} 收支`,
-        amount: economy.treasuryDelta,
-        factionId: controller.id,
-        regionId: region.id
-      });
-    }
-    if (economy.grainDelta !== 0) {
-      ledgerEntries.push({
-        category: economy.grainDelta > 0 ? "grain-production" : "grain-consumption",
-        source: `${region.name} 粮食`,
-        amount: economy.grainDelta,
-        factionId: controller.id,
-        regionId: region.id,
-        goodId: "grain"
-      });
     }
 
     if (population.deaths > 0 || population.migrants > 0) {
@@ -157,12 +246,25 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   for (const faction of Object.values(state.factions)) {
     if (faction.status !== "active") continue;
     const maintenance = calculateFactionMaintenance(faction, state.activeModifiers);
-    // Detect deficit against pre-deduction balance; clamp at 0 after
-    // deducting so treasury/grainReserve can never go negative (previously
-    // Ming's grain reserve ran to -109M and treasury to -11M).
-    const inDeficit = faction.treasury - maintenance.treasuryCost < 0;
-    faction.treasury = Math.max(0, faction.treasury - maintenance.treasuryCost);
-    faction.grainReserve = Math.max(0, faction.grainReserve - maintenance.grainCost);
+    const treasuryBefore = faction.treasury;
+    // S1c: maintenance settled through the ledger — army pay and bureaucracy
+    // booked as separate expense categories, army grain as faction-reserve
+    // consumption. No clamp: limited debt is allowed (invariants.ts floors
+    // catch runaway negatives), so Δtreasury stays exactly equal to the
+    // ledger silver net.
+    const maintEntries: LedgerEntry[] = [];
+    if (maintenance.bureaucratCost !== 0) {
+      maintEntries.push({ category: "expense-bureaucrat", source: `${faction.name} 官僚俸禄`, amount: -maintenance.bureaucratCost, factionId: faction.id });
+    }
+    if (maintenance.armyPayCost !== 0) {
+      maintEntries.push({ category: "expense-army-pay", source: `${faction.name} 军饷`, amount: -maintenance.armyPayCost, factionId: faction.id });
+    }
+    if (maintenance.grainCost !== 0) {
+      maintEntries.push({ category: "grain-consumption", source: `${faction.name} 军粮`, amount: -maintenance.grainCost, factionId: faction.id, goodId: "grain" });
+    }
+    applyLedgerToState(state, maintEntries);
+    ledgerEntries.push(...maintEntries);
+    const inDeficit = treasuryBefore < maintenance.treasuryCost;
 
     // 和平期征募：财政宽裕且战疲较低时，按控制区人口比例缓慢补充兵员，
     // 避免军队在长期边境消耗中归零（此前 armyTotal 只减不增，30 年模拟
@@ -179,27 +281,16 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       const recruit = Math.min(Math.round(armyTarget - faction.armyTotal), Math.round(armyTarget * 0.005));
       const recruitCost = Math.round(recruit * 0.5);
       if (recruit > 0 && faction.treasury >= recruitCost) {
+        // S1c: recruitment silver cost via ledger; headcount applied directly
+        // (army size is not a ledger balance).
+        const recruitEntries: LedgerEntry[] = [
+          { category: "military-recruitment", source: `${faction.name} 募兵`, amount: recruit, factionId: faction.id },
+          { category: "expense-army-pay", source: `${faction.name} 募兵安家银`, amount: -recruitCost, factionId: faction.id }
+        ];
+        applyLedgerToState(state, recruitEntries);
+        ledgerEntries.push(...recruitEntries);
         faction.armyTotal += recruit;
-        faction.treasury -= recruitCost;
       }
-    }
-    // P1: record faction maintenance as ledger entries
-    if (maintenance.treasuryCost !== 0) {
-      ledgerEntries.push({
-        category: "expense-bureaucrat",
-        source: `${faction.name} 官僚俸禄`,
-        amount: -maintenance.treasuryCost,
-        factionId: faction.id
-      });
-    }
-    if (maintenance.grainCost !== 0) {
-      ledgerEntries.push({
-        category: "grain-consumption",
-        source: `${faction.name} 粮食储备消耗`,
-        amount: -maintenance.grainCost,
-        factionId: faction.id,
-        goodId: "grain"
-      });
     }
     if (inDeficit) {
       faction.warExhaustion = Math.min(100, faction.warExhaustion + 4);
@@ -281,35 +372,16 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     }
   }
 
-  // P3: produce goods, run inter-regional trade, update market prices, auto-invest
+  // P3: inter-regional trade, price update, auto-invest. Per-region production
+  // and pop consumption now run inside the region loop above (S2a unified
+  // flow); here we only propagate goods between connected regions and settle
+  // prices from the supply/demand snapshots each region already filled.
   const marketsByRegion: Record<string, import("./market").MarketState> = {};
   const industriesByRegion: Record<string, import("./types").IndustryState[]> = {};
   for (const region of Object.values(state.regions)) {
     if (!region.market) continue;
-    // Reset this month's supply/demand snapshot. Previously supply only ever
-    // accumulated (never reset) and demand stayed at 0, so adjustPrice() hit
-    // its `demand === 0` early-return every tick and prices stayed frozen at
-    // base — the entire P3 market was inert (batch showed grainPrice=1.00 and
-    // silverStock=1000 forever).
-    for (const good of Object.keys(region.market.supply) as GoodId[]) {
-      region.market.supply[good] = 0;
-      region.market.demand[good] = 0;
-      region.market.imports[good] = 0;
-      region.market.exports[good] = 0;
-    }
     marketsByRegion[region.id] = region.market;
     industriesByRegion[region.id] = region.industries ?? [];
-    if (region.industries) {
-      produceGoods(region.industries, region.market, region, region.activeDisasters ?? []);
-    }
-    // Inject market consumption demand so prices respond to scarcity. The
-    // coefficient is small because folk food is already settled by the
-    // economy module against region.grainStock — this demand represents the
-    // *market-traded* share, scaled to match industry output magnitude so
-    // supply/demand ratios stay near 1.0 (and prices stay bounded).
-    region.market.demand.grain = region.population * 0.00003;
-    region.market.demand.cloth = region.population * 0.00002;
-    region.market.demand.salt = region.population * 0.00001;
   }
   runTrade(state, marketsByRegion);
   updateMarketPrices(marketsByRegion);

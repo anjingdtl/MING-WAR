@@ -15,11 +15,13 @@ describe("population", () => {
 });
 
 describe("economy", () => {
-  it("collects taxes and updates grain stock", () => {
+  it("collects taxes and computes a grain delta without mutating stock", () => {
     const state = createMvpScenario();
     const result = calculateRegionEconomy(state.regions.nanzhili, state.factions.ming, "finance");
     expect(result.taxCollected).toBeGreaterThan(0);
-    expect(result.region.grainStock).not.toBe(state.regions.nanzhili.grainStock);
+    expect(result.grainProduced).toBeGreaterThan(0);
+    // S1c: economy no longer mutates grainStock — the ledger applies it.
+    expect(result.region.grainStock).toBe(state.regions.nanzhili.grainStock);
   });
 
   it("charges military and bureaucracy maintenance", () => {

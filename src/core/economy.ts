@@ -52,11 +52,14 @@ export function calculateRegionEconomy(
         taxMult
     )
   );
+  // S1c: region.grainStock is NO LONGER mutated here. The grain delta is
+  // returned as separate production/consumption figures and applied to state
+  // exclusively via ledger entries + applyLedgerToState, making the ledger
+  // the single source of truth for grain balances. (Previously economy
+  // mutated grainStock directly AND the ledger recorded the same delta, so
+  // activating applyLedgerToState would have applied it twice.)
   return {
-    region: {
-      ...region,
-      grainStock: Math.max(0, region.grainStock + grainProduced - grainConsumed)
-    },
+    region,
     grainProduced,
     grainConsumed,
     taxCollected,
@@ -65,7 +68,10 @@ export function calculateRegionEconomy(
   };
 }
 
-export function calculateFactionMaintenance(faction: FactionState, modifiers: Modifier[] = []): { treasuryCost: number; grainCost: number } {
+export function calculateFactionMaintenance(
+  faction: FactionState,
+  modifiers: Modifier[] = []
+): { treasuryCost: number; grainCost: number; bureaucratCost: number; armyPayCost: number } {
   // Per-soldier pay scales with regime type: tribal levies are cheap
   // (部族动员), rebel bands barely paid (流民武装), while dynasties carry
   // professional garrisons. Previous flat rate (armyTotal*1.8) made Ming's
@@ -84,8 +90,16 @@ export function calculateFactionMaintenance(faction: FactionState, modifiers: Mo
   const grainPerSoldier = faction.type === "tribal" ? 0.05 : 0.08;
   // S1b: maintenance-mult modifier (e.g. 募兵改革/欠饷) scales both silver and grain upkeep.
   const maintMult = 1 + queryModifier(modifiers, "faction", faction.id, "maintenance-mult");
+  // S1c: split silver upkeep into army pay + bureaucracy so the ledger can
+  // book them under distinct categories (expense-army-pay / expense-bureaucrat).
+  // treasuryCost === armyPayCost + bureaucratCost exactly, keeping the
+  // Δtreasury === ledger silver-net invariant tight.
+  const armyPayCost = Math.round(faction.armyTotal * costPerSoldier * maintMult);
+  const bureaucratCost = Math.round(faction.administration * adminCost * maintMult);
   return {
-    treasuryCost: Math.round((faction.armyTotal * costPerSoldier + faction.administration * adminCost) * maintMult),
+    treasuryCost: armyPayCost + bureaucratCost,
+    armyPayCost,
+    bureaucratCost,
     grainCost: Math.round(faction.armyTotal * grainPerSoldier * maintMult)
   };
 }

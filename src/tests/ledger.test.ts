@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateLedger,
+  applyLedgerToState,
   buildFiscalTrend,
   buildGrainTrend,
   explainValue,
@@ -136,5 +137,76 @@ describe("P1: simulation records monthly ledger", () => {
     expect(current.ledgerHistory!.length).toBe(12);
     const trend = buildFiscalTrend(current.ledgerHistory!);
     expect(trend.length).toBe(12);
+  });
+});
+
+describe("S1c: ledger is the sole driver of treasury & grain", () => {
+  it("every faction's Δtreasury equals its ledger silver net", () => {
+    const state = createMvpScenario("ming", 1);
+    const before: Record<string, number> = {};
+    for (const [id, f] of Object.entries(state.factions)) before[id] = f.treasury;
+    const after = simulateMonth({
+      state,
+      playerDecision: defaultPlayerDecision,
+      randomSeed: 1
+    }).nextState;
+    const month = after.ledgerHistory![after.ledgerHistory!.length - 1];
+    for (const [id, f] of Object.entries(after.factions)) {
+      const silverNet = sumLedger(
+        month.entries,
+        (e) =>
+          e.factionId === id &&
+          (e.category.startsWith("income-") || e.category.startsWith("expense-"))
+      );
+      expect(f.treasury - before[id]).toBe(silverNet);
+    }
+  });
+
+  it("applyLedgerToState routes a grain entry to a single pool (no double count)", () => {
+    const state = createMvpScenario("ming", 1);
+    const mingReserveBefore = state.factions.ming.grainReserve;
+    const regionStockBefore = state.regions.nanzhili.grainStock;
+    // A grain entry carrying BOTH factionId and regionId must hit the region
+    // pool only — NOT also the faction reserve (the latent double-count that
+    // S1c fixes). Total grain added across pools = amount, exactly once.
+    applyLedgerToState(state, [
+      {
+        category: "grain-production",
+        source: "test",
+        amount: 500,
+        factionId: "ming",
+        regionId: "nanzhili",
+        goodId: "grain"
+      }
+    ]);
+    expect(state.regions.nanzhili.grainStock).toBe(regionStockBefore + 500);
+    expect(state.factions.ming.grainReserve).toBe(mingReserveBefore);
+  });
+
+  it("silver entries with regionId only touch the faction treasury", () => {
+    const state = createMvpScenario("ming", 1);
+    const treasuryBefore = state.factions.ming.treasury;
+    applyLedgerToState(state, [
+      {
+        category: "income-tax",
+        source: "test",
+        amount: 300,
+        factionId: "ming",
+        regionId: "nanzhili"
+      }
+    ]);
+    expect(state.factions.ming.treasury).toBe(treasuryBefore + 300);
+  });
+
+  it("a relief transfer (two entries) is grain-conserving", () => {
+    const state = createMvpScenario("ming", 1);
+    const reserveBefore = state.factions.ming.grainReserve;
+    const stockBefore = state.regions.nanzhili.grainStock;
+    applyLedgerToState(state, [
+      { category: "grain-relief", source: "central −", amount: -120, factionId: "ming", goodId: "grain" },
+      { category: "grain-relief", source: "folk +", amount: 120, regionId: "nanzhili", goodId: "grain" }
+    ]);
+    expect(state.factions.ming.grainReserve).toBe(reserveBefore - 120);
+    expect(state.regions.nanzhili.grainStock).toBe(stockBefore + 120);
   });
 });
