@@ -1,6 +1,6 @@
 import type { MapRegionShape } from "../mapTypes";
 
-export const mapRegions: MapRegionShape[] = [
+export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "beizhili",
     "paths": [
@@ -284,3 +284,5 @@ export const mapRegions: MapRegionShape[] = [
     "isEnclave": true
   }
 ];
+
+
