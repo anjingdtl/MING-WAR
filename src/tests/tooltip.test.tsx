@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Tooltip } from "../ui/common/Tooltip";
 
@@ -19,9 +19,7 @@ describe("Tooltip", () => {
       </Tooltip>
     );
     fireEvent.mouseEnter(screen.getByText("触发"));
-    // After delay
-    await new Promise((r) => setTimeout(r, 80));
-    expect(screen.queryByRole("tooltip")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeTruthy());
   });
 
   it("hides on mouseLeave", async () => {
@@ -32,10 +30,9 @@ describe("Tooltip", () => {
     );
     const btn = screen.getByText("T");
     fireEvent.mouseEnter(btn);
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByRole("tooltip")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeTruthy());
     fireEvent.mouseLeave(btn);
-    expect(screen.queryByRole("tooltip")).toBeFalsy();
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeFalsy());
   });
 
   it("renders title when provided", async () => {
@@ -45,8 +42,7 @@ describe("Tooltip", () => {
       </Tooltip>
     );
     fireEvent.mouseEnter(screen.getByText("T"));
-    await new Promise((r) => setTimeout(r, 40));
-    const tip = screen.getByRole("tooltip");
+    const tip = await screen.findByRole("tooltip");
     expect(tip.textContent).toContain("标题");
     expect(tip.textContent).toContain("内容");
   });
@@ -58,9 +54,7 @@ describe("Tooltip", () => {
       </Tooltip>
     );
     fireEvent.mouseEnter(screen.getByText("T"));
-    await new Promise((r) => setTimeout(r, 80));
-    const tooltip = document.querySelector(".ming-tooltip--predict");
-    expect(tooltip).toBeTruthy();
+    await waitFor(() => expect(document.querySelector(".ming-tooltip--predict")).toBeTruthy());
   });
 
   it("does not show when disabled", async () => {
