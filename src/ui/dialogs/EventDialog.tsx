@@ -1,11 +1,29 @@
 import type { GameEvent } from "../../core/eventEngine";
-import { resolveEventVisual } from "../../data/eventVisuals";
-import eventScenesUrl from "../../assets/art/ming-event-scenes.png";
+import { resolveEventVisual, type EventVisualType } from "../../data/eventVisuals";
+import disasterUrl from "../../assets/art/event-disaster.png";
+import diplomaticUrl from "../../assets/art/event-diplomatic.png";
+import economicUrl from "../../assets/art/event-economic.png";
+import frontierUrl from "../../assets/art/event-frontier.png";
+import intrigueUrl from "../../assets/art/event-intrigue.png";
+import militaryUrl from "../../assets/art/event-military.png";
+import politicalUrl from "../../assets/art/event-political.png";
+import popularUrl from "../../assets/art/event-popular.png";
 
 interface EventDialogProps {
   event: GameEvent | null;
   onResolve: (optionId: string) => void;
 }
+
+const eventIllustrations: Record<EventVisualType, string> = {
+  political: politicalUrl,
+  popular: popularUrl,
+  military: militaryUrl,
+  disaster: disasterUrl,
+  economic: economicUrl,
+  diplomatic: diplomaticUrl,
+  frontier: frontierUrl,
+  intrigue: intrigueUrl
+};
 
 export function EventDialog({ event, onResolve }: EventDialogProps) {
   if (!event) return null;
@@ -15,7 +33,7 @@ export function EventDialog({ event, onResolve }: EventDialogProps) {
     <div className="dialog-backdrop" role="dialog" aria-modal="true">
       <section className="event-dialog">
         <div className={`event-art event-art--${visual.type}`} data-visual-type={visual.type}>
-          <img src={eventScenesUrl} alt={visual.alt} />
+          <img src={eventIllustrations[visual.assetKey]} alt={visual.alt} />
         </div>
         <div className="event-copy">
           <span>{categoryLabel(event.category)}</span>

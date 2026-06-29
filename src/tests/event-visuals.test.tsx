@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { mvpEvents } from "../data/events";
-import { resolveEventVisual } from "../data/eventVisuals";
+import { resolveEventVisual, visualFamilies } from "../data/eventVisuals";
 import { EventDialog } from "../ui/dialogs/EventDialog";
 
 describe("event visuals", () => {
@@ -15,6 +15,7 @@ describe("event visuals", () => {
     const visualTypes = [...new Set(mvpEvents.map((event) => resolveEventVisual(event).type))];
 
     expect(visualTypes).toEqual(expect.arrayContaining(["political", "popular", "military", "disaster"]));
+    expect(Object.keys(visualFamilies)).toHaveLength(8);
   });
 
   it("classifies representative events by theme", () => {
@@ -33,6 +34,8 @@ describe("event visuals", () => {
     const { container } = render(<EventDialog event={event} onResolve={() => undefined} />);
 
     expect(container.querySelector(".event-art--military")).not.toBeNull();
-    expect(screen.getByRole("img", { name: /军事事件/ })).not.toBeNull();
+    const image = screen.getByRole("img", { name: /军事事件/ });
+    expect(image).not.toBeNull();
+    expect(image.getAttribute("src")).toContain("event-military");
   });
 });

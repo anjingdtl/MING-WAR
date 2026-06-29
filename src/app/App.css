@@ -1948,17 +1948,24 @@ kbd {
 
 .event-art img {
   width: 100%;
-  height: 300%;
+  height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.event-art--court img { transform: translateY(0); }
-.event-art--frontier img { transform: translateY(-33.333%); }
-.event-art--famine img { transform: translateY(-66.666%); }
-.event-art--political img { transform: translateY(0); }
-.event-art--popular img { transform: translateY(-66.666%); }
-.event-art--military img { transform: translateY(-33.333%); }
-.event-art--disaster img { transform: translateY(-66.666%); }
+.event-art--court img,
+.event-art--frontier img,
+.event-art--famine img,
+.event-art--political img,
+.event-art--popular img,
+.event-art--military img,
+.event-art--disaster img,
+.event-art--economic img,
+.event-art--diplomatic img,
+.event-art--frontier img,
+.event-art--intrigue img {
+  transform: none;
+}
 
 .event-copy {
   padding: 14px 18px 8px;
