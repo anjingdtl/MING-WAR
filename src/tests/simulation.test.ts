@@ -86,4 +86,38 @@ describe("monthly simulation", () => {
     // Should have decayed toward 50 (from 80, minus 1)
     expect(afterDonglin.support).toBeLessThanOrEqual(80);
   });
+
+  it("P0-1: uses each faction's own domestic focus for its controlled regions", () => {
+    // Player uses "finance" focus (boosts tax by 14%)
+    // AI factions should use their own decisions
+    const state = createMvpScenario("ming", 300);
+    state.playerFactionId = "ming";
+
+    // Compare treasury delta for AI faction (jianzhou) when player uses "finance"
+    // vs. when player uses "agriculture". The treasury delta of jianzhou should be
+    // UNCHANGED (because its regions use jianzhou's own focus, not the player's).
+    const aiFactionId = "jianzhou";
+
+    const resultFinance = simulateMonth({
+      state: structuredClone(state),
+      playerDecision: { ...defaultPlayerDecision, domesticFocus: "finance" },
+      randomSeed: 1
+    });
+    const resultAgriculture = simulateMonth({
+      state: structuredClone(state),
+      playerDecision: { ...defaultPlayerDecision, domesticFocus: "agriculture" },
+      randomSeed: 1
+    });
+
+    const aiTreasuryFinance = resultFinance.nextState.factions[aiFactionId].treasury;
+    const aiTreasuryAgriculture = resultAgriculture.nextState.factions[aiFactionId].treasury;
+
+    // AI faction's treasury should be the same regardless of player's focus
+    expect(aiTreasuryFinance).toBe(aiTreasuryAgriculture);
+
+    // Sanity: player treasury should differ between finance/agriculture (since focus applies)
+    const playerTreasuryFinance = resultFinance.nextState.factions.ming.treasury;
+    const playerTreasuryAgriculture = resultAgriculture.nextState.factions.ming.treasury;
+    expect(playerTreasuryFinance).not.toBe(playerTreasuryAgriculture);
+  });
 });

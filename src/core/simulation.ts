@@ -10,7 +10,7 @@ import { updateRebellion } from "./rebellion";
 import { resolveBattle } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { mvpEvents } from "../data/events";
-import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
+import type { GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
@@ -19,11 +19,19 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const playerDecision = normalizePlayerDecision(state, input.playerDecision);
   const aiDecisions = chooseAllAiDecisions(state);
 
+  // Build per-faction decisions lookup so each faction's regions use that faction's own focus
+  const decisionsLookup: Record<string, PlayerDecision> = {
+    [state.playerFactionId]: playerDecision,
+    ...aiDecisions
+  };
+
   for (const region of Object.values(state.regions)) {
     const controller = state.factions[region.controllerFactionId];
-    const population = calculatePopulation(region, playerDecision.domesticFocus);
+    const factionDecision = decisionsLookup[region.controllerFactionId] ?? playerDecision;
+    const focus = factionDecision.domesticFocus;
+    const population = calculatePopulation(region, focus);
     let nextRegion = { ...region, population: population.nextPopulation };
-    const economy = calculateRegionEconomy(nextRegion, controller, focusForFaction(controller, state, playerDecision, aiDecisions));
+    const economy = calculateRegionEconomy(nextRegion, controller, focus);
     nextRegion = economy.region;
     nextRegion = updateControl(nextRegion, controller);
     const rebellion = updateRebellion(nextRegion, controller);
@@ -132,17 +140,6 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     triggeredEvents: triggered.map((event) => ({ eventId: event.id, optionRequired: true })),
     alerts: state.alerts
   };
-}
-
-function focusForFaction(
-  faction: FactionState,
-  state: GameState,
-  playerDecision: PlayerDecision,
-  aiDecisions: Record<string, PlayerDecision>
-) {
-  return faction.id === state.playerFactionId
-    ? playerDecision.domesticFocus
-    : aiDecisions[faction.id]?.domesticFocus ?? "recovery";
 }
 
 function countControlledRegions(state: GameState): Record<string, number> {
