@@ -11,6 +11,7 @@ import { resolveBattle, advanceWar } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
+import type { LedgerEntry } from "./ledger";
 import { mvpEvents } from "../data/events";
 import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -18,6 +19,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
   const random = createRandom(input.randomSeed);
   const reports: MonthlyReport[] = [];
+  const ledgerEntries: LedgerEntry[] = [];
   const playerDecision = normalizePlayerDecision(state, input.playerDecision);
   const aiDecisions = chooseAllAiDecisions(state);
 
@@ -45,6 +47,27 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     state.regions[region.id] = nextRegion;
     controller.treasury += economy.treasuryDelta;
     controller.grainReserve += economy.grainDelta;
+
+    // P1: record ledger entries (income from grain & tax, grain consumption)
+    if (economy.treasuryDelta !== 0) {
+      ledgerEntries.push({
+        category: economy.treasuryDelta > 0 ? "income-tax" : "expense-bureaucrat",
+        source: `${region.name} 收支`,
+        amount: economy.treasuryDelta,
+        factionId: controller.id,
+        regionId: region.id
+      });
+    }
+    if (economy.grainDelta !== 0) {
+      ledgerEntries.push({
+        category: economy.grainDelta > 0 ? "grain-production" : "grain-consumption",
+        source: `${region.name} 粮食`,
+        amount: economy.grainDelta,
+        factionId: controller.id,
+        regionId: region.id,
+        goodId: "grain"
+      });
+    }
 
     if (population.deaths > 0 || population.migrants > 0) {
       reports.push({
@@ -74,6 +97,24 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const maintenance = calculateFactionMaintenance(faction);
     faction.treasury -= maintenance.treasuryCost;
     faction.grainReserve -= maintenance.grainCost;
+    // P1: record faction maintenance as ledger entries
+    if (maintenance.treasuryCost !== 0) {
+      ledgerEntries.push({
+        category: "expense-bureaucrat",
+        source: `${faction.name} 官僚俸禄`,
+        amount: -maintenance.treasuryCost,
+        factionId: faction.id
+      });
+    }
+    if (maintenance.grainCost !== 0) {
+      ledgerEntries.push({
+        category: "grain-consumption",
+        source: `${faction.name} 粮食储备消耗`,
+        amount: -maintenance.grainCost,
+        factionId: faction.id,
+        goodId: "grain"
+      });
+    }
     if (faction.treasury < 0) {
       faction.warExhaustion = Math.min(100, faction.warExhaustion + 4);
       reports.push({
@@ -134,6 +175,13 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   state.currentDate = nextDate;
   state.seed = random.seed;
   state.reports = [...reports, ...state.reports].slice(0, 300);
+
+  // P1: append monthly ledger to history (keep last 60 months for 12/60 month trends)
+  if (!state.ledgerHistory) state.ledgerHistory = [];
+  state.ledgerHistory.push({ date: state.currentDate, entries: ledgerEntries });
+  if (state.ledgerHistory.length > 60) {
+    state.ledgerHistory = state.ledgerHistory.slice(-60);
+  }
 
   // P0-5: validate state invariants and append violations as system reports
   const violations = validateInvariants(state);

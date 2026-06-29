@@ -164,6 +164,7 @@ export interface GameState {
   alerts: GameAlert[];
   gameStatus: "playing" | "paused" | "finished";
   lastDomesticFocus?: DomesticFocus;
+  ledgerHistory?: import("./ledger").MonthlyLedger[];
 }
 
 export interface SimulationInput {
