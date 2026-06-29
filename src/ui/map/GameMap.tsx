@@ -105,14 +105,11 @@ export function GameMap({
       viewX: view.x,
       viewY: view.y
     };
-    panelRef.current?.setPointerCapture(event.pointerId);
-  }, [view.x, view.y]);
 
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent) => {
+    const onMove = (e: PointerEvent) => {
       if (!dragRef.current) return;
-      const dx = event.clientX - dragRef.current.startX;
-      const dy = event.clientY - dragRef.current.startY;
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
       if (!dragRef.current.dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
         dragRef.current.dragging = true;
         isDragGestureRef.current = true;
@@ -124,13 +121,17 @@ export function GameMap({
           y: dragRef.current!.viewY + dy
         }));
       }
-    },
-    []
-  );
+    };
 
-  const handlePointerUp = useCallback(() => {
-    dragRef.current = null;
-  }, []);
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp, { once: true });
+  }, [view.x, view.y]);
 
   const handleRegionClick = useCallback(
     (regionId: RegionId) => {
@@ -171,9 +172,6 @@ export function GameMap({
       ref={panelRef}
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
       onClick={handlePanelClick}
     >
       <div className="map-viewport" style={transformStyle}>
