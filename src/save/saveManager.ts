@@ -59,3 +59,54 @@ export async function listSaves(): Promise<SaveGame[]> {
   db.close();
   return saves.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
+
+/**
+ * Migrate game state from older versions to v0.3.0.
+ * Adds cliques and administrationBase to factions that lack them.
+ */
+export function migrateGameState(state: GameState): GameState {
+  if (state.version === "0.3.0") return state;
+
+  const migrated = structuredClone(state);
+
+  for (const faction of Object.values(migrated.factions)) {
+    if (!faction.cliques || faction.cliques.length === 0) {
+      faction.cliques = [
+        { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0 },
+        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0 },
+      ];
+    }
+    if (faction.administrationBase === undefined) {
+      faction.administrationBase = faction.administration;
+    }
+  }
+
+  migrated.version = "0.3.0";
+  return migrated;
+}
+
+/**
+ * Load a save game and apply any necessary migrations.
+ */
+export async function loadGame(saveId: string): Promise<SaveGame | null> {
+  const db = await openSaveDb();
+  const save = await new Promise<SaveGame | null>((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const request = tx.objectStore(storeName).get(saveId);
+    request.onsuccess = () => resolve((request.result as SaveGame) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+
+  if (!save) return null;
+
+  // Apply migration if needed
+  if (save.state.version !== "0.3.0") {
+    save.state = migrateGameState(save.state);
+    save.version = "0.3.0";
+  }
+
+  return save;
+}
