@@ -52,4 +52,22 @@ describe("batch simulation", () => {
     const summary = runBatchSimulation(2, 6);
     expect(summary.errorRuns).toBe(0);
   });
+
+  it("includes P1 ledger entries count", () => {
+    const summary = runBatchSimulation(2, 12);
+    expect(summary.totalLedgerEntries).toBeGreaterThan(0);
+  });
+
+  it("includes P2 population metrics", () => {
+    const summary = runBatchSimulation(2, 12);
+    expect(summary.averageMigrantPopulation).toBeGreaterThanOrEqual(0);
+    expect(summary.averagePeasantRadicalism).toBeGreaterThanOrEqual(0);
+  });
+
+  it("includes P3 market metrics", () => {
+    const summary = runBatchSimulation(2, 12);
+    expect(summary.averageGrainPrice).toBeGreaterThan(0);
+    expect(summary.averageSilverStock).toBeGreaterThanOrEqual(0);
+    expect(summary.averageIndustryLevel).toBeGreaterThan(0);
+  });
 });

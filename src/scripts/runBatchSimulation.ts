@@ -1,6 +1,7 @@
 import { simulateMonth } from "../core/simulation";
 import { scoreAllFactions } from "../core/scoring";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
+import { BASE_PRICES } from "../core/market";
 
 export interface BatchSummary {
   runs: number;
@@ -15,6 +16,15 @@ export interface BatchSummary {
   totalTreasuryDelta: number;
   totalPopulationDelta: number;
   averageEndDate: string;
+  // P2 metrics
+  averageMigrantPopulation: number;
+  averagePeasantRadicalism: number;
+  // P3 metrics
+  averageGrainPrice: number;
+  averageSilverStock: number;
+  averageIndustryLevel: number;
+  // P1 metrics
+  totalLedgerEntries: number;
 }
 
 /**
@@ -30,6 +40,12 @@ export function runBatchSimulation(runs = 100, months = 240): BatchSummary {
   let mingSurvived = 0;
   let totalTreasuryDelta = 0;
   let totalPopulationDelta = 0;
+  let totalMigrantPopulation = 0;
+  let totalPeasantRadicalism = 0;
+  let totalGrainPrice = 0;
+  let totalSilverStock = 0;
+  let totalIndustryLevel = 0;
+  let totalLedgerEntries = 0;
   let endDateSum = 0;
   let endDateCount = 0;
   const errorMessages: string[] = [];
@@ -70,7 +86,6 @@ export function runBatchSimulation(runs = 100, months = 240): BatchSummary {
     totalReports += state.reports.length;
     if (state.gameStatus === "finished") {
       finishedRuns += 1;
-      // Compute end date as YYYYMM number for averaging
       const [year, m] = state.currentDate.split("-").map(Number);
       endDateSum += year * 12 + m;
       endDateCount += 1;
@@ -81,9 +96,49 @@ export function runBatchSimulation(runs = 100, months = 240): BatchSummary {
       0
     );
     totalPopulationDelta += finalPopulation - initialPopulation;
+
+    // P2: pop group aggregates
+    let runMigrants = 0;
+    let runPeasantRadicalism = 0;
+    let runPeasantCount = 0;
+    for (const region of Object.values(state.regions)) {
+      if (!region.popGroups) continue;
+      for (const g of region.popGroups) {
+        if (g.type === "migrant") runMigrants += g.size;
+        if (g.type === "peasant") {
+          runPeasantRadicalism += g.radicalism * g.size;
+          runPeasantCount += g.size;
+        }
+      }
+    }
+    totalMigrantPopulation += runMigrants;
+    totalPeasantRadicalism += runPeasantCount > 0 ? runPeasantRadicalism / runPeasantCount : 0;
+
+    // P3: market aggregates
+    let runGrainPrice = 0;
+    let runSilverStock = 0;
+    let runIndustryLevel = 0;
+    let regionCount = 0;
+    for (const region of Object.values(state.regions)) {
+      if (region.market) {
+        runGrainPrice += region.market.prices.grain;
+        runSilverStock += region.market.silverStock;
+      }
+      if (region.industries) {
+        for (const i of region.industries) runIndustryLevel += i.level;
+      }
+      regionCount += 1;
+    }
+    if (regionCount > 0) {
+      totalGrainPrice += runGrainPrice / regionCount;
+      totalSilverStock += runSilverStock / regionCount;
+      totalIndustryLevel += runIndustryLevel / regionCount;
+    }
+
+    // P1: ledger entries
+    totalLedgerEntries += state.ledgerHistory?.reduce((s, l) => s + l.entries.length, 0) ?? 0;
   }
 
-  // Compute average end date as YYYY-MM string
   let averageEndDate = "n/a";
   if (endDateCount > 0) {
     const avg = Math.round(endDateSum / endDateCount);
@@ -104,7 +159,13 @@ export function runBatchSimulation(runs = 100, months = 240): BatchSummary {
     mingSurvivalRate: Number((mingSurvived / runs).toFixed(2)),
     totalTreasuryDelta: Math.round(totalTreasuryDelta / runs),
     totalPopulationDelta: Math.round(totalPopulationDelta / runs),
-    averageEndDate
+    averageEndDate,
+    averageMigrantPopulation: Math.round(totalMigrantPopulation / runs),
+    averagePeasantRadicalism: Math.round(totalPeasantRadicalism / runs),
+    averageGrainPrice: Number((totalGrainPrice / runs).toFixed(2)),
+    averageSilverStock: Math.round(totalSilverStock / runs),
+    averageIndustryLevel: Number((totalIndustryLevel / runs).toFixed(2)),
+    totalLedgerEntries: Math.round(totalLedgerEntries / runs)
   };
 }
 
