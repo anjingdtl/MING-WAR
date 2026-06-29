@@ -669,6 +669,26 @@ button {
   color: #312922;
 }
 
+.clique-warn {
+  padding: 0 6px;
+}
+
+.clique-warn__tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 10px;
+  border: 1px solid rgb(141 113 75 / 38%);
+  border-radius: 6px;
+  background: rgb(252 245 225 / 96%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  white-space: nowrap;
+  color: #312922;
+}
+
 .stat-badge {
   display: grid;
   gap: 2px;
