@@ -77,6 +77,8 @@ export function GameMap({
   /* ---- derived data -------------------------------------------------- */
   const selectedRegion = selectedRegionId ? state.regions[selectedRegionId] : null;
   const selectedFaction = selectedRegion ? state.factions[selectedRegion.controllerFactionId] : null;
+  const isPlayerRegion = selectedFaction?.id === state.playerFactionId;
+  const playerFaction = state.factions[state.playerFactionId];
   const validTargets = getValidMilitaryTargets(state, state.playerFactionId);
   const currentDecision = decision ?? {
     targetRegionId: null,
@@ -344,28 +346,37 @@ export function GameMap({
         </span>
       </div>
 
-      <aside className="map-command-panel" aria-label="地图战略决策">
+      <aside className="map-command-panel" aria-label="战略决策">
+        {/* --- header (always visible) --- */}
         <div className="commander-card">
           <div className={`portrait-sprite portrait-sprite--${portraitKey(selectedFaction?.id ?? state.playerFactionId)}`} />
           <div>
-            <p className="eyebrow">战略决策</p>
-            <h2>{selectedRegion?.name ?? "未选区域"}</h2>
-            <p>{selectedFaction ? `控制者：${selectedFaction.name}` : "在地图上选择区域。"}</p>
+            <p className="eyebrow">{selectedFaction ? selectedFaction.name : "未选区域"}</p>
+            <h2>{selectedRegion?.name ?? "—"}</h2>
+            <p>
+              {selectedRegion
+                ? `${selectedFaction ? `${selectedFaction.name}控制` : "势力未知"} · 稳${selectedRegion.stability} · 控${selectedRegion.control}`
+                : "在地图上选择区域"}
+            </p>
           </div>
         </div>
 
-        {selectedRegion && selectedFaction ? (
-          <>
-            <div className="compact-stats" aria-label="区域详情">
-              <strong>区域详情</strong>
-              <span>人口 {shortNumber(selectedRegion.population)}</span>
-              <span>粮 {shortNumber(selectedRegion.grainStock)}</span>
-              <span>税 {selectedRegion.taxCapacity}</span>
-              <span>军 {shortNumber(selectedRegion.garrison)}</span>
-              <span>稳 {selectedRegion.stability}</span>
-              <span>控 {selectedRegion.control}</span>
-            </div>
+        {/* --- region stats (always visible when a region is selected) --- */}
+        {selectedRegion ? (
+          <div className="compact-stats" aria-label="区域详情">
+            <strong>区域详情</strong>
+            <span>人口 {shortNumber(selectedRegion.population)}</span>
+            <span>粮 {shortNumber(selectedRegion.grainStock)}</span>
+            <span>税 {selectedRegion.taxCapacity}</span>
+            <span>军 {shortNumber(selectedRegion.garrison)}</span>
+            <span>稳 {selectedRegion.stability}</span>
+            <span>控 {selectedRegion.control}</span>
+          </div>
+        ) : null}
 
+        {/* --- player-only decision controls --- */}
+        {isPlayerRegion && selectedRegion ? (
+          <>
             <button
               className="primary-button map-action"
               type="button"
@@ -378,48 +389,56 @@ export function GameMap({
           </>
         ) : null}
 
-        <label>
-          军事方向
-          <select
-            value={currentDecision.targetRegionId ?? ""}
-            onChange={(e) => onDecisionChange?.({ targetRegionId: e.target.value || null })}
-            disabled={!onDecisionChange}
-          >
-            {validTargets.map((targetId) => (
-              <option key={targetId} value={targetId}>
-                {state.regions[targetId].name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {isPlayerRegion ? (
+          <>
+            <label>
+              军事方向
+              <select
+                value={currentDecision.targetRegionId ?? ""}
+                onChange={(e) => onDecisionChange?.({ targetRegionId: e.target.value || null })}
+                disabled={!onDecisionChange}
+              >
+                {validTargets.map((targetId) => (
+                  <option key={targetId} value={targetId}>
+                    {state.regions[targetId].name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <div className="segmented-control" role="group" aria-label="军事姿态">
-          {postureOptions.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={currentDecision.posture === value ? "is-active" : ""}
-              onClick={() => onDecisionChange?.({ posture: value })}
-              disabled={!onDecisionChange}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+            <div className="segmented-control" role="group" aria-label="军事姿态">
+              {postureOptions.map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={currentDecision.posture === value ? "is-active" : ""}
+                  onClick={() => onDecisionChange?.({ posture: value })}
+                  disabled={!onDecisionChange}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-        <div className="focus-grid" aria-label="内政重点">
-          {focusOptions.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={currentDecision.domesticFocus === value ? "is-active" : ""}
-              onClick={() => onDecisionChange?.({ domesticFocus: value })}
-              disabled={!onDecisionChange}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+            <div className="focus-grid" aria-label="内政重点">
+              {focusOptions.map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={currentDecision.domesticFocus === value ? "is-active" : ""}
+                  onClick={() => onDecisionChange?.({ domesticFocus: value })}
+                  disabled={!onDecisionChange}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : selectedRegion ? (
+          <p className="muted" style={{ textAlign: "center", padding: "8px 0" }}>
+            {selectedFaction ? `${selectedFaction.name}非玩家势力，无法直接操控。` : "该区域无有效势力。"}
+          </p>
+        ) : null}
       </aside>
     </section>
   );

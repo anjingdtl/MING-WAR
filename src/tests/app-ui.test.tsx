@@ -6,7 +6,7 @@ describe("App UI", () => {
   it("renders the core decision surface", () => {
     render(<App />);
     expect(screen.getByText("万历：山河崩塌")).toBeTruthy();
-    expect(screen.getByText("战略决策")).toBeTruthy();
+    expect(screen.getByText("军事方向")).toBeTruthy();
     expect(screen.getByText("区域详情")).toBeTruthy();
     expect(screen.getByText("月度日志")).toBeTruthy();
   });
