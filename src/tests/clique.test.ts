@@ -261,3 +261,55 @@ describe("natural support decay", () => {
     }
   });
 });
+
+describe("P0-2: administration compound growth prevention", () => {
+  it("does not compound administration modifier across months", async () => {
+    const { simulateMonth } = await import("../core/simulation");
+    const { createMvpScenario, defaultPlayerDecision } = await import("../data/scenarios");
+    const state = createMvpScenario("ming", 100);
+    const initialBase = state.factions.ming.administrationBase;
+    expect(initialBase).toBeGreaterThan(0);
+
+    // Force high support so modifier is active
+    for (const c of state.factions.ming.cliques) {
+      c.support = 90;
+    }
+
+    let current = state;
+    for (let i = 0; i < 12; i++) {
+      current = simulateMonth({
+        state: current,
+        playerDecision: defaultPlayerDecision,
+        randomSeed: current.seed
+      }).nextState;
+    }
+
+    // P0-2 core fix: administrationBase must remain stable across months
+    // (previously was overwritten with current administration, causing compound growth)
+    expect(current.factions.ming.administrationBase).toBe(initialBase);
+
+    // administration should be bounded [0, 100]
+    expect(current.factions.ming.administration).toBeGreaterThanOrEqual(0);
+    expect(current.factions.ming.administration).toBeLessThanOrEqual(100);
+
+    // Admin can vary by at most ±10 from base (modifier clamp range)
+    const drift = Math.abs(current.factions.ming.administration - initialBase);
+    expect(drift).toBeLessThanOrEqual(15);
+  });
+
+  it("initializes administrationBase from administration on first simulation", async () => {
+    const { simulateMonth } = await import("../core/simulation");
+    const { createMvpScenario, defaultPlayerDecision } = await import("../data/scenarios");
+    const state = createMvpScenario("ming", 200);
+    expect(state.factions.ming.administrationBase).toBeGreaterThan(0);
+
+    const result = simulateMonth({
+      state,
+      playerDecision: defaultPlayerDecision,
+      randomSeed: state.seed
+    });
+
+    // After first simulation, administrationBase should still equal initial value
+    expect(result.nextState.factions.ming.administrationBase).toBe(state.factions.ming.administrationBase);
+  });
+});

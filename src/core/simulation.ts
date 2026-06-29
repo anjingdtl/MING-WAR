@@ -264,8 +264,11 @@ function updateFactionCliques(state: GameState): void {
     if (faction.status !== "active") continue;
     if (!faction.cliques || faction.cliques.length === 0) continue;
 
-    // 1. Save original administration value
-    faction.administrationBase = faction.administration;
+    // 1. Initialize administrationBase from current administration if not set
+    //    (avoids compound growth by keeping base stable after first run)
+    if (faction.administrationBase === undefined || faction.administrationBase === 0) {
+      faction.administrationBase = faction.administration;
+    }
 
     // 2. Recompute clique strength from controlled regions
     const regions = Object.values(state.regions).filter(
@@ -287,7 +290,7 @@ function updateFactionCliques(state: GameState): void {
       }
     }
 
-    // 5. Sum modifiers and apply to administration
+    // 5. Apply total modifier to administration based on stable base
     const totalModifier = computeAdministrationModifier(faction.cliques);
     faction.administration = Math.max(0, Math.min(100, faction.administrationBase + totalModifier));
   }
