@@ -10,6 +10,7 @@ import { updateRebellion } from "./rebellion";
 import { resolveBattle, advanceWar } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { expireModifiers } from "./modifiers";
+import { validateInvariants } from "./invariants";
 import { mvpEvents } from "../data/events";
 import type { GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -133,6 +134,22 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   state.currentDate = nextDate;
   state.seed = random.seed;
   state.reports = [...reports, ...state.reports].slice(0, 300);
+
+  // P0-5: validate state invariants and append violations as system reports
+  const violations = validateInvariants(state);
+  for (const v of violations) {
+    if (v.severity === "error") {
+      reports.push({
+        id: `${state.currentDate}-invariant-${v.id}`,
+        date: state.currentDate,
+        type: "system",
+        title: `状态不变量违反：${v.id}`,
+        body: v.message,
+        severity: "danger"
+      });
+    }
+  }
+
   state.history.push({
     date: nextDate,
     summary: `${nextDate} 月度结算完成。`,
