@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "batch": "tsx src/scripts/runBatchSimulation.ts",
-    "map:generate": "tsx src/scripts/generateMapRegions.ts"
+    "map:generate": "tsx src/scripts/generateMapRegions.ts",
+    "map:validate": "tsx src/scripts/validateMapRegions.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
