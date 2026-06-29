@@ -2,7 +2,7 @@
 
 > 对应文档：`docs/v2-optimization-spec.md`（S1–S6）
 > 编写日期：2026-06-29
-> 本轮范围：**S1（修正系统激活 + 账本驱动）+ S2（市场—人口—生产整合）+ S3（利益集团政治力量）**，S4–S6 列里程碑
+> 本轮范围：**S1（修正系统激活 + 账本驱动）+ S2（市场—人口—生产整合）+ S3（利益集团政治力量）+ S4（法律与改革系统）**，S5–S6 列里程碑
 
 ---
 
@@ -105,15 +105,40 @@
 
 ---
 
-## 4. S4–S6 里程碑（先立锚）
+## 4. S4　法律与改革系统（接通"制度"环）
 
-- **S4 法律与改革**：改革流程（提出→博弈→落实），落实写入 S1 modifier。依赖 S3。
+### S4a　法律库与类型层
+- 新增 `src/data/laws.ts`：10 条明末法律，覆盖 SPEC §11 六大类（税制/土地/军制/海贸/地方治理/财政权力），每条落实效果走 S1 modifier effectKey。
+- 法律 `tags` 与集团 preferredLaws/opposedLaws 对接（SPEC §9.5 点名的"对接真实 LawId"）——S3 空挂的标签通电，集团偏好真实决定改革博弈。
+- effect 三分法：modifier-effect keys（tax-mult/grain-output-mult/maintenance-mult/control-flat/army-org-mult）→ 永久 faction modifier；faction-instant（centralization/legitimacy/corruption）→ 一次性施加；region-instant（stability）→ 遍历控制区施加。（corruption-flat/stability-flat 在 S1b 标注接入但实际未接 control.ts，S4 归入 instant 绕开缺失的月度查询点。）
+- `ReformProgress` 类型 + `GameState.activeReforms`。
+
+### S4b　改革提出 + 集团博弈
+- `computeReformSupport`：法律 tags × clique preferred/opposed × strength → 支持力量 vs 反对力量。
+- `computeReformMomentum`：推进力 = 2 + 行政×0.08 + 合法性×0.03 + 支持×0.18 − 反对×0.28 − 腐败×0.04 − 战争疲劳×0.04 − 活跃战争×1.5 + (控制度−50)×0.03，钳 [−6,+8]。反对权重>支持权重，体现"改革比推动难"。
+- `FOCUS_REFORM_AFFINITY`：domesticFocus → 倾向法律（玩家与 AI 同规则，复用现有决策通道，无需新增玩家输入）。
+- `proposeReform`：已落实 / 已在推进 / 同时上限 2 条 去重。
+
+### S4c　改革推进机 + 落实
+- `advanceReforms`：每月 progress += momentum；≥100 落实，≤0 且持续≥3 月失败（损合法性）。
+- `enactLaw`：落实写永久 modifier（接通 S1 后果环）+ faction/region instant + 受益集团 approval/support 升、受损集团 approval 暴跌（→ 触发 S3c 政治运动，闭环）。防重复落实（law modifier id 去重）。
+- `autoProposeReforms`：momentum 预检过滤注定失败的改革；tribal/rebel 不自动改革（法律改革是定居官僚政权的产物）。
+
+### S4d　因果链 + 全量验收
+- 端到端：recovery focus → low-tax 落实（tax-mult −0.15 永久，税收可观测降）；land-survey 遭 donglin+gentry 双反对 → momentum 负 → 注定失败损合法性；clean-admin 落实降腐败升稳定。
+- batch 100×240 errorRuns=0，大明存活 0.82；diagnose seed7 active、人口 −9.2%（优于 S3 −11.3%）。
+- 设计权衡：改革落实的持久 modifier 在确定性模拟里产生蝴蝶效应（corruption→税收→applyResourceCrises 的 random 序列），叠加 S5 军队归零脆弱性，使部分 run 崩溃——"改革有代价"+S5 待修的真实体现，非 S4 缺陷。
+
+---
+
+## 5. S5–S6 里程碑（先立锚）
+
 - **S5 外交博弈与战线战争**：DiplomaticRelation + 战线 + 和平谈判。依赖 S2 财政/S4 制度。
 - **S6 历史局势与完整周期**：SituationState 承载主线，1573–1662 多结局。
 
 ---
 
-## 5. 本轮交付清单
+## 6. 本轮交付清单
 
 - [x] 回归 fix（7 类缺陷，见 SPEC v2 §1）
 - [x] SPEC v2 + 本 PLAN
@@ -128,4 +153,8 @@
 - [x] S3b approval 系统（FactionCliqueState.approval；生活水平封顶+政策契合+加税惩罚；与 support 正交）
 - [x] S3c 政治运动（强+不满集团推动诉求，结算施加 S1 modifier 接通后果环，12 月 cooldown 防失控）
 - [x] S3d 因果链+全量验收（加税→approval降→运动；313 测试；batch errorRuns=0 存活 0.86；seed7 active −11.3%）
+- [x] S4a 法律库+类型层（10 条法律覆盖六大类，tags 对接集团偏好，effect 三分法，ReformProgress 类型）
+- [x] S4b 改革提出+集团博弈（computeReformSupport/Momentum，FOCUS_REFORM_AFFINITY，proposeReform 去重）
+- [x] S4c 改革推进机+落实（advanceReforms/enactLaw，落实写永久 modifier + 集团反应接通 S3c 运动；tribal/rebel 不改革）
+- [x] S4d 因果链+全量验收（低税/清丈/澄清吏治端到端；323 测试；batch errorRuns=0 存活 0.82；seed7 active −9.2%）
 - 每项附单元测试 + 回归验证

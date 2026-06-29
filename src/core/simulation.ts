@@ -10,6 +10,8 @@ import { updateRebellion } from "./rebellion";
 import { resolveBattle, advanceWar } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeCliqueApproval, computeFactionCliqueStrengthFromPops } from "./clique";
 import { advancePoliticalMovements, DEMAND_LABEL } from "./politics";
+import { advanceReforms, autoProposeReforms } from "./reform";
+import { lawLibrary } from "../data/laws";
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
 import { applyLedgerToState, type LedgerEntry } from "./ledger";
@@ -315,6 +317,37 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   eliminateDefeatedFactions(state, reports);
 
   updateFactionCliques(state, decisionsLookup);
+
+  // S4: 法律改革。按 domesticFocus 自动提出（玩家与 AI 同规则），再推进已有
+  // 改革。落实写永久 modifier（接通 S1 后果环）+ 受益集团 approval 升、受损
+  // 集团 approval 暴跌——后者会在下面的 advancePoliticalMovements 里触发政治
+  // 运动，完成"改革→既得利益反弹→政治运动"闭环。
+  autoProposeReforms(state, decisionsLookup);
+  const reformResult = advanceReforms(state);
+  for (const r of reformResult.enacted) {
+    const law = lawLibrary[r.lawId];
+    const fname = state.factions[r.factionId]?.name ?? r.factionId;
+    reports.push({
+      id: `${r.id}-enacted`,
+      date: state.currentDate,
+      type: "event",
+      title: `${fname}颁行《${law?.name ?? r.lawId}》`,
+      body: `历经博弈，《${law?.name ?? r.lawId}》正式落实，相关制度随之长效调整。`,
+      severity: "info",
+    });
+  }
+  for (const r of reformResult.failed) {
+    const law = lawLibrary[r.lawId];
+    const fname = state.factions[r.factionId]?.name ?? r.factionId;
+    reports.push({
+      id: `${r.id}-failed`,
+      date: state.currentDate,
+      type: "event",
+      title: `${fname}《${law?.name ?? r.lawId}》改革受挫`,
+      body: `《${law?.name ?? r.lawId}》遭既得利益集团强力阻击，无果而终，朝廷威信受损。`,
+      severity: "warning",
+    });
+  }
 
   // S3c: advance political movements. Strong & displeased cliques push demands
   // (reduce-tax/open-sea/army-pay/autonomy); successful ones apply S1 modifiers,
