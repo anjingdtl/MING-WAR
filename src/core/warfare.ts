@@ -1,6 +1,57 @@
 import type { FactionState, MilitaryPosture, RegionState, WarState } from "./types";
 import type { RandomSource } from "./random";
 
+/**
+ * Create an initial war state from the first engagement between two factions.
+ */
+export function createInitialWar(
+  attacker: FactionState,
+  defender: FactionState,
+  region: RegionState
+): WarState {
+  return {
+    id: `${attacker.id}-${defender.id}-${region.id}`,
+    attackerFactionId: attacker.id,
+    defenderFactionId: defender.id,
+    targetRegionId: region.id,
+    progress: 35,
+    monthsActive: 1
+  };
+}
+
+/**
+ * Advance an ongoing war by one month.
+ * - Increments monthsActive
+ * - Updates progress based on relative strength, fortifications, and exhaustion
+ * - Progress is bounded [0, 100]; reaching 100 implies imminent victory
+ */
+export function advanceWar(
+  war: WarState,
+  attacker: FactionState,
+  defender: FactionState,
+  region: RegionState
+): WarState {
+  const attackerStrength =
+    attacker.armyTotal *
+    (attacker.militaryOrganization / 100) *
+    (1 - attacker.warExhaustion / 200);
+  const defenderStrength =
+    defender.armyTotal *
+    (defender.militaryOrganization / 100) *
+    ((region.fortification / 100) + 0.5);
+
+  const strengthRatio = attackerStrength / Math.max(1, defenderStrength);
+  // Progress delta scaled by ratio. ratio > 1 → attacker gaining ground
+  const progressDelta = Math.round((strengthRatio - 1) * 6);
+  const nextProgress = Math.max(0, Math.min(100, war.progress + progressDelta));
+
+  return {
+    ...war,
+    monthsActive: war.monthsActive + 1,
+    progress: nextProgress
+  };
+}
+
 export interface BattleResult {
   region: RegionState;
   attacker: FactionState;

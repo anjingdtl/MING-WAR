@@ -7,7 +7,7 @@ import { findTriggeredEvents } from "./eventEngine";
 import { calculatePopulation } from "./population";
 import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
-import { resolveBattle } from "./warfare";
+import { resolveBattle, advanceWar } from "./warfare";
 import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { expireModifiers } from "./modifiers";
 import { mvpEvents } from "../data/events";
@@ -119,6 +119,16 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   }
 
   const triggered = findTriggeredEvents(state, mvpEvents).slice(0, 1);
+
+  // P0-4: advance ongoing wars (monthsActive++, progress update based on relative strength)
+  state.wars = state.wars.map((war) => {
+    const attacker = state.factions[war.attackerFactionId];
+    const defender = state.factions[war.defenderFactionId];
+    const region = state.regions[war.targetRegionId];
+    if (!attacker || !defender || !region) return war;
+    if (attacker.status !== "active" || defender.status !== "active") return war;
+    return advanceWar(war, attacker, defender, region);
+  });
   const nextDate = advanceMonth(state.currentDate);
   state.currentDate = nextDate;
   state.seed = random.seed;
