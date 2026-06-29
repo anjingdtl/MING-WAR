@@ -8,6 +8,7 @@ import { calculatePopulation } from "./population";
 import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
 import { resolveBattle } from "./warfare";
+import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueStrength } from "./clique";
 import { mvpEvents } from "../data/events";
 import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -75,6 +76,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
 
   applyResourceCrises(state, reports, random);
 
+  updateFactionCliques(state);
+
   const decisions: Record<string, PlayerDecision> = {
     [state.playerFactionId]: playerDecision,
     ...aiDecisions
@@ -121,6 +124,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     severity: "warning"
   }));
   state.gameStatus = isAfter(nextDate, state.endDate) ? "finished" : triggered.length > 0 ? "paused" : "playing";
+  state.lastDomesticFocus = playerDecision.domesticFocus;
 
   return {
     nextState: state,
@@ -255,5 +259,39 @@ function applyResourceCrises(state: GameState, reports: MonthlyReport[], random:
         severity: "danger"
       });
     }
+  }
+}
+
+function updateFactionCliques(state: GameState): void {
+  for (const faction of Object.values(state.factions)) {
+    if (faction.status !== "active") continue;
+    if (!faction.cliques || faction.cliques.length === 0) continue;
+
+    // 1. Save original administration value
+    faction.administrationBase = faction.administration;
+
+    // 2. Recompute clique strength from controlled regions
+    const regions = Object.values(state.regions).filter(
+      (r) => r.controllerFactionId === faction.id,
+    );
+    faction.cliques = computeFactionCliqueStrength(faction.cliques, regions);
+
+    // 3. Apply natural decay toward 50
+    faction.cliques = applyNaturalDecay(faction.cliques);
+
+    // 4. Recompute activeModifier for each clique
+    for (const cs of faction.cliques) {
+      if (cs.support > 60) {
+        cs.activeModifier = Math.round(((cs.support - 60) / 40) * (cs.strength / 100) * 5);
+      } else if (cs.support < 40) {
+        cs.activeModifier = -Math.round(((40 - cs.support) / 40) * (cs.strength / 100) * 5 * 0.8);
+      } else {
+        cs.activeModifier = 0;
+      }
+    }
+
+    // 5. Sum modifiers and apply to administration
+    const totalModifier = computeAdministrationModifier(faction.cliques);
+    faction.administration = Math.max(0, Math.min(100, faction.administrationBase + totalModifier));
   }
 }

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { applyEventOption } from "../core/eventEngine";
 import { simulateMonth } from "../core/simulation";
+import { applyCliqueReactions, computeCliqueReactions } from "../core/clique";
+import { cliqueTemplates } from "../data/cliques";
 import type { GameEvent } from "../core/eventEngine";
 import type { GameState, MapLayer, PlayerDecision, RegionId } from "../core/types";
 import { mvpEvents } from "../data/events";
@@ -23,17 +25,40 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   state: createMvpScenario(),
   decision: defaultPlayerDecision,
-  selectedRegionId: "beijing",
+  selectedRegionId: "beizhili",
   mapLayer: "control",
   pendingEventId: null,
   startGame: (factionId, seed) =>
     set({
       state: createMvpScenario(factionId, seed),
       decision: defaultPlayerDecision,
-      selectedRegionId: "beijing",
+      selectedRegionId: "beizhili",
       pendingEventId: null
     }),
-  setDecision: (decision) => set({ decision: { ...get().decision, ...decision } }),
+  setDecision: (decision) => {
+    const current = get();
+    const newDecision = { ...current.decision, ...decision };
+
+    // Apply clique reactions if domestic focus changed
+    if (decision.domesticFocus && decision.domesticFocus !== current.decision.domesticFocus) {
+      const playerFaction = current.state.factions[current.state.playerFactionId];
+      if (playerFaction?.cliques?.length) {
+        const reactions = computeCliqueReactions(
+          decision.domesticFocus,
+          current.decision.domesticFocus,
+          playerFaction.cliques,
+          cliqueTemplates,
+        );
+        const updatedCliques = applyCliqueReactions(playerFaction.cliques, reactions);
+        const newState = structuredClone(current.state);
+        newState.factions[current.state.playerFactionId].cliques = updatedCliques;
+        set({ decision: newDecision, state: newState });
+        return;
+      }
+    }
+
+    set({ decision: newDecision });
+  },
   selectRegion: (regionId) => set({ selectedRegionId: regionId }),
   setMapLayer: (layer) => set({ mapLayer: layer }),
   advanceOneMonth: () => {

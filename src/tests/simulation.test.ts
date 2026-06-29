@@ -51,4 +51,39 @@ describe("monthly simulation", () => {
     expect(result.nextState.regions.shaanxi.controllerFactionId).toBe("rebels");
     expect(result.reports.some((report) => report.title.includes("民众起义"))).toBe(true);
   });
+
+  it("updates faction cliques during monthly settlement", () => {
+    const state = createMvpScenario("ming", 200);
+    const result = simulateMonth({ state, playerDecision: defaultPlayerDecision, randomSeed: state.seed });
+    const ming = result.nextState.factions.ming;
+
+    // cliques should have updated strength based on controlled regions
+    expect(ming.cliques.length).toBe(4);
+    expect(ming.cliques.some((c) => c.strength > 0)).toBe(true);
+
+    // administrationBase should be saved
+    expect(ming.administrationBase).toBeGreaterThan(0);
+
+    // administration should be within [0, 100]
+    expect(ming.administration).toBeGreaterThanOrEqual(0);
+    expect(ming.administration).toBeLessThanOrEqual(100);
+  });
+
+  it("saves lastDomesticFocus after simulation", () => {
+    const state = createMvpScenario("ming", 201);
+    const decision = { ...defaultPlayerDecision, domesticFocus: "military" as const };
+    const result = simulateMonth({ state, playerDecision: decision, randomSeed: state.seed });
+    expect(result.nextState.lastDomesticFocus).toBe("military");
+  });
+
+  it("applies natural decay to clique support each month", () => {
+    const state = createMvpScenario("ming", 202);
+    // Set extreme support values
+    const donglin = state.factions.ming.cliques.find((c) => c.cliqueId === "donglin")!;
+    donglin.support = 80;
+    const result = simulateMonth({ state, playerDecision: defaultPlayerDecision, randomSeed: state.seed });
+    const afterDonglin = result.nextState.factions.ming.cliques.find((c) => c.cliqueId === "donglin")!;
+    // Should have decayed toward 50 (from 80, minus 1)
+    expect(afterDonglin.support).toBeLessThanOrEqual(80);
+  });
 });

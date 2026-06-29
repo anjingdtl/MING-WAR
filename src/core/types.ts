@@ -162,6 +162,7 @@ export interface GameState {
   reports: MonthlyReport[];
   alerts: GameAlert[];
   gameStatus: "playing" | "paused" | "finished";
+  lastDomesticFocus?: DomesticFocus;
 }
 
 export interface SimulationInput {
