@@ -1,19 +1,13 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Swords, Wheat, Landmark, Shield, Users, Gauge, Crown, Plus, Minus, RotateCcw } from "lucide-react";
 import type { DomesticFocus, GameState, MapLayer, MilitaryPosture, PlayerDecision, RegionId } from "../../core/types";
 import { getValidMilitaryTargets } from "../../core/decisions";
 import { mapRegions } from "../../map/mapConfig";
 import { eastAsiaLandPaths, majorRiverPaths } from "../../map/physicalMap";
 
-interface GameMapProps {
-  state: GameState;
-  layer: MapLayer;
-  onLayerChange?: (layer: MapLayer) => void;
-  decision?: PlayerDecision;
-  onDecisionChange?: (decision: Partial<PlayerDecision>) => void;
-  selectedRegionId: RegionId | null;
-  onSelect: (regionId: RegionId) => void;
-}
+/* ------------------------------------------------------------------ */
+/*  constants                                                         */
+/* ------------------------------------------------------------------ */
 
 const focusOptions: Array<[DomesticFocus, string]> = [
   ["agriculture", "农桑"],
@@ -42,7 +36,34 @@ const layerOptions: Array<[MapLayer, string, typeof Crown]> = [
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.12;
-const DRAG_THRESHOLD = 4;
+const DRAG_THRESHOLD_PX = 5;
+
+interface DragState {
+  active: boolean;
+  moved: boolean;
+  startX: number;
+  startY: number;
+  viewX: number;
+  viewY: number;
+}
+
+function clamp(val: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, val));
+}
+
+/* ------------------------------------------------------------------ */
+/*  GameMap component                                                 */
+/* ------------------------------------------------------------------ */
+
+interface GameMapProps {
+  state: GameState;
+  layer: MapLayer;
+  onLayerChange?: (layer: MapLayer) => void;
+  decision?: PlayerDecision;
+  onDecisionChange?: (decision: Partial<PlayerDecision>) => void;
+  selectedRegionId: RegionId | null;
+  onSelect: (regionId: RegionId) => void;
+}
 
 export function GameMap({
   state,
@@ -53,90 +74,133 @@ export function GameMap({
   selectedRegionId,
   onSelect
 }: GameMapProps) {
+  /* ---- derived data -------------------------------------------------- */
   const selectedRegion = selectedRegionId ? state.regions[selectedRegionId] : null;
   const selectedFaction = selectedRegion ? state.factions[selectedRegion.controllerFactionId] : null;
   const validTargets = getValidMilitaryTargets(state, state.playerFactionId);
-  const currentDecision = decision ?? { targetRegionId: null, posture: "balanced", domesticFocus: "administration" };
+  const currentDecision = decision ?? {
+    targetRegionId: null,
+    posture: "balanced" as MilitaryPosture,
+    domesticFocus: "administration" as DomesticFocus
+  };
 
+  /* ---- pan / zoom state --------------------------------------------- */
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const panelRef = useRef<HTMLElement>(null);
-  const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; viewX: number; viewY: number } | null>(null);
-  const isDragGestureRef = useRef(false);
 
-  const clampZoom = useCallback((value: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)), []);
+  /* drag state is stored in a ref so the document-level listener can
+     always see the latest values without stale closures */
+  const dragRef = useRef<DragState>({
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    viewX: 0,
+    viewY: 0
+  });
 
-  const setZoom = useCallback(
-    (nextZoom: number, centerX?: number, centerY?: number) => {
+  /* flag that signals "a drag happened in the current pointer sequence" —
+     consumed by click handlers to suppress region selection */
+  const gestureFlagRef = useRef(false);
+
+  /* ---- document-level drag listeners (stable, registered once) ---- */
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d.active) return;
+      const dx = e.clientX - d.startX;
+      const dy = e.clientY - d.startY;
+      if (!d.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+        d.moved = true;
+        gestureFlagRef.current = true;
+      }
+      if (d.moved) {
+        setView((prev) => ({
+          ...prev,
+          x: d.viewX + dx,
+          y: d.viewY + dy
+        }));
+      }
+    };
+
+    const onPointerUp = () => {
+      dragRef.current.active = false;
+    };
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    return () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+    };
+  }, []);
+
+  /* ---- zoom helpers ------------------------------------------------- */
+  const clampZoom = useCallback((val: number) => clamp(val, MIN_ZOOM, MAX_ZOOM), []);
+
+  const applyZoom = useCallback(
+    (nextZoom: number, cx?: number, cy?: number) => {
       setView((prev) => {
         const zoom = clampZoom(nextZoom);
-        if (!panelRef.current || centerX === undefined || centerY === undefined) {
+        if (!panelRef.current || cx === undefined || cy === undefined) {
           return { ...prev, zoom };
         }
         const rect = panelRef.current.getBoundingClientRect();
-        const x = centerX - rect.left;
-        const y = centerY - rect.top;
-        const scaleRatio = zoom / prev.zoom;
+        const relX = cx - rect.left;
+        const relY = cy - rect.top;
+        const scale = zoom / prev.zoom;
         return {
           zoom,
-          x: x - (x - prev.x) * scaleRatio,
-          y: y - (y - prev.y) * scaleRatio
+          x: relX - (relX - prev.x) * scale,
+          y: relY - (relY - prev.y) * scale
         };
       });
     },
     [clampZoom]
   );
 
+  const zoomIn = useCallback(() => {
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    applyZoom(view.zoom * ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }, [view.zoom, applyZoom]);
+
+  const zoomOut = useCallback(() => {
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    applyZoom(view.zoom / ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }, [view.zoom, applyZoom]);
+
+  const resetView = useCallback(() => setView({ x: 0, y: 0, zoom: 1 }), []);
+
+  /* ---- event handlers on the map panel ----------------------------- */
   const handleWheel = useCallback(
-    (event: React.WheelEvent) => {
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
-      setZoom(view.zoom * delta, event.clientX, event.clientY);
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
+      applyZoom(view.zoom * delta, e.clientX, e.clientY);
     },
-    [view.zoom, setZoom]
+    [view.zoom, applyZoom]
   );
 
-  const handlePointerDown = useCallback((event: React.PointerEvent) => {
-    if (event.button !== 0) return;
-    isDragGestureRef.current = false;
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    gestureFlagRef.current = false;
     dragRef.current = {
-      dragging: false,
-      startX: event.clientX,
-      startY: event.clientY,
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
       viewX: view.x,
       viewY: view.y
     };
-
-    const onMove = (e: PointerEvent) => {
-      if (!dragRef.current) return;
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      if (!dragRef.current.dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
-        dragRef.current.dragging = true;
-        isDragGestureRef.current = true;
-      }
-      if (dragRef.current.dragging) {
-        setView((prev) => ({
-          ...prev,
-          x: dragRef.current!.viewX + dx,
-          y: dragRef.current!.viewY + dy
-        }));
-      }
-    };
-
-    const onUp = () => {
-      dragRef.current = null;
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-    };
-
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp, { once: true });
   }, [view.x, view.y]);
 
-  const handleRegionClick = useCallback(
+  /* ---- region click: suppress when a drag gesture happened -------- */
+  const handleRegionAction = useCallback(
     (regionId: RegionId) => {
-      if (isDragGestureRef.current) {
-        isDragGestureRef.current = false;
+      if (gestureFlagRef.current) {
+        gestureFlagRef.current = false;
         return;
       }
       onSelect(regionId);
@@ -144,23 +208,13 @@ export function GameMap({
     [onSelect]
   );
 
+  /* consume stale gesture flag on any click within the panel --------- */
   const handlePanelClick = useCallback(() => {
-    isDragGestureRef.current = false;
+    gestureFlagRef.current = false;
   }, []);
 
-  const resetView = useCallback(() => setView({ x: 0, y: 0, zoom: 1 }), []);
-  const zoomIn = useCallback(() => {
-    if (!panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    setZoom(view.zoom * ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
-  }, [view.zoom, setZoom]);
-  const zoomOut = useCallback(() => {
-    if (!panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    setZoom(view.zoom / ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
-  }, [view.zoom, setZoom]);
-
-  const transformStyle = {
+  /* ---- render ------------------------------------------------------ */
+  const transformStyle: React.CSSProperties = {
     transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
     transformOrigin: "0 0"
   };
@@ -174,24 +228,26 @@ export function GameMap({
       onPointerDown={handlePointerDown}
       onClick={handlePanelClick}
     >
+      {/* ---- viewport (all map layers live inside this) ------------- */}
       <div className="map-viewport" style={transformStyle}>
         <svg className="physical-layer" viewBox="0 0 900 620" aria-hidden="true">
           <rect className="map-sea" x="0" y="0" width="900" height="620" />
-          {eastAsiaLandPaths.map((path, index) => (
-            <path key={`land-${index}`} className="map-land" d={path} />
+          {eastAsiaLandPaths.map((path, idx) => (
+            <path key={`land-${idx}`} className="map-land" d={path} />
           ))}
         </svg>
+
         <svg className="route-layer" viewBox="0 0 900 620" aria-hidden="true">
           {mapRegions.flatMap((shape) => {
             const region = state.regions[shape.id];
             return region.connections
-              .filter((connectionId) => shape.id < connectionId)
-              .map((connectionId) => {
-                const target = mapRegions.find((item) => item.id === connectionId);
+              .filter((cid) => shape.id < cid)
+              .map((cid) => {
+                const target = mapRegions.find((s) => s.id === cid);
                 if (!target) return null;
                 return (
                   <line
-                    key={`${shape.id}-${connectionId}`}
+                    key={`${shape.id}-${cid}`}
                     x1={shape.labelX}
                     y1={shape.labelY}
                     x2={target.labelX}
@@ -207,37 +263,42 @@ export function GameMap({
             const region = state.regions[shape.id];
             const faction = state.factions[region.controllerFactionId];
             const opacity = layer === "control" ? Math.max(0.34, region.control / 100) : 0.72;
-            const labelWidth = shape.labelWidth ?? 96;
+            const lblW = shape.labelWidth ?? 96;
 
             return (
               <g
                 key={shape.id}
                 data-testid={`region-${shape.id}`}
-                className={`political-region ${shape.isEnclave ? "is-enclave" : ""} ${selectedRegionId === shape.id ? "is-selected" : ""} ${
+                className={[
+                  "political-region",
+                  shape.isEnclave ? "is-enclave" : "",
+                  selectedRegionId === shape.id ? "is-selected" : "",
                   currentDecision.targetRegionId === shape.id ? "is-target" : ""
-                }`}
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 role="button"
                 tabIndex={0}
-                onClick={() => handleRegionClick(shape.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") handleRegionClick(shape.id);
+                onClick={() => handleRegionAction(shape.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" || ev.key === " ") handleRegionAction(shape.id);
                 }}
                 aria-label={`${region.name}，控制者：${faction.name}`}
               >
-                {shape.paths.map((path, index) => (
+                {shape.paths.map((d, i) => (
                   <path
-                    key={`${shape.id}-${index}`}
-                    data-testid={index === 0 ? `region-area-${shape.id}` : undefined}
+                    key={`${shape.id}-${i}`}
+                    data-testid={i === 0 ? `region-area-${shape.id}` : undefined}
                     className="political-region__area"
-                    d={path}
+                    d={d}
                     fill={faction.primaryColor}
                     fillOpacity={opacity}
                   />
                 ))}
-                <foreignObject x={shape.labelX - labelWidth / 2} y={shape.labelY - 27} width={labelWidth} height="54">
+                <foreignObject x={shape.labelX - lblW / 2} y={shape.labelY - 27} width={lblW} height="54">
                   <div className="political-label">
                     <strong>{region.name}</strong>
-                    <span>{layerValue(region, layer)}</span>
+                    <span>{layerLabel(region, layer)}</span>
                   </div>
                 </foreignObject>
               </g>
@@ -246,12 +307,13 @@ export function GameMap({
         </svg>
 
         <svg className="river-overlay-layer" viewBox="0 0 900 620" aria-hidden="true">
-          {majorRiverPaths.map((path, index) => (
-            <path key={`river-${index}`} className="map-river" d={path} />
+          {majorRiverPaths.map((d, idx) => (
+            <path key={`river-${idx}`} className="map-river" d={d} />
           ))}
         </svg>
       </div>
 
+      {/* ---- UI overlay controls (not affected by pan/zoom) --------- */}
       <div className="map-controls" aria-label="地图图层">
         {layerOptions.map(([value, label, Icon]) => (
           <button
@@ -277,7 +339,9 @@ export function GameMap({
         <button type="button" title="缩小" onClick={zoomOut}>
           <Minus aria-hidden="true" size={16} />
         </button>
-        <span className="zoom-level" aria-live="polite">{Math.round(view.zoom * 100)}%</span>
+        <span className="zoom-level" aria-live="polite">
+          {Math.round(view.zoom * 100)}%
+        </span>
       </div>
 
       <aside className="map-command-panel" aria-label="地图战略决策">
@@ -318,7 +382,7 @@ export function GameMap({
           军事方向
           <select
             value={currentDecision.targetRegionId ?? ""}
-            onChange={(event) => onDecisionChange?.({ targetRegionId: event.target.value || null })}
+            onChange={(e) => onDecisionChange?.({ targetRegionId: e.target.value || null })}
             disabled={!onDecisionChange}
           >
             {validTargets.map((targetId) => (
@@ -361,7 +425,11 @@ export function GameMap({
   );
 }
 
-function layerValue(region: GameState["regions"][string], layer: MapLayer): string {
+/* ================================================================== */
+/*  helpers                                                           */
+/* ================================================================== */
+
+function layerLabel(region: GameState["regions"][string], layer: MapLayer): string {
   switch (layer) {
     case "population":
       return `${Math.round(region.population / 10000)}万人`;
@@ -380,15 +448,15 @@ function layerValue(region: GameState["regions"][string], layer: MapLayer): stri
   }
 }
 
-function shortNumber(value: number): string {
-  if (value >= 10000) return `${Math.round(value / 10000)}万`;
-  if (value >= 1000) return `${Math.round(value / 1000)}千`;
-  return String(value);
+function shortNumber(n: number): string {
+  if (n >= 10000) return `${Math.round(n / 10000)}万`;
+  if (n >= 1000) return `${Math.round(n / 1000)}千`;
+  return String(n);
 }
 
-function portraitKey(factionId: string): string {
-  if (factionId === "ming") return "emperor";
-  if (factionId === "jianzhou" || factionId === "haixi") return "khan";
-  if (factionId === "tumed" || factionId === "chahar") return "general";
+function portraitKey(fid: string): string {
+  if (fid === "ming") return "emperor";
+  if (fid === "jianzhou" || fid === "haixi") return "khan";
+  if (fid === "tumed" || fid === "chahar") return "general";
   return "minister";
 }
