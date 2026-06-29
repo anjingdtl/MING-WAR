@@ -22,7 +22,7 @@ export function updateRebellion(region: RegionState, faction: FactionState): Reb
   return {
     region: {
       ...region,
-      rebelPressure: erupted ? 45 : Math.round(nextPressure),
+      rebelPressure: erupted ? 80 : Math.round(nextPressure),
       stability: erupted ? Math.max(0, region.stability - 12) : region.stability
     },
     erupted,

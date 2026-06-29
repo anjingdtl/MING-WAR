@@ -9,7 +9,7 @@ import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
 import { resolveBattle } from "./warfare";
 import { mvpEvents } from "../data/events";
-import type { FactionState, GameState, MonthlyReport, PlayerDecision, SimulationInput, SimulationResult } from "./types";
+import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
@@ -27,6 +27,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     nextRegion = updateControl(nextRegion, controller);
     const rebellion = updateRebellion(nextRegion, controller);
     nextRegion = rebellion.region;
+    nextRegion = applyRebellionConsequences(nextRegion, controller, reports, state.currentDate, state);
     state.regions[region.id] = nextRegion;
     controller.treasury += economy.treasuryDelta;
     controller.grainReserve += economy.grainDelta;
@@ -71,6 +72,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       });
     }
   }
+
+  applyResourceCrises(state, reports, random);
 
   const decisions: Record<string, PlayerDecision> = {
     [state.playerFactionId]: playerDecision,
@@ -144,4 +147,113 @@ function countControlledRegions(state: GameState): Record<string, number> {
     counts[region.controllerFactionId] = (counts[region.controllerFactionId] ?? 0) + 1;
   }
   return counts;
+}
+
+function applyRebellionConsequences(
+  region: RegionState,
+  controller: FactionState,
+  reports: MonthlyReport[],
+  currentDate: string,
+  state: GameState
+): RegionState {
+  if (region.rebelPressure < 75) return region;
+
+  let next = { ...region };
+  if (next.control > 30) {
+    next.control = Math.max(15, next.control - 18);
+    next.stability = Math.max(0, next.stability - 8);
+    next.garrison = Math.max(1000, Math.round(next.garrison * 0.88));
+  } else if (next.control <= 20 && controller.id !== "rebels") {
+    next = handRegionToRebels(next, controller, reports, currentDate, state);
+  }
+
+  return next;
+}
+
+function handRegionToRebels(
+  region: RegionState,
+  controller: FactionState,
+  reports: MonthlyReport[],
+  currentDate: string,
+  state: GameState
+): RegionState {
+  reports.push({
+    id: `${currentDate}-${region.id}-rebel-takeover`,
+    date: currentDate,
+    type: "rebellion",
+    title: `${region.name}民众起义`,
+    body: `${region.name}控制瓦解，当地民众武装驱逐官府，宣布自立。`,
+    severity: "danger"
+  });
+  const rebelGarrison = Math.max(2000, Math.round(region.garrison * 0.35));
+  state.factions.rebels.armyTotal += rebelGarrison;
+  controller.armyTotal = Math.max(0, controller.armyTotal - rebelGarrison);
+  return {
+    ...region,
+    controllerFactionId: "rebels",
+    control: Math.min(40, region.control + 12),
+    stability: Math.min(50, region.stability + 6),
+    garrison: rebelGarrison,
+    rebelPressure: Math.max(0, region.rebelPressure - 35)
+  };
+}
+
+function applyResourceCrises(state: GameState, reports: MonthlyReport[], random: { next: () => number }) {
+  for (const faction of Object.values(state.factions)) {
+    if (faction.status !== "active") continue;
+
+    const grainCrisis = faction.grainReserve <= 0;
+    const treasuryCrisis = faction.treasury <= 0;
+    if (!grainCrisis && !treasuryCrisis) continue;
+
+    const controlledRegions = Object.values(state.regions).filter((region) => region.controllerFactionId === faction.id);
+
+    if (grainCrisis) {
+      const desertionRate = 0.025 + random.next() * 0.015;
+      const deserters = Math.round(faction.armyTotal * desertionRate);
+      faction.armyTotal = Math.max(0, faction.armyTotal - deserters);
+      faction.warExhaustion = Math.min(100, faction.warExhaustion + 3);
+      faction.legitimacy = Math.max(0, faction.legitimacy - 1);
+
+      for (const region of controlledRegions) {
+        region.garrison = Math.max(1000, Math.round(region.garrison * 0.97));
+        region.stability = Math.max(0, region.stability - 1);
+        if (region.grainStock < region.population * 0.06) {
+          region.rebelPressure = Math.min(100, region.rebelPressure + 6);
+          region.population = Math.max(1000, Math.round(region.population * 0.992));
+        }
+      }
+
+      reports.push({
+        id: `${state.currentDate}-${faction.id}-grain-crisis`,
+        date: state.currentDate,
+        type: "economy",
+        title: `${faction.name}粮尽军散`,
+        body: `粮食储备枯竭，${deserters.toLocaleString()}名士兵逃亡，民间叛乱风险急剧上升。`,
+        severity: "danger"
+      });
+    }
+
+    if (treasuryCrisis) {
+      const mutinyRate = 0.012 + random.next() * 0.01;
+      const mutineers = Math.round(faction.armyTotal * mutinyRate);
+      faction.armyTotal = Math.max(0, faction.armyTotal - mutineers);
+      faction.centralization = Math.max(0, faction.centralization - 1);
+      faction.legitimacy = Math.max(0, faction.legitimacy - 1);
+
+      for (const region of controlledRegions) {
+        region.garrison = Math.max(1000, Math.round(region.garrison * 0.985));
+        region.stability = Math.max(0, region.stability - 1);
+      }
+
+      reports.push({
+        id: `${state.currentDate}-${faction.id}-treasury-crisis`,
+        date: state.currentDate,
+        type: "economy",
+        title: `${faction.name}财政破产`,
+        body: `国库空虚，军饷无着，${mutineers.toLocaleString()}名士兵哗变或溃散。`,
+        severity: "danger"
+      });
+    }
+  }
 }

@@ -6,9 +6,28 @@ import { createMvpScenario } from "../data/scenarios";
 describe("GameMap", () => {
   it("renders region labels and handles selection", () => {
     const onSelect = vi.fn();
-    render(<GameMap state={createMvpScenario()} layer="control" selectedRegionId="beijing" onSelect={onSelect} />);
-    expect(screen.getByText("北京")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("region-beijing"));
-    expect(onSelect).toHaveBeenCalledWith("beijing");
+    render(<GameMap state={createMvpScenario()} layer="control" selectedRegionId="beizhili" onSelect={onSelect} />);
+    expect(screen.getAllByText("北直隶").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByTestId("region-beizhili"));
+    expect(onSelect).toHaveBeenCalledWith("beizhili");
+  });
+
+  it("colors political regions from their current controller", () => {
+    const state = createMvpScenario();
+    state.regions.beizhili.controllerFactionId = "jianzhou";
+    render(<GameMap state={state} layer="control" selectedRegionId="beizhili" onSelect={vi.fn()} />);
+    expect(screen.getByTestId("region-area-beizhili").getAttribute("fill")).toBe(state.factions.jianzhou.primaryColor);
+  });
+
+  it("zooms in and out and resets view", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" selectedRegionId="beizhili" onSelect={vi.fn()} />);
+    expect(screen.getByText("100%")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("放大"));
+    expect(screen.getByText("112%")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("缩小"));
+    expect(screen.getByText("100%")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("放大"));
+    fireEvent.click(screen.getByTitle("重置视图"));
+    expect(screen.getByText("100%")).toBeTruthy();
   });
 });

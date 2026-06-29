@@ -1,4 +1,4 @@
-import type { GameState, PlayerDecision } from "../core/types";
+import type { FactionState, GameState, PlayerDecision } from "../core/types";
 import { factionTemplates } from "./factions";
 import { regionTemplates } from "./regions";
 
@@ -8,6 +8,34 @@ export const defaultPlayerDecision: PlayerDecision = {
   domesticFocus: "administration"
 };
 
+const rebelFaction: FactionState = {
+  id: "rebels",
+  name: "义军",
+  type: "rebel",
+  treasury: 0,
+  grainReserve: 0,
+  armyTotal: 0,
+  administration: 20,
+  militaryOrganization: 35,
+  legitimacy: 15,
+  corruption: 20,
+  centralization: 10,
+  warExhaustion: 0,
+  capitalRegionId: "shaanxi",
+  primaryColor: "#3A4A3A",
+  traits: ["流民武装", "无固定补给"],
+  aiProfile: {
+    aggression: 55,
+    riskTolerance: 60,
+    economicFocus: 25,
+    centralizationPreference: 10,
+    historicalGoalWeight: 20,
+    defensePriority: 40,
+    warEndurance: 30
+  },
+  status: "active"
+};
+
 export function createMvpScenario(playerFactionId = "ming", seed = 157301): GameState {
   return {
     version: "0.1.0",
@@ -15,7 +43,7 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
     endDate: "1621-12",
     seed,
     playerFactionId,
-    factions: structuredClone(factionTemplates),
+    factions: { ...structuredClone(factionTemplates), rebels: structuredClone(rebelFaction) },
     regions: structuredClone(regionTemplates),
     wars: [],
     activeModifiers: [],
