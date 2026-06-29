@@ -1,0 +1,113 @@
+/**
+ * 万历：山河崩塌 — 主题样式
+ * Phase 1 视觉系统基础
+ *
+ * 颜色取自明代官造色与文人书房器物:
+ *  - 帝王朱 / 御黄 / 缥色 / 茄皮紫 / 黛色 / 烟色
+ *  - 月白 / 米色 / 玄色 / 驼色 / 描金
+ */
+
+:root {
+  /* ===== 主色:语义 ===== */
+  --color-imperial-red: #B23A2C; /* 帝王朱 — 关键行动、危险 */
+  --color-imperial-red-dark: #8A2A20; /* 深朱 — 按下/危险 */
+  --color-imperial-gold: #D9A441; /* 御黄 — 数值上升、正向 */
+  --color-piao: #4A7B9D; /* 缥色 — 玩家、选中 */
+  --color-piao-dark: #355C7A;
+  --color-qiepi: #6E4F6B; /* 茄皮紫 — AI/外部势力 */
+  --color-yongchu: #4A7C59; /* 永初绿 — 稳健、积极 */
+
+  /* ===== 文字 ===== */
+  --color-ink: #2A2723; /* 黛色 — 标题与正文 */
+  --color-ink-soft: #3F3A33; /* 软墨 — 次要标题 */
+  --color-smoke: #7A6F62; /* 烟色 — 次要文字 */
+  --color-ink-mute: #9C9082; /* 雾色 — 辅助文字 */
+  --color-ink-on-dark: #F5EAD0; /* 暗底文字 */
+
+  /* ===== 底色 ===== */
+  --color-yuebai: #EFE4C9; /* 月白 — 面板底色 */
+  --color-mixian: #F5EAD0; /* 米色 — 卡片/徽章底 */
+  --color-xuan: #1B1815; /* 玄色 — 应用背景 */
+  --color-xuan-2: #2A2520; /* 玄色 2 — 二级暗底 */
+  --color-yunzhi: rgba(75, 60, 42, 0.08); /* 纸质纹理底 */
+
+  /* ===== 边框/装饰 ===== */
+  --color-border: #8B6F47; /* 驼色 — 面板边框 */
+  --color-border-soft: rgba(139, 111, 71, 0.32);
+  --color-gold-line: #A88C3C; /* 描金 — 标题分隔线、关键装饰 */
+  --color-gold-line-soft: rgba(168, 140, 60, 0.6);
+
+  /* ===== 语义色 ===== */
+  --tone-positive: var(--color-imperial-gold);
+  --tone-negative: var(--color-imperial-red);
+  --tone-positive-text: #7A5A1A; /* 暗金,用于黄底字 */
+  --tone-negative-text: #8A2A20; /* 暗朱,用于红底字 */
+  --tone-player: var(--color-piao);
+  --tone-ai: var(--color-qiepi);
+  --tone-danger: var(--color-imperial-red);
+  --tone-warning: #B98935;
+  --tone-warning-text: #6B5212;
+  --tone-success: var(--color-yongchu);
+  --tone-info: var(--color-piao);
+
+  /* ===== 玻璃/透明 ===== */
+  --panel-glass-bg: rgba(252, 245, 225, 0.88);
+  --panel-glass-border: rgba(219, 200, 164, 0.72);
+  --panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  --panel-shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.38);
+  --backdrop: rgba(23, 18, 14, 0.58);
+
+  /* ===== 字体 ===== */
+  --font-display: "LXGW WenKai", "霞鹜文楷", "ZCOOL XiaoWei", "Noto Serif SC",
+    "Songti SC", "STSong", "SimSun", "KaiTi", "STKaiti", serif;
+  --font-body: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong",
+    "SimSun", serif;
+  --font-num: "LXGW WenKai Mono", "Noto Sans Mono CJK SC", "JetBrains Mono",
+    "Consolas", monospace;
+  --font-label: "Noto Sans SC", "Source Han Sans SC", "PingFang SC",
+    "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  --font-en: "Linux Libertine", "EB Garamond", "Crimson Text", Georgia, serif;
+
+  /* ===== 尺寸:8px 基准 ===== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ===== 圆角 ===== */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+  --radius-full: 9999px;
+
+  /* ===== 字号 ===== */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 20px;
+  --text-3xl: 24px;
+  --text-4xl: 30px;
+
+  /* ===== 间距尺度 ===== */
+  --line-tight: 1.3;
+  --line-normal: 1.5;
+  --line-loose: 1.7;
+
+  /* ===== 动效 ===== */
+  --t-fast: 120ms;
+  --t-base: 200ms;
+  --t-slow: 360ms;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
