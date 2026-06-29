@@ -1955,6 +1955,10 @@ kbd {
 .event-art--court img { transform: translateY(0); }
 .event-art--frontier img { transform: translateY(-33.333%); }
 .event-art--famine img { transform: translateY(-66.666%); }
+.event-art--political img { transform: translateY(0); }
+.event-art--popular img { transform: translateY(-66.666%); }
+.event-art--military img { transform: translateY(-33.333%); }
+.event-art--disaster img { transform: translateY(-66.666%); }
 
 .event-copy {
   padding: 14px 18px 8px;

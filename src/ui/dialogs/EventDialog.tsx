@@ -1,4 +1,5 @@
 import type { GameEvent } from "../../core/eventEngine";
+import { resolveEventVisual } from "../../data/eventVisuals";
 import eventScenesUrl from "../../assets/art/ming-event-scenes.png";
 
 interface EventDialogProps {
@@ -8,11 +9,13 @@ interface EventDialogProps {
 
 export function EventDialog({ event, onResolve }: EventDialogProps) {
   if (!event) return null;
+  const visual = resolveEventVisual(event);
+
   return (
     <div className="dialog-backdrop" role="dialog" aria-modal="true">
       <section className="event-dialog">
-        <div className={`event-art event-art--${sceneKey(event)}`}>
-          <img src={eventScenesUrl} alt="" />
+        <div className={`event-art event-art--${visual.type}`} data-visual-type={visual.type}>
+          <img src={eventScenesUrl} alt={visual.alt} />
         </div>
         <div className="event-copy">
           <span>{categoryLabel(event.category)}</span>
@@ -30,13 +33,6 @@ export function EventDialog({ event, onResolve }: EventDialogProps) {
       </section>
     </div>
   );
-}
-
-function sceneKey(event: GameEvent): string {
-  if (event.category === "region" || event.id.includes("campaign")) return "frontier";
-  if (event.id.includes("saarhu") || event.id.includes("jianzhou")) return "frontier";
-  if (event.id.includes("reform") || event.id.includes("zhang")) return "court";
-  return "famine";
 }
 
 function categoryLabel(category: GameEvent["category"]): string {
