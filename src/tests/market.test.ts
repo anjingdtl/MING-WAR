@@ -75,23 +75,33 @@ describe("initializeIndustries", () => {
 
 describe("adjustPrice", () => {
   it("raises price when supply < demand", () => {
-    const newPrice = adjustPrice(10, 50, 100);
+    const newPrice = adjustPrice(10, 50, 100, 10);
     expect(newPrice).toBeGreaterThan(10);
   });
 
   it("lowers price when supply > demand", () => {
-    const newPrice = adjustPrice(10, 200, 100);
+    const newPrice = adjustPrice(10, 200, 100, 10);
     expect(newPrice).toBeLessThan(10);
   });
 
   it("keeps price stable when supply equals demand", () => {
-    const newPrice = adjustPrice(10, 100, 100);
+    const newPrice = adjustPrice(10, 100, 100, 10);
     expect(newPrice).toBeCloseTo(10);
   });
 
-  it("floors price at 10% of base", () => {
-    const newPrice = adjustPrice(10, 1000000, 1);
+  it("floors price at 10% of base under massive oversupply", () => {
+    const newPrice = adjustPrice(0.1, 1000000, 1, 1);
     expect(newPrice).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it("caps price at 500% of base to prevent geometric blow-up", () => {
+    // Sustained scarcity must not compound *1.5 every month forever —
+    // this is the regression that sent grain to 4e17 in batch simulation.
+    let price = 1;
+    for (let i = 0; i < 60; i++) {
+      price = adjustPrice(price, 1, 1000, 1);
+    }
+    expect(price).toBeLessThanOrEqual(5);
   });
 });
 

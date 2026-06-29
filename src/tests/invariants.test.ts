@@ -99,7 +99,19 @@ describe("summarizeViolations", () => {
 describe("P0-5: simulation validates invariants and reports violations", () => {
   it("reports invariant violations as system reports", () => {
     const state = createMvpScenario("ming", 99);
-    state.factions.ming.treasury = -2_000_000; // Triggers extreme negative
+    // A war referencing a non-existent attacker is NOT auto-repaired by the
+    // monthly pipeline, so the invariant check fires and is surfaced as a
+    // system report. (We previously used an extreme-negative treasury, but the
+    // pipeline now clamps treasury >= 0 at source — preventing that violation
+    // from ever arising, which is the desired behaviour.)
+    state.wars = [{
+      id: "broken-war",
+      attackerFactionId: "nonexistent-faction",
+      defenderFactionId: "ming",
+      targetRegionId: "beizhili",
+      progress: 30,
+      monthsActive: 1
+    }];
 
     const result = simulateMonth({
       state,
@@ -108,7 +120,7 @@ describe("P0-5: simulation validates invariants and reports violations", () => {
     });
 
     const invariantReport = result.reports.find(
-      (r) => r.type === "system" && r.title.includes("treasury-extreme-negative")
+      (r) => r.type === "system" && r.title.includes("war-attacker-missing")
     );
     expect(invariantReport).toBeDefined();
     expect(invariantReport?.severity).toBe("danger");

@@ -1,5 +1,6 @@
-import type { FactionState, MilitaryPosture, RegionState, WarState } from "./types";
+import type { FactionState, MilitaryPosture, Modifier, RegionState, WarState } from "./types";
 import type { RandomSource } from "./random";
+import { queryModifier } from "./modifiers";
 
 /**
  * Create an initial war state from the first engagement between two factions.
@@ -29,15 +30,20 @@ export function advanceWar(
   war: WarState,
   attacker: FactionState,
   defender: FactionState,
-  region: RegionState
+  region: RegionState,
+  modifiers: Modifier[] = []
 ): WarState {
+  const attackerOrgMult = 1 + queryModifier(modifiers, "faction", attacker.id, "army-org-mult");
+  const defenderOrgMult = 1 + queryModifier(modifiers, "faction", defender.id, "army-org-mult");
   const attackerStrength =
     attacker.armyTotal *
     (attacker.militaryOrganization / 100) *
+    attackerOrgMult *
     (1 - attacker.warExhaustion / 200);
   const defenderStrength =
     defender.armyTotal *
     (defender.militaryOrganization / 100) *
+    defenderOrgMult *
     ((region.fortification / 100) + 0.5);
 
   const strengthRatio = attackerStrength / Math.max(1, defenderStrength);
@@ -71,15 +77,19 @@ export function resolveBattle(
   attacker: FactionState,
   defender: FactionState,
   posture: MilitaryPosture,
-  random: RandomSource
+  random: RandomSource,
+  modifiers: Modifier[] = []
 ): BattleResult {
   const attackerCommitted = Math.min(attacker.armyTotal, Math.round(attacker.armyTotal * 0.18 * postureMultiplier[posture]));
   const defenderCommitted = Math.min(defender.armyTotal, region.garrison);
   const terrainDefense = region.terrain === "mountain" ? 1.25 : region.terrain === "river" ? 1.12 : 1;
+  // S1b: army-org-mult modifier (e.g. 军制改革/八旗组织) scales effective military organization.
+  const attackerOrgMult = 1 + queryModifier(modifiers, "faction", attacker.id, "army-org-mult");
+  const defenderOrgMult = 1 + queryModifier(modifiers, "faction", defender.id, "army-org-mult");
   const attackerPower =
-    attackerCommitted * (attacker.militaryOrganization / 100) * (1 - attacker.warExhaustion / 200) * (0.9 + random.next() * 0.25);
+    attackerCommitted * (attacker.militaryOrganization / 100) * attackerOrgMult * (1 - attacker.warExhaustion / 200) * (0.9 + random.next() * 0.25);
   const defenderPower =
-    defenderCommitted * (defender.militaryOrganization / 100) * terrainDefense * (region.fortification / 120 + 0.5) * (0.9 + random.next() * 0.25);
+    defenderCommitted * (defender.militaryOrganization / 100) * defenderOrgMult * terrainDefense * (region.fortification / 120 + 0.5) * (0.9 + random.next() * 0.25);
   const attackerWins = attackerPower > defenderPower;
   const attackerLoss = Math.round(attackerCommitted * (attackerWins ? 0.08 : 0.18));
   const defenderLoss = Math.round(defenderCommitted * (attackerWins ? 0.18 : 0.08));

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "batch": "tsx src/scripts/runBatchSimulation.ts",
+    "diagnose": "tsx src/scripts/diagnoseSimulation.ts",
     "map:generate": "tsx src/scripts/generateMapRegions.ts",
     "map:validate": "tsx src/scripts/validateMapRegions.ts"
   },

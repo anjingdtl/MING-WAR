@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Modifier } from "../core/types";
-import { expireModifiers, addModifier, removeModifiers, aggregateModifierEffect } from "../core/modifiers";
+import { expireModifiers, addModifier, removeModifiers, aggregateModifierEffect, queryModifier } from "../core/modifiers";
 import { simulateMonth } from "../core/simulation";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 
@@ -157,5 +157,86 @@ describe("P0-3: simulation automatically expires modifiers", () => {
     }
 
     expect(current.activeModifiers.find((m) => m.id === "permanent")).toBeDefined();
+  });
+});
+
+describe("queryModifier", () => {
+  it("cascades global → faction → region for a region query", () => {
+    const mods: Modifier[] = [
+      { id: "g", label: "g", scope: "global", effects: { "tax-mult": 0.1 } },
+      { id: "f", label: "f", scope: "faction", targetId: "ming", effects: { "tax-mult": 0.2 } },
+      { id: "r", label: "r", scope: "region", targetId: "beizhili", effects: { "tax-mult": 0.05 } },
+      { id: "other", label: "o", scope: "faction", targetId: "jianzhou", effects: { "tax-mult": 0.9 } }
+    ];
+    // beizhili controlled by ming: global(0.1) + ming faction(0.2) + beizhili region(0.05)
+    expect(queryModifier(mods, "region", "beizhili", "tax-mult", "ming")).toBeCloseTo(0.35);
+  });
+
+  it("faction query includes global + that faction only", () => {
+    const mods: Modifier[] = [
+      { id: "g", label: "g", scope: "global", effects: { "tax-mult": 0.1 } },
+      { id: "f", label: "f", scope: "faction", targetId: "ming", effects: { "tax-mult": 0.2 } },
+      { id: "other", label: "o", scope: "faction", targetId: "jianzhou", effects: { "tax-mult": 0.9 } }
+    ];
+    expect(queryModifier(mods, "faction", "ming", "tax-mult")).toBeCloseTo(0.3);
+  });
+
+  it("returns 0 when no modifiers match the key", () => {
+    const mods: Modifier[] = [
+      { id: "g", label: "g", scope: "global", effects: { other: 0.1 } }
+    ];
+    expect(queryModifier(mods, "region", "beizhili", "tax-mult", "ming")).toBe(0);
+  });
+});
+
+describe("S1a: live modifiers actually move economy numbers", () => {
+  it("a faction tax-mult modifier raises Ming's treasury vs baseline", () => {
+    const base = createMvpScenario("ming", 1);
+    const boosted = createMvpScenario("ming", 1);
+    boosted.activeModifiers = [
+      { id: "tax-reform", label: "税制改革", scope: "faction", targetId: "ming", effects: { "tax-mult": 0.3 }, remainingMonths: 12 }
+    ];
+    const baseResult = simulateMonth({ state: base, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    const boostedResult = simulateMonth({ state: boosted, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    // 税制改革 +30% 税收应让大明国库明显高于基线
+    expect(boostedResult.factions.ming.treasury).toBeGreaterThan(baseResult.factions.ming.treasury);
+  });
+
+  it("an irrelevant modifier key does not change treasury", () => {
+    const base = createMvpScenario("ming", 1);
+    const noisy = createMvpScenario("ming", 1);
+    noisy.activeModifiers = [
+      { id: "noise", label: "无关修正", scope: "faction", targetId: "ming", effects: { "army-org-mult": 0.5 }, remainingMonths: 12 }
+    ];
+    const baseResult = simulateMonth({ state: base, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    const noisyResult = simulateMonth({ state: noisy, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    // army-org-mult 尚未在 economy 接入，不应影响国库
+    expect(noisyResult.factions.ming.treasury).toBe(baseResult.factions.ming.treasury);
+  });
+});
+
+describe("S1b: extended modifier hooks", () => {
+  it("maintenance-mult raises upkeep and lowers Ming treasury", () => {
+    const base = createMvpScenario("ming", 1);
+    const costly = createMvpScenario("ming", 1);
+    costly.activeModifiers = [
+      { id: "war-tax", label: "军费膨胀", scope: "faction", targetId: "ming", effects: { "maintenance-mult": 0.5 }, remainingMonths: 12 }
+    ];
+    const baseResult = simulateMonth({ state: base, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    const costlyResult = simulateMonth({ state: costly, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    expect(costlyResult.factions.ming.treasury).toBeLessThan(baseResult.factions.ming.treasury);
+  });
+
+  it("control-flat lifts a region's control vs baseline", () => {
+    const baseline = createMvpScenario("ming", 1);
+    baseline.regions.beizhili.control = 50;
+    const boosted = createMvpScenario("ming", 1);
+    boosted.regions.beizhili.control = 50;
+    boosted.activeModifiers = [
+      { id: "garrison-reform", label: "驻军改革", scope: "region", targetId: "beizhili", effects: { "control-flat": 5 }, remainingMonths: 12 }
+    ];
+    const baselineResult = simulateMonth({ state: baseline, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    const boostedResult = simulateMonth({ state: boosted, playerDecision: defaultPlayerDecision, randomSeed: 1 }).nextState;
+    expect(boostedResult.regions.beizhili.control).toBeGreaterThan(baselineResult.regions.beizhili.control);
   });
 });

@@ -162,14 +162,18 @@ export function initializeMarket(regionId: RegionId): MarketState {
 export function adjustPrice(
   currentPrice: number,
   supply: number,
-  demand: number
+  demand: number,
+  basePrice: number
 ): number {
   if (demand === 0) return currentPrice;
   const ratio = supply / demand; // 1.0 = balanced
   // Cap adjustments to ±50% per month for stability
   const adjustment = Math.max(0.5, Math.min(1.5, ratio));
   const newPrice = currentPrice * (2 - adjustment); // inverted: oversupply → lower price
-  return Math.max(BASE_PRICES.grain * 0.1, newPrice); // floor at 10% of base
+  // Bound price to [10%, 500%] of base. Without a ceiling, a persistent
+  // scarcity compounded the price *1.5 every month (grain hit 4e17 in batch).
+  // The previous floor also hard-coded grain's base for every good.
+  return Math.max(basePrice * 0.1, Math.min(basePrice * 5, newPrice));
 }
 
 /**
@@ -305,7 +309,7 @@ export function updateMarketPrices(markets: Record<RegionId, MarketState>): void
   for (const market of Object.values(markets)) {
     for (const good of Object.keys(BASE_PRICES) as GoodId[]) {
       const oldPrice = market.prices[good];
-      const newPrice = adjustPrice(oldPrice, market.supply[good], market.demand[good]);
+      const newPrice = adjustPrice(oldPrice, market.supply[good], market.demand[good], BASE_PRICES[good]);
       market.prices[good] = newPrice;
     }
   }

@@ -144,6 +144,7 @@ export function advancePopGroups(groups: PopGroup[], input: PopDynamicsInput): P
       result.push({
         ...next,
         type: "migrant",
+        size: migrateOut,
         radicalism: 80,
         needsSatisfaction: 20,
         id: `${group.regionId}-migrant-from-${group.type}`,

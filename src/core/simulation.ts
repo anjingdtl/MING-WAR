@@ -26,7 +26,7 @@ import {
   updateMarketPrices
 } from "./market";
 import { mvpEvents } from "../data/events";
-import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
+import type { FactionState, GameState, GoodId, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
@@ -51,20 +51,41 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const focus = factionDecision.domesticFocus;
     const population = calculatePopulation(region, focus);
     let nextRegion = { ...region, population: population.nextPopulation };
-    const economy = calculateRegionEconomy(nextRegion, controller, focus);
+    const economy = calculateRegionEconomy(nextRegion, controller, focus, state.activeModifiers);
     nextRegion = economy.region;
-    nextRegion = updateControl(nextRegion, controller);
+    nextRegion = updateControl(nextRegion, controller, state.activeModifiers);
     const rebellion = updateRebellion(nextRegion, controller);
     nextRegion = rebellion.region;
     nextRegion = applyRebellionConsequences(nextRegion, controller, reports, state.currentDate, state);
     state.regions[region.id] = nextRegion;
     controller.treasury += economy.treasuryDelta;
-    controller.grainReserve += economy.grainDelta;
+    // NOTE: the regional grain delta already updates region.grainStock inside
+    // calculateRegionEconomy. We deliberately do NOT also add it to the
+    // controller's grainReserve — that double-counted the same grain (grain
+    // was effectively spent twice) and violated SPEC §5.2. The central
+    // reserve now only shrinks via army maintenance and relief transfers.
 
     // P2: advance pop groups (employment, needs satisfaction, famine deaths, identity transitions)
     if (nextRegion.popGroups && nextRegion.popGroups.length > 0) {
+      // Central granary relief: when folk grain runs low, the controller
+      // disburses from its strategic reserve to avert mass famine. This is
+      // what makes grainReserve meaningful (SPEC §9.1 中央可调度储备) and
+      // prevents every region from collapsing into famine the moment its own
+      // stock dips.
+      const reliefThreshold = nextRegion.population * 0.12;
+      if (nextRegion.grainStock < reliefThreshold && controller.grainReserve > 0) {
+        const target = nextRegion.population * 0.25; // ~one month of folk consumption
+        const needed = Math.max(0, target - nextRegion.grainStock);
+        // Cap each region's monthly draw at 8% of the reserve so a single
+        // starving province can't drain the whole empire in one tick.
+        const transfer = Math.min(needed, controller.grainReserve * 0.05);
+        if (transfer > 0) {
+          nextRegion.grainStock += transfer;
+          controller.grainReserve = Math.max(0, controller.grainReserve - transfer);
+        }
+      }
       const grainPerCapita = computeGrainPerCapita(
-        nextRegion.grainStock + controller.grainReserve / Math.max(1, Object.keys(state.regions).length),
+        nextRegion.grainStock,
         nextRegion.population
       );
       nextRegion.popGroups = advancePopGroups(nextRegion.popGroups, {
@@ -75,6 +96,17 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       // Sync total population from groups
       const totalFromGroups = sumPopulation(nextRegion.popGroups);
       nextRegion.population = totalFromGroups;
+      // 漕粮上缴：民间粮食充裕时，盈余的一部分上缴中央储备，给中央粮储
+      // 一个持续来源（否则赈灾只出不进，储备必然枯竭）。粮食在地区与中央
+      // 之间转移，总量守恒，符合 SPEC §9.1 征收流程。
+      const grainSurplus = nextRegion.grainStock - nextRegion.population * 0.3;
+      if (grainSurplus > 0 && controller.id !== "rebels") {
+        const tribute = Math.round(grainSurplus * 0.12);
+        if (tribute > 0) {
+          nextRegion.grainStock -= tribute;
+          controller.grainReserve += tribute;
+        }
+      }
       state.regions[region.id] = nextRegion;
     }
 
@@ -124,9 +156,33 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
 
   for (const faction of Object.values(state.factions)) {
     if (faction.status !== "active") continue;
-    const maintenance = calculateFactionMaintenance(faction);
-    faction.treasury -= maintenance.treasuryCost;
-    faction.grainReserve -= maintenance.grainCost;
+    const maintenance = calculateFactionMaintenance(faction, state.activeModifiers);
+    // Detect deficit against pre-deduction balance; clamp at 0 after
+    // deducting so treasury/grainReserve can never go negative (previously
+    // Ming's grain reserve ran to -109M and treasury to -11M).
+    const inDeficit = faction.treasury - maintenance.treasuryCost < 0;
+    faction.treasury = Math.max(0, faction.treasury - maintenance.treasuryCost);
+    faction.grainReserve = Math.max(0, faction.grainReserve - maintenance.grainCost);
+
+    // 和平期征募：财政宽裕且战疲较低时，按控制区人口比例缓慢补充兵员，
+    // 避免军队在长期边境消耗中归零（此前 armyTotal 只减不增，30 年模拟
+    // 里大明军队从 68 万耗到个位数，国库则因军饷骤降而无限累积）。
+    const controlledPop = Object.values(state.regions)
+      .filter((r) => r.controllerFactionId === faction.id)
+      .reduce((sum, r) => sum + r.population, 0);
+    const armyTarget = controlledPop * (faction.type === "tribal" ? 0.02 : 0.01);
+    if (
+      faction.armyTotal < armyTarget &&
+      faction.treasury > maintenance.treasuryCost * 2 &&
+      faction.warExhaustion < 40
+    ) {
+      const recruit = Math.min(Math.round(armyTarget - faction.armyTotal), Math.round(armyTarget * 0.005));
+      const recruitCost = Math.round(recruit * 0.5);
+      if (recruit > 0 && faction.treasury >= recruitCost) {
+        faction.armyTotal += recruit;
+        faction.treasury -= recruitCost;
+      }
+    }
     // P1: record faction maintenance as ledger entries
     if (maintenance.treasuryCost !== 0) {
       ledgerEntries.push({
@@ -145,7 +201,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
         goodId: "grain"
       });
     }
-    if (faction.treasury < 0) {
+    if (inDeficit) {
       faction.warExhaustion = Math.min(100, faction.warExhaustion + 4);
       reports.push({
         id: `${state.currentDate}-${faction.id}-deficit`,
@@ -160,6 +216,11 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
 
   applyResourceCrises(state, reports, random);
 
+  // A faction that has lost every region is eliminated (rebels excepted — they
+  // stand ready to receive new uprisings). Previously Ming could "survive"
+  // indefinitely at 0 controlled regions.
+  eliminateDefeatedFactions(state, reports);
+
   updateFactionCliques(state);
 
   const decisions: Record<string, PlayerDecision> = {
@@ -173,7 +234,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const target = state.regions[decision.targetRegionId];
     const defender = state.factions[target.controllerFactionId];
     if (!attacker || !defender || attacker.id === defender.id) continue;
-    const battle = resolveBattle(target, attacker, defender, decision.posture, random);
+    const battle = resolveBattle(target, attacker, defender, decision.posture, random, state.activeModifiers);
     state.regions[target.id] = battle.region;
     state.factions[attacker.id] = battle.attacker;
     state.factions[defender.id] = battle.defender;
@@ -199,7 +260,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const region = state.regions[war.targetRegionId];
     if (!attacker || !defender || !region) return war;
     if (attacker.status !== "active" || defender.status !== "active") return war;
-    return advanceWar(war, attacker, defender, region);
+    return advanceWar(war, attacker, defender, region, state.activeModifiers);
   });
   const nextDate = advanceMonth(state.currentDate);
   state.currentDate = nextDate;
@@ -225,11 +286,30 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const industriesByRegion: Record<string, import("./types").IndustryState[]> = {};
   for (const region of Object.values(state.regions)) {
     if (!region.market) continue;
+    // Reset this month's supply/demand snapshot. Previously supply only ever
+    // accumulated (never reset) and demand stayed at 0, so adjustPrice() hit
+    // its `demand === 0` early-return every tick and prices stayed frozen at
+    // base — the entire P3 market was inert (batch showed grainPrice=1.00 and
+    // silverStock=1000 forever).
+    for (const good of Object.keys(region.market.supply) as GoodId[]) {
+      region.market.supply[good] = 0;
+      region.market.demand[good] = 0;
+      region.market.imports[good] = 0;
+      region.market.exports[good] = 0;
+    }
     marketsByRegion[region.id] = region.market;
     industriesByRegion[region.id] = region.industries ?? [];
     if (region.industries) {
       produceGoods(region.industries, region.market, region, region.activeDisasters ?? []);
     }
+    // Inject market consumption demand so prices respond to scarcity. The
+    // coefficient is small because folk food is already settled by the
+    // economy module against region.grainStock — this demand represents the
+    // *market-traded* share, scaled to match industry output magnitude so
+    // supply/demand ratios stay near 1.0 (and prices stay bounded).
+    region.market.demand.grain = region.population * 0.00003;
+    region.market.demand.cloth = region.population * 0.00002;
+    region.market.demand.salt = region.population * 0.00001;
   }
   runTrade(state, marketsByRegion);
   updateMarketPrices(marketsByRegion);
@@ -262,7 +342,13 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     body: event.description,
     severity: "warning"
   }));
-  state.gameStatus = isAfter(nextDate, state.endDate) ? "finished" : triggered.length > 0 ? "paused" : "playing";
+  const playerEliminated = state.factions[state.playerFactionId]?.status === "collapsed";
+  state.gameStatus =
+    isAfter(nextDate, state.endDate) || playerEliminated
+      ? "finished"
+      : triggered.length > 0
+        ? "paused"
+        : "playing";
   state.lastDomesticFocus = playerDecision.domesticFocus;
 
   return {
@@ -384,6 +470,27 @@ function applyResourceCrises(state: GameState, reports: MonthlyReport[], random:
         type: "economy",
         title: `${faction.name}财政破产`,
         body: `国库空虚，军饷无着，${mutineers.toLocaleString()}名士兵哗变或溃散。`,
+        severity: "danger"
+      });
+    }
+  }
+}
+
+function eliminateDefeatedFactions(state: GameState, reports: MonthlyReport[]): void {
+  for (const faction of Object.values(state.factions)) {
+    if (faction.status !== "active") continue;
+    if (faction.type === "rebel") continue; // 义军始终可接收新起义地区
+    const hasRegion = Object.values(state.regions).some(
+      (r) => r.controllerFactionId === faction.id
+    );
+    if (!hasRegion) {
+      faction.status = "collapsed";
+      reports.push({
+        id: `${state.currentDate}-${faction.id}-eliminated`,
+        date: state.currentDate,
+        type: "system",
+        title: `${faction.name}覆灭`,
+        body: `${faction.name}已丧失全部领土，政权宣告终结。`,
         severity: "danger"
       });
     }

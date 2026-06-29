@@ -62,3 +62,60 @@ export function aggregateModifierEffect(
   }
   return total;
 }
+
+/**
+ * Effect-key vocabulary used by the live modifier system. Effects are applied
+ * at the computation sites that own each value (see S1 in docs/v2-optimization-spec.md).
+ *
+ * Multiplicative keys are additive on the multiplier basis: a value of 0.2
+ * means "+20%". Flat keys add directly to the 0–100 stat.
+ *   - tax-mult            : region tax collection (economy.ts)
+ *   - grain-output-mult   : region grain production (economy.ts)
+ *   - maintenance-mult    : faction army/bureaucracy upkeep (economy.ts)
+ *   - stability-flat      : region stability (control.ts)
+ *   - control-flat        : region control (control.ts)
+ *   - corruption-flat     : faction corruption (control.ts)
+ *   - army-org-mult       : faction military organization (warfare.ts)
+ */
+
+/**
+ * Collect every modifier relevant to a given scope, honouring the cascade
+ * global → faction → region. For a region query, supply the region's current
+ * controller as `controllerFactionId` so faction-scoped modifiers on the
+ * controller also apply.
+ */
+export function collectModifiers(
+  modifiers: Modifier[],
+  scope: "global" | "faction" | "region",
+  targetId: string | undefined,
+  controllerFactionId?: string
+): Modifier[] {
+  return modifiers.filter((m) => {
+    if (m.scope === "global") return true;
+    if (m.scope === "faction") {
+      if (scope === "faction" && m.targetId === targetId) return true;
+      // A faction-scoped modifier also applies inside that faction's regions.
+      if (scope === "region" && m.targetId === controllerFactionId) return true;
+      return false;
+    }
+    if (m.scope === "region") {
+      return scope === "region" && m.targetId === targetId;
+    }
+    return false;
+  });
+}
+
+/**
+ * Query the aggregate effect of all relevant modifiers on a numeric key.
+ * Returns 0 when nothing applies — safe to use as `1 + queryModifier(...)`.
+ */
+export function queryModifier(
+  modifiers: Modifier[],
+  scope: "global" | "faction" | "region",
+  targetId: string | undefined,
+  effectKey: string,
+  controllerFactionId?: string
+): number {
+  const relevant = collectModifiers(modifiers, scope, targetId, controllerFactionId);
+  return aggregateModifierEffect(relevant, effectKey);
+}

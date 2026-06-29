@@ -87,6 +87,25 @@ describe("advancePopGroups", () => {
     expect(finalMigrants).toBeDefined();
     expect(finalMigrants!.size).toBeGreaterThan(initialMigrants);
   });
+
+  it("conserves total population when radicalizing groups into migrants", () => {
+    // Regression: 流民化时 migrant 组曾用 {...next} 继承了 next.size（已减去
+    // migrateOut 的剩余值）而非 migrateOut，导致原组与流民组各持一份剩余
+    // size，每次流民化人口近乎翻倍，长期模拟总人口指数暴涨。
+    const groups = initializePopGroups("test", 10000);
+    for (const g of groups) {
+      if (g.type === "peasant") g.radicalism = 75;
+    }
+    const before = sumPopulation(groups);
+    const advanced = advancePopGroups(groups, {
+      region: { id: "test", population: 10000, stability: 50, agriculture: 50, taxCapacity: 50, control: 50, rebelPressure: 0 },
+      grainPerCapita: 0.1,
+      taxRate: 0.5
+    });
+    const after = sumPopulation(advanced);
+    // 流民化必须守恒：总人口不得因身份转化而增加（仅允许饥荒死亡的减少）
+    expect(after).toBeLessThanOrEqual(before);
+  });
 });
 
 describe("migrateMigrants", () => {
