@@ -16,6 +16,33 @@ export type DomesticFocus =
   | "frontier";
 export type MapLayer = "control" | "population" | "grain" | "tax" | "stability" | "army" | "controlLevel";
 
+export type PopType =
+  | "peasant"      // 自耕农
+  | "tenant"       // 佃户
+  | "artisan"      // 工匠
+  | "merchant"     // 商人
+  | "gentry"       // 士绅
+  | "official"     // 官吏
+  | "soldier"      // 军户
+  | "migrant";     // 流民
+
+export interface PopGroup {
+  id: string;
+  regionId: RegionId;
+  type: PopType;
+  size: number;
+  employed: number;
+  employment?: number; // alias
+  wealth: number;
+  literacy: number;
+  subsistence: number;
+  needsSatisfaction: number;
+  taxBurden: number;
+  politicalPower: number;
+  loyalty: number;
+  radicalism: number;
+}
+
 export type FactionCliqueId = string;
 
 export interface CliqueDef {
@@ -71,6 +98,7 @@ export interface RegionState {
   connections: RegionId[];
   activeDisasters: string[];
   rebelPressure: number;
+  popGroups?: PopGroup[];
 }
 
 export interface FactionState {

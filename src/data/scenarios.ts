@@ -1,4 +1,5 @@
 import type { FactionState, GameState, PlayerDecision } from "../core/types";
+import { initializePopGroups } from "../core/populationGroups";
 import { factionTemplates } from "./factions";
 import { regionTemplates } from "./regions";
 
@@ -44,6 +45,12 @@ const rebelFaction: FactionState = {
 };
 
 export function createMvpScenario(playerFactionId = "ming", seed = 157301): GameState {
+  // P2: initialize pop groups for each region
+  const regionsWithPops = structuredClone(regionTemplates);
+  for (const region of Object.values(regionsWithPops)) {
+    region.popGroups = initializePopGroups(region.id, region.population);
+  }
+
   return {
     version: "0.3.0",
     currentDate: "1573-01",
@@ -51,7 +58,7 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
     seed,
     playerFactionId,
     factions: { ...structuredClone(factionTemplates), rebels: structuredClone(rebelFaction) },
-    regions: structuredClone(regionTemplates),
+    regions: regionsWithPops,
     wars: [],
     activeModifiers: [],
     eventFlags: {},

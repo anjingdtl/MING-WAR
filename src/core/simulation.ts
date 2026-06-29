@@ -12,6 +12,12 @@ import { applyNaturalDecay, computeAdministrationModifier, computeFactionCliqueS
 import { expireModifiers } from "./modifiers";
 import { validateInvariants } from "./invariants";
 import type { LedgerEntry } from "./ledger";
+import {
+  advancePopGroups,
+  computeGrainPerCapita,
+  migrateMigrants,
+  sumPopulation
+} from "./populationGroups";
 import { mvpEvents } from "../data/events";
 import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -47,6 +53,23 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     state.regions[region.id] = nextRegion;
     controller.treasury += economy.treasuryDelta;
     controller.grainReserve += economy.grainDelta;
+
+    // P2: advance pop groups (employment, needs satisfaction, famine deaths, identity transitions)
+    if (nextRegion.popGroups && nextRegion.popGroups.length > 0) {
+      const grainPerCapita = computeGrainPerCapita(
+        nextRegion.grainStock + controller.grainReserve / Math.max(1, Object.keys(state.regions).length),
+        nextRegion.population
+      );
+      nextRegion.popGroups = advancePopGroups(nextRegion.popGroups, {
+        region: nextRegion,
+        grainPerCapita,
+        taxRate: 0.3
+      });
+      // Sync total population from groups
+      const totalFromGroups = sumPopulation(nextRegion.popGroups);
+      nextRegion.population = totalFromGroups;
+      state.regions[region.id] = nextRegion;
+    }
 
     // P1: record ledger entries (income from grain & tax, grain consumption)
     if (economy.treasuryDelta !== 0) {
@@ -181,6 +204,13 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   state.ledgerHistory.push({ date: state.currentDate, entries: ledgerEntries });
   if (state.ledgerHistory.length > 60) {
     state.ledgerHistory = state.ledgerHistory.slice(-60);
+  }
+
+  // P2: migrants migrate to connected regions
+  for (const region of Object.values(state.regions)) {
+    if (region.popGroups?.some((g) => g.type === "migrant")) {
+      migrateMigrants(state, region.id);
+    }
   }
 
   // P0-5: validate state invariants and append violations as system reports
