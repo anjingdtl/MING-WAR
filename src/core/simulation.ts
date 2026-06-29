@@ -18,6 +18,13 @@ import {
   migrateMigrants,
   sumPopulation
 } from "./populationGroups";
+import {
+  autoInvest,
+  produceGoods,
+  runTrade,
+  summarizeMarkets,
+  updateMarketPrices
+} from "./market";
 import { mvpEvents } from "../data/events";
 import type { FactionState, GameState, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
 
@@ -212,6 +219,21 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       migrateMigrants(state, region.id);
     }
   }
+
+  // P3: produce goods, run inter-regional trade, update market prices, auto-invest
+  const marketsByRegion: Record<string, import("./market").MarketState> = {};
+  const industriesByRegion: Record<string, import("./types").IndustryState[]> = {};
+  for (const region of Object.values(state.regions)) {
+    if (!region.market) continue;
+    marketsByRegion[region.id] = region.market;
+    industriesByRegion[region.id] = region.industries ?? [];
+    if (region.industries) {
+      produceGoods(region.industries, region.market, region, region.activeDisasters ?? []);
+    }
+  }
+  runTrade(state, marketsByRegion);
+  updateMarketPrices(marketsByRegion);
+  autoInvest(marketsByRegion, industriesByRegion);
 
   // P0-5: validate state invariants and append violations as system reports
   const violations = validateInvariants(state);

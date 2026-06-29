@@ -1,5 +1,6 @@
 import type { FactionState, GameState, PlayerDecision } from "../core/types";
 import { initializePopGroups } from "../core/populationGroups";
+import { initializeIndustries, initializeMarket } from "../core/market";
 import { factionTemplates } from "./factions";
 import { regionTemplates } from "./regions";
 
@@ -46,9 +47,12 @@ const rebelFaction: FactionState = {
 
 export function createMvpScenario(playerFactionId = "ming", seed = 157301): GameState {
   // P2: initialize pop groups for each region
+  // P3: initialize industries and markets for each region
   const regionsWithPops = structuredClone(regionTemplates);
   for (const region of Object.values(regionsWithPops)) {
     region.popGroups = initializePopGroups(region.id, region.population);
+    region.industries = initializeIndustries(region.id, region.terrain, region.agriculture, region.commerce);
+    region.market = initializeMarket(region.id);
   }
 
   return {

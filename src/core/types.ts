@@ -16,6 +16,46 @@ export type DomesticFocus =
   | "frontier";
 export type MapLayer = "control" | "population" | "grain" | "tax" | "stability" | "army" | "controlLevel";
 
+export type GoodId =
+  | "grain"
+  | "silver"
+  | "cloth"
+  | "iron"
+  | "timber"
+  | "salt"
+  | "horses"
+  | "weapons"
+  | "tea"
+  | "porcelain"
+  | "shipMaterial";
+
+export type IndustryType =
+  | "farmland"
+  | "irrigation"
+  | "workshop"
+  | "mine"
+  | "saltField"
+  | "marketTown"
+  | "port"
+  | "postRoad"
+  | "granary"
+  | "militaryTown";
+
+export interface IndustryState {
+  id: string;
+  regionId: RegionId;
+  type: IndustryType;
+  level: number;
+  ownership: "state" | "gentry" | "merchant" | "military" | "community";
+  workforceRequired: number;
+  workforceEmployed: number;
+  inputs: Partial<Record<GoodId, number>>;
+  outputs: Partial<Record<GoodId, number>>;
+  efficiency: number;
+  damage: number;
+  profitability: number;
+}
+
 export type PopType =
   | "peasant"      // 自耕农
   | "tenant"       // 佃户
@@ -99,6 +139,8 @@ export interface RegionState {
   activeDisasters: string[];
   rebelPressure: number;
   popGroups?: PopGroup[];
+  industries?: IndustryState[];
+  market?: import("./market").MarketState;
 }
 
 export interface FactionState {
