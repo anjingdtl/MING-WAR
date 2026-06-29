@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createMvpScenario } from "../data/scenarios";
 
 describe("MVP scenario", () => {
-  it("creates a playable two-capitals-and-thirteen-provinces scenario", () => {
+  it("creates a playable Ming core and Northeast Asia scenario", () => {
     const state = createMvpScenario("ming", 42);
     const historicalMingRegions = [
       "beizhili",
@@ -21,7 +21,7 @@ describe("MVP scenario", () => {
       "yunnan",
       "guizhou"
     ];
-    expect(Object.keys(state.regions)).toHaveLength(21);
+    expect(Object.keys(state.regions)).toHaveLength(31);
     for (const regionId of historicalMingRegions) {
       expect(state.regions[regionId]?.controllerFactionId, regionId).toBe("ming");
     }

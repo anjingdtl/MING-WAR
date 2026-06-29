@@ -273,6 +273,116 @@ export const mapRegions: MapRegionShape[] = [
     "source": "historical-frontier-manual"
   },
   {
+    "id": "korchin_steppe",
+    "paths": [
+      "M648.6 169.3 L705 158 L724 183.4 L714 221 L650 225 L633 198 Z"
+    ],
+    "labelX": 676,
+    "labelY": 191,
+    "labelWidth": 104,
+    "source": "historical-frontier-manual",
+    "group": "mongolia"
+  },
+  {
+    "id": "hulunbuir",
+    "paths": [
+      "M700 112 L771 104 L812 136 L779 168 L724 183.4 L705 158 Z"
+    ],
+    "labelX": 755,
+    "labelY": 137,
+    "labelWidth": 116,
+    "source": "historical-frontier-manual",
+    "group": "mongolia"
+  },
+  {
+    "id": "amur_basin",
+    "paths": [
+      "M771 104 L872 116 L888 163 L832.2 183.3 L779 168 L812 136 Z"
+    ],
+    "labelX": 835,
+    "labelY": 146,
+    "labelWidth": 104,
+    "source": "historical-frontier-manual",
+    "group": "jurchen"
+  },
+  {
+    "id": "nurgan_coast",
+    "paths": [
+      "M832.2 183.3 L888 163 L898 234 L866 274 L806 244 L780 204 Z"
+    ],
+    "labelX": 846,
+    "labelY": 221,
+    "labelWidth": 104,
+    "source": "historical-frontier-manual",
+    "group": "jurchen"
+  },
+  {
+    "id": "sakhalin",
+    "paths": [
+      "M866 274 L892 246 L899 322 L878 346 L854 307 Z"
+    ],
+    "labelX": 878,
+    "labelY": 303,
+    "labelWidth": 86,
+    "source": "historical-frontier-manual",
+    "group": "japan"
+  },
+  {
+    "id": "joseon_north",
+    "paths": [
+      "M724 260 L781 254 L812 318 L789 351 L741 318 Z"
+    ],
+    "labelX": 769,
+    "labelY": 303,
+    "labelWidth": 118,
+    "source": "historical-frontier-manual",
+    "group": "korea"
+  },
+  {
+    "id": "joseon_south",
+    "paths": [
+      "M789 351 L812 318 L842 382 L812 435 L767 403 L741 318 Z"
+    ],
+    "labelX": 801,
+    "labelY": 383,
+    "labelWidth": 118,
+    "source": "historical-frontier-manual",
+    "group": "korea"
+  },
+  {
+    "id": "japan_west",
+    "paths": [
+      "M801 456 L852 431 L884 454 L853 508 L804 517 L780 493 Z"
+    ],
+    "labelX": 830,
+    "labelY": 477,
+    "labelWidth": 104,
+    "source": "historical-frontier-manual",
+    "group": "japan"
+  },
+  {
+    "id": "japan_east",
+    "paths": [
+      "M852 431 L900 386 L900 452 L884 454 Z"
+    ],
+    "labelX": 880,
+    "labelY": 426,
+    "labelWidth": 104,
+    "source": "historical-frontier-manual",
+    "group": "japan"
+  },
+  {
+    "id": "ezo",
+    "paths": [
+      "M823 328 L878 304 L900 333 L900 386 L852 431 L817 381 Z"
+    ],
+    "labelX": 864,
+    "labelY": 360,
+    "labelWidth": 86,
+    "source": "historical-frontier-manual",
+    "group": "japan"
+  },
+  {
     "id": "bozhou",
     "paths": [
       "M471.4 441.9 L505.7 438.8 L508.6 413.3 L477.1 410.2 L462.9 427.6 Z"
