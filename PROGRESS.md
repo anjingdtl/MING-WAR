@@ -1,53 +1,167 @@
 # 万历：山河崩塌 — 开发进度
 
-> 本文档记录核心功能迭代与待办事项。每次开发阶段后同步更新。
+> 本文档是接手 agent 的路标：项目走到哪了、怎么验证、下一步干啥、哪里有坑。
+> 对应详细设计：`docs/v2-optimization-spec.md`（SPEC，含 S1–S4 战报）+ `docs/v2-implementation-plan.md`（PLAN）。
+> 每次阶段完成后同步更新本文档 + SPEC 战报。
 
-## 当前阶段：游戏体验全方位升级（v0.2.0）
+---
 
-### 已完成
+## 0. 项目概况
 
-#### 1. 大地图缩放与拖动
-- `GameMap.tsx` 新增视口状态 `view { x, y, zoom }`。
-- 支持鼠标滚轮以指针位置为中心缩放。
-- 支持鼠标拖拽平移；拖拽不会误触发区域选择。
-- 新增地图右上角缩放控件：放大 / 缩小 / 重置视图 / 当前比例显示。
-- 补充 UI 测试：缩放按钮与重置行为。
+- **MING-WAR**：《万历：山河崩塌》——晚明大战略游戏，目标是模拟 **维多利亚3 (Victoria 3)** 的社会经济闭环。
+- **技术栈**：React 19 + TypeScript + Vite 6 + Zustand + Vitest 3。月度模拟核心是纯函数 `simulateMonth`（`structuredClone` 输入、固定随机种子，确定性可复现）。
+- **核心范式**：单一驱动闭环——`pop 劳动 → 产业生产 → 市场供需/价格 → pop 购买力/生活水平 → 财富分化 → 政治力量 → 政治运动/法律改革 → modifier → 反作用于生产`。每一环都建了零件，工作重心是**把环与环的齿轮咬合**，而非堆孤岛系统。
 
-#### 2. 历史事件库扩展
-- 事件数量从 5 个扩展至 25 个，覆盖：
-  - 张居正改革期（清丈田亩、一条鞭法、考成法阻力、清算改革遗产、国本之争）
-  - 万历三大征（宁夏之役、援朝战争、播州之役、军费激增、边军疲惫）
-  - 辽东危机（努尔哈赤起兵、后金建立、抚顺失守、萨尔浒之战、辽沈危机、熊廷弼经略辽东）
-  - 秩序松动（矿税之祸、东林党争、魏忠贤掌权）
-  - 明末危机征兆（陕西大旱、天启政治危机）
-- 扩展 `eventEngine.ts` 条件类型：`faction_grain_below`、`faction_legitimacy_below`、
-  `faction_stability_below`、`faction_war_exhaustion_above`、`region_stability_below`、
-  `region_control_below`、`faction_controls_any`、`flag_present`、`region_owner`。
-- 扩展事件效果： faction 的 `warExhaustion`、`militaryOrganization`、`centralization`、`armyTotal`；
-  region 的 `population`、`grainStock`、`garrison`、`rebelPressure`。
-- 补充事件引擎测试：扩展条件评估与事件库规模断言。
+---
 
-#### 3. 势力数值对游戏内容产生实质性影响
-- **粮食危机**：势力粮储耗尽时，军队按比例逃亡、战争疲劳上升、合法性下降；
-  控制区驻军与稳定度持续下降；区域粮尽时人口死亡、叛乱压力急剧上升。
-- **财政破产**：国库破产时，军队因欠饷哗变或溃散；中央集权与合法性下降；
-  控制区稳定度与驻军受损。
-- **民众起义**：叛乱爆发（`rebelPressure ≥ 75`）会大幅削减区域控制、稳定与驻军；
-  控制瓦解（`control ≤ 20`）后区域转交义军势力 `rebels`，原势力军队被义军吸收。
-- **新势力**：`scenarios.ts` 初始化通用义军势力 `rebels`，支持地图颜色与战争结算。
-- 补充模拟测试：粮尽军散、财政破产、区域起义转交义军。
+## 1. 当前状态（v0.3.0）
 
-### 技术债务与后续待办
+**维多利亚3 闭环进度：3 / 5 已接通**
 
-- [ ] 地图缩放边界限制：当前平移可无限拖出可视区域，需增加边界约束。
-- [ ] 触控支持：移动端双指缩放与单指拖动。
-- [ ] 叛军 AI：义军势力当前使用通用 AI，后续可设计“流寇式”扩张逻辑。
-- [ ] 动态叛军派系：按起义地域生成具名叛军（如“陕西民军”“辽饷逃兵”），而非单一 `rebels`。
-- [ ] 事件链：改革 → 党争 → 辽东危机 → 明末起义的连锁事件权重与互斥。
-- [ ] 数值平衡验证：通过批量模拟确认粮食、财政、叛乱参数不会导致早期崩盘或无法破产。
-- [ ] 界面反馈：在 TopBar 或区域面板中突出显示“粮尽”“破产”“叛乱”等危机状态。
+| 闭环 | 阶段 | 状态 |
+|---|---|---|
+| 后果环（modifier 激活 + 账本驱动财政） | S1 | ✅ 完成 |
+| 经济环（市场—人口—生产整合） | S2 | ✅ 完成 |
+| 社会政治环（利益集团政治力量） | S3 | ✅ 完成 |
+| 制度环（法律与改革系统） | S4 | ✅ 完成 |
+| 外交战争环（外交博弈 + 战线战争） | S5 | ⬜ 下一步 |
+| 内容收口（历史局势 + 完整周期） | S6 | ⬜ 里程碑 |
 
-### 提交记录
+最新提交：`fa69b64 feat(reform): S4 law & reform system closing the institutional loop`
 
-- 本次改动已通过全部测试（40 / 40）。
-- 构建产物已生成。
+---
+
+## 2. 已完成阶段
+
+### S1　修正系统激活 + 账本驱动（后果环）
+- `queryModifier` / `collectModifiers`：按 global→faction→region 级联聚合 modifier。
+- modifier effectKey 词表接入各计算点：`tax-mult`/`grain-output-mult`（economy）、`maintenance-mult`（economy）、`control-flat`（control）、`army-org-mult`（warfare）。
+- **⚠️ 注意**：`corruption-flat` / `stability-flat` 在 `modifiers.ts` 注释里标注"接 control.ts"，但 **S1b 实际未接入**（control.ts 只接了 control-flat）。S4 把它们归入"一次性 instant 施加"绕开此问题。若 S5+ 需要它们走月度 modifier，须先在 control.ts 补接入点。
+- `applyLedgerToState` 是财政唯一真相源：所有收支走 ledger entry，月末统一结算，散点加减清零。不变量：`Δtreasury === 账本净额`。
+
+### S2　市场—人口—生产整合（经济环）
+- 统一粮食流：农业+产业产出 → `market.supply`；pop 需求篮子 → `market.demand`；价格基于真实供需。
+- pop `needsSatisfaction` = 购买力（税后收入 / 篮子市价）；`wealth` 月累积；饥荒死亡仍由 `grainPerCapita` 物理粮食驱动（双链并行）。
+- 产业利润按 ownership 流向对应 pop（gentry←farmland, merchant←marketTown, soldier←militaryTown），财富分化为 S3 政治力量铺路。
+
+### S3　利益集团政治力量（社会政治环）
+- clique `strength` 来自 pop wealth 聚合（`CLIQUE_POP_AFFINITY` + `computeFactionCliqueStrengthFromPops`），取代旧的地区属性映射（后者保留作 fallback）。
+- `approval`（0-100，与 `support` 正交）：`50 + clamp(sat−50,−30,+20) + 政策契合×3 − tax-mult×50`。生活水平封顶确保加税/饥荒能压到运动阈值。
+- 政治运动（`advancePoliticalMovements`）：强(strength≥30)+不满(approval≤35)集团推动诉求（减税/开海/自治/索饷），结算施加临时(12月)modifier；cooldown 防失控。
+- **设计特性**：运动是危机放大器——无危机时几乎无感，战争/灾荒压低生活水平时才温和显现。
+
+### S4　法律与改革系统（制度环）
+- **法律库** `src/data/laws.ts`：10 条明末法律，覆盖 SPEC §11 六大类（税制/土地/军制/海贸/地方治理/财政权力）。每条 `tags` 与 clique `preferredLaws`/`opposedLaws` 对接。
+- **改革流程** `src/core/reform.ts`：
+  - `computeReformSupport`：tags × clique 偏好 × strength → 支持/反对力量。
+  - `computeReformMomentum`：`2 + 行政×0.08 + 合法性×0.03 + 支持×0.18 − 反对×0.28 − 腐败×0.04 − 战争疲劳×0.04 − 活跃战争×1.5 + (控制度−50)×0.03`，钳 [−6,+8]。**反对权重>支持权重**——改革比推动难。
+  - `advanceReforms`：progress≥100 落实 / ≤0 且持续≥3 月失败（损合法性）。
+  - `enactLaw`：落实写**永久** faction-scope modifier（接通 S1）+ 受益集团 approval/support 升、受损集团 approval 暴跌 → 触发 S3c 政治运动（闭环）。
+  - `autoProposeReforms`：`domesticFocus → 倾向法律`（玩家与 AI 同规则）；momentum 预检过滤注定失败的改革；**tribal/rebel 不自动改革**。
+- **effect 三分法**（enactLaw 分流）：
+  - modifier-effect keys（tax-mult/grain-output-mult/maintenance-mult/control-flat/army-org-mult）→ 永久 modifier
+  - faction-instant（centralization-flat/legitimacy-flat/corruption-flat）→ 一次性施加到 faction 字段
+  - region-instant（stability-flat）→ 遍历控制区一次性施加
+- 改革目前由 `domesticFocus` 自动驱动；"玩家手选某条法律"的 UI 留待后续。
+
+---
+
+## 3. 验收红线与命令
+
+每个子步骤 / 阶段必须全绿：
+
+```bash
+npm run typecheck      # tsc --noEmit，必须零错误
+npm test               # vitest run，当前 323 测试
+npm run build          # tsc -b && vite build
+npm run map:validate   # 校验地图，31 地区
+npm run batch          # 100×240 批量模拟，errorRuns 必须为 0
+npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
+```
+
+**当前基线指标（S4 完成时，供回归对比）**：
+
+| 指标 | S4 值 | 对比 S3 |
+|---|---|---|
+| 测试数 | 323 | +10 |
+| batch errorRuns | 0 | = |
+| batch 大明存活率 | 0.82 | 0.86（略降，见 §5）|
+| batch 平均控制区 | 14.49 | 19.45（略降，见 §5）|
+| batch 粮价 | 4.13 | 3.91 |
+| diagnose seed7（10年）| active，人口 −9.2% | −11.3%（S4 更优）|
+
+---
+
+## 4. 下一步：S5 外交博弈与持续战争
+
+**目标**：战争是财政、补给、动员、外交、国内政治的综合结果，而非单月战斗。
+
+- `DiplomaticRelation`（relation/trust/threat/rivalry/obligations/truce）+ 条约（同盟/朝贡/互市/附庸/停战）。
+- 外交博弈阶段：提要求 → 拉盟友 → 威胁评估 → 动员集结 → 让步/妥协/开战。
+- 战线 `FrontState`：玩家选主战区/姿态/动员规模/补给优先级，每月按 兵力×组织×补给×地形 推进。
+- 和平谈判：按战争支持、占领、战损、财政、国内政治结算，不止"占领即吞并"。
+- 依赖：S2 财政 + S4 制度。**入口文件**：`src/core/warfare.ts`（当前只有单次 `resolveBattle` + `advanceWar` 推 progress）、`src/core/ai.ts`、`src/core/simulation.ts` 的战斗/战争推进段。
+
+**验收**：战争不再由单月攻击决定；军费/补给/国内政治能迫使停战；AI 能备战与让步。
+
+---
+
+## 5. ⚠️ 已知坑与设计约束（接手必读）
+
+1. **确定性模拟的蝴蝶效应**：`simulateMonth` 用固定种子，`applyResourceCrises` 的 `random.next()` 调用次数依赖当月 crisis faction 数。任何**持久**状态改变（如 S4 改革落实改 corruption → 税收 → treasury → crisis 判定）都会扰动后续整个 random 序列，让不同 seed 的命运重新分配。**这是特性不是 bug**——评估改动时看 batch 整体指标，别被单个 seed 的剧烈变化误导。对照实验方法：临时注释新功能跑 batch 对比。
+
+2. **军队归零脆弱性（S5 核心待修）**：长期多线战争里军队会耗到个位数（seed7 10 年军队 11），和平期征募恢复极慢（`simulation.ts` 征募量 = `armyTarget×0.005`/月，且需 `warExhaustion<40`）。这是 S4 batch 存活率/控制区略降的主因。S5 应提升征募恢复速率 + 引入战线消耗模型。
+
+3. **modifier effectKey 接入不一致**：见 §2 S1 的警告——`corruption-flat`/`stability-flat` 注释标了接入但实际没接。新增 modifier 效果前先 grep 确认 effectKey 有计算点消费，否则就是死数据。
+
+4. **月度流水线顺序**（`simulation.ts`）：expire modifiers → region 循环（经济/控制/叛乱/市场/人口/账本）→ faction 循环（维护费/征募）→ `applyResourceCrises` → `eliminateDefeatedFactions` → `updateFactionCliques` → **`autoProposeReforms` + `advanceReforms`（S4）** → `advancePoliticalMovements`（S3c）→ 战斗 → 事件 → 战争推进 → 账本归档 → 贸易/价格。S4 改革落实故意放在政治运动之前，让"落实→反对者不满→当月触发运动"闭环在同一月跑通。
+
+5. **玩家与 AI 同规则**：所有系统对玩家 faction 和 AI faction 一视同仁（改革、运动、经济）。新增机制不要写 player-only 分支。
+
+---
+
+## 6. 核心文件地图
+
+```
+src/core/
+  simulation.ts      月度流水线主函数 simulateMonth（齿轮咬合的编排者）
+  types.ts           全部核心类型（GameState / FactionState / Modifier / Law / Reform...）
+  economy.ts         地区经济 + 势力维护费（接 tax-mult/grain-output-mult/maintenance-mult）
+  control.ts         地区控制更新（接 control-flat；⚠️ 未接 corruption/stability-flat）
+  warfare.ts         战斗 + 战争推进（接 army-org-mult）—— S5 主战场
+  market.ts          产业生产 / 市场供需 / 贸易 / 价格 / pop 消费
+  populationGroups.ts 8 类 pop 的就业/需求/饥荒/流民/财富
+  clique.ts          集团 strength（pop wealth 聚合）+ approval + administration
+  politics.ts        S3c 政治运动
+  reform.ts          S4 法律改革（propose/advance/enact/autoPropose）
+  modifiers.ts       modifier 聚合 + queryModifier + collectModifiers（级联）
+  ledger.ts          财政账本（唯一真相源）+ applyLedgerToState
+  eventEngine.ts     事件条件/效果/触发
+  ai.ts              AI 月度决策
+  invariants.ts      状态不变量校验（NaN/负值/价格爆炸）
+src/data/
+  laws.ts            S4 法律库（10 条）+ effect key 分类
+  cliques.ts         4 集团定义（preferredLaws/opposedLaws/policyAffinities）
+  factions.ts        势力模板（大明/建州/土默特/朝鲜/日本...）
+  scenarios.ts       createMvpScenario 入口
+  events.ts          历史事件库
+  regions.ts         31 地区模板
+src/scripts/
+  runBatchSimulation.ts   batch 验收
+  diagnoseSimulation.ts   单局诊断
+  validateMapRegions.ts   地图校验
+src/tests/           每个核心模块对应测试（reform/clique/politics/ledger/invariants...）
+docs/
+  v2-optimization-spec.md     SPEC（含 S1–S4 完成战报 §8/§9/§10）
+  v2-implementation-plan.md   PLAN（S1–S4 详细子步骤 + S5–S6 里程碑）
+```
+
+---
+
+## 7. 提交历史（最近）
+
+- `fa69b64` feat(reform): S4 law & reform system closing the institutional loop
+- `128ff48` feat(politics): S3 interest-group political power from pop wealth
+- `b803dfd` feat(economy): ledger-driven finance + unified market-pop loop (S1c+S2)
+- `05f0ba3` fix(sim): stabilize economy/pop and activate inert modifier system
+- `46f9c20` feat(batch): include P1 ledger entries, P2 pop metrics, P3 market metrics
