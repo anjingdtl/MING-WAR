@@ -6,7 +6,12 @@
  */
 
 import type { GameState, RegionState } from "../../core/types";
+import type { MapTileShape } from "../../map/mapTypes";
+import { resolveMapFactionColor } from "../../map/mapFactionColors";
 import type { LensId } from "./lensDefinitions";
+
+/** context 图块的固定覆盖透明度（低于 playable，让底图透出） */
+export const CONTEXT_TILE_OPACITY = 0.45;
 
 /* 通用工具:把一个数值映射到 [0, 1] */
 function clamp01(v: number): number {
@@ -89,4 +94,32 @@ export function getRegionOpacity(region: RegionState, lens: LensId): number {
   }
   // 其他 Lens 给一个固定透明度,避免色板被 0.7 稀释
   return 0.72;
+}
+
+/* --- 三层地图：统一图块着色（playable + context） ---------------- */
+
+export interface TileFill {
+  color: string;
+  opacity: number;
+}
+
+/**
+ * 统一图块着色：playable 图块走 Lens 色板逻辑，context 图块用静态势力色 + 低透明度。
+ * 这是 PoliticalOverlayLayer 的唯一着色入口，避免 context 图块查询不存在的 RegionState。
+ */
+export function getTileFillColor(
+  tile: MapTileShape,
+  state: GameState,
+  lens: LensId
+): TileFill {
+  if (tile.isPlayableRegion) {
+    const region = state.regions[tile.id];
+    if (region) {
+      return { color: getRegionColor(region, state, lens), opacity: getRegionOpacity(region, lens) };
+    }
+  }
+  return {
+    color: resolveMapFactionColor(tile.defaultControllerFactionId, state.factions),
+    opacity: CONTEXT_TILE_OPACITY
+  };
 }

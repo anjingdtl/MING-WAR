@@ -1,30 +1,24 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import type { GameState, MapLayer, RegionId } from "../../core/types";
-import { mapCanvas } from "../../map/mapCanvas";
-import { mapRegions } from "../../map/mapConfig";
-import {
-  eastAsiaLandPaths,
-  majorLakePaths,
-  majorMountainPaths,
-  majorRiverPaths,
-  terrainRidgePaths
-} from "../../map/physicalMap";
-import { getRegionColor, getRegionOpacity } from "../lens/lensColorScales";
+import { mapCanvas, DEFAULT_VIEWPORT } from "../../map/mapCanvas";
+import { mapTiles, playableMapRegions } from "../../map/mapConfig";
+import type { MapTileShape } from "../../map/mapTypes";
 import type { LensId } from "../lens/lensDefinitions";
 import { RegionHoverCard } from "../lens/RegionHoverCard";
+import { BaseGeoLayer } from "./layers/BaseGeoLayer";
+import { MapRoutesLayer } from "./layers/MapRoutesLayer";
+import { PoliticalOverlayLayer } from "./layers/PoliticalOverlayLayer";
+import { ProvinceTileLayer } from "./layers/ProvinceTileLayer";
+import { MapLabelsLayer } from "./layers/MapLabelsLayer";
 
 /* ------------------------------------------------------------------ */
-/*  constants                                                         */
+/*  helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 4;
-const ZOOM_STEP = 1.12;
-const DRAG_THRESHOLD_PX = 5;
+const { minZoom, maxZoom, zoomStep, dragThresholdPx } = mapCanvas;
 
-/** Pre-computed region shape lookup for route rendering (avoids O(n) find per connection). */
-const REGION_SHAPE_MAP = new Map(mapRegions.map((s) => [s.id, s]));
+const PLAYABLE_IDS = new Set(playableMapRegions.map((t) => t.id));
 
 interface DragState {
   active: boolean;
@@ -39,59 +33,6 @@ function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
 }
 
-/** Static SVG layers that never change — memoized to skip re-render entirely. */
-const StaticPhysicalLayer = React.memo(function StaticPhysicalLayer() {
-  return (
-    <>
-      <svg className="physical-layer" viewBox={mapCanvas.viewBox} aria-hidden="true">
-        <defs>
-          <radialGradient id="terrain-light" cx="48%" cy="42%" r="72%">
-            <stop offset="0%" stopColor="#eadfb7" />
-            <stop offset="58%" stopColor="#c8ba8d" />
-            <stop offset="100%" stopColor="#9fb08e" />
-          </radialGradient>
-          <pattern id="paper-grain" width="7" height="7" patternUnits="userSpaceOnUse">
-            <path d="M0 1 H7 M2 0 V7" stroke="rgba(77, 66, 47, 0.13)" strokeWidth="0.45" />
-          </pattern>
-        </defs>
-        <rect className="map-sea" x="0" y="0" width={mapCanvas.width} height={mapCanvas.height} />
-        {eastAsiaLandPaths.map((path, idx) => (
-          <path key={`land-${idx}`} className="map-land" d={path} />
-        ))}
-        <rect className="map-paper-grain" x="0" y="0" width={mapCanvas.width} height={mapCanvas.height} />
-        {majorMountainPaths.map((d, idx) => (
-          <path key={`mountain-${idx}`} className="map-mountain" d={d} />
-        ))}
-        {terrainRidgePaths.map((d, idx) => (
-          <path key={`ridge-${idx}`} className="map-ridge" d={d} />
-        ))}
-        {majorLakePaths.map((d, idx) => (
-          <path key={`lake-${idx}`} className="map-lake" d={d} />
-        ))}
-      </svg>
-
-      <svg className="river-overlay-layer" viewBox={mapCanvas.viewBox} aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
-        {majorRiverPaths.map((d, idx) => (
-          <path key={`river-${idx}`} className="map-river" d={d} />
-        ))}
-      </svg>
-    </>
-  );
-});
-
-/** Static clip-path defs — memoized separately since it's inside the political layer SVG. */
-const StaticClipDefs = React.memo(function StaticClipDefs() {
-  return (
-    <defs>
-      <clipPath id="map-land-clip" clipPathUnits="userSpaceOnUse">
-        {eastAsiaLandPaths.map((path, idx) => (
-          <path key={`land-clip-${idx}`} d={path} />
-        ))}
-      </clipPath>
-    </defs>
-  );
-});
-
 interface GameMapProps {
   state: GameState;
   layer: MapLayer;
@@ -105,24 +46,27 @@ interface GameMapProps {
 }
 
 /**
- * 战略地图 — Phase 3 集成 Lens 系统
+ * 战略地图 — 三层 SVG 架构（Victoria 3 式）
  *
- * 主要变化:
- *  - 区域填充色由 lens 决定(取代了原 layer)
- *  - 鼠标 hover 区域时,显示该 Lens 字段的浮动卡
- *  - Alt+点击区域 → 通知父级聚焦(由父级决定如何响应)
- *  - 移除原 6 图层按钮(由 LensBar 取代)
+ * 渲染层次（从下到上）：
+ *  1. BaseGeoLayer     — 海陆地形、山脉、河流、纸纹
+ *  2. MapRoutesLayer   — 区域间道路连线
+ *  3. PoliticalOverlayLayer — 势力着色覆盖（半透明，贴合省区）
+ *  4. ProvinceTileLayer — 省区描边 + 交互命中区（hover/click/focus）
+ *  5. MapLabelsLayer   — 省区名 + Lens 字段标签
+ *
+ * playable 图块走完整交互与模拟数据；context 图块仅视觉表达，不查询 RegionState。
  */
 function GameMapInner({
   state,
   layer,
-  onLayerChange,
+  onLayerChange: _onLayerChange,
   selectedRegionId,
   onSelect,
   onFocusRegion,
   lens
 }: GameMapProps) {
-  const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
+  const [view, setView] = useState<{ x: number; y: number; zoom: number }>({ ...DEFAULT_VIEWPORT });
   const panelRef = useRef<HTMLElement>(null);
 
   const dragRef = useRef<DragState>({
@@ -136,10 +80,15 @@ function GameMapInner({
 
   const gestureFlagRef = useRef(false);
 
-  /* ---- hover 状态(用于 RegionHoverCard) ---- */
-  const [hoveredRegionId, setHoveredRegionId] = useState<RegionId | null>(null);
+  /* ---- hover 状态 ---- */
+  const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
+
+  const hoveredPlayableRegionId = useMemo(
+    () => (hoveredTileId && PLAYABLE_IDS.has(hoveredTileId) ? hoveredTileId : null),
+    [hoveredTileId]
+  );
 
   /* ---- document-level drag listeners -------------------------------- */
   useEffect(() => {
@@ -148,7 +97,7 @@ function GameMapInner({
       if (!d.active) return;
       const dx = e.clientX - d.startX;
       const dy = e.clientY - d.startY;
-      if (!d.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+      if (!d.moved && Math.hypot(dx, dy) > dragThresholdPx) {
         d.moved = true;
         gestureFlagRef.current = true;
       }
@@ -174,7 +123,7 @@ function GameMapInner({
   }, []);
 
   /* ---- zoom helpers ------------------------------------------------- */
-  const clampZoom = useCallback((val: number) => clamp(val, MIN_ZOOM, MAX_ZOOM), []);
+  const clampZoom = useCallback((val: number) => clamp(val, minZoom, maxZoom), []);
 
   const applyZoom = useCallback(
     (nextZoom: number, cx?: number, cy?: number) => {
@@ -200,22 +149,22 @@ function GameMapInner({
   const zoomIn = useCallback(() => {
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
-    applyZoom(view.zoom * ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    applyZoom(view.zoom * zoomStep, rect.left + rect.width / 2, rect.top + rect.height / 2);
   }, [view.zoom, applyZoom]);
 
   const zoomOut = useCallback(() => {
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
-    applyZoom(view.zoom / ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    applyZoom(view.zoom / zoomStep, rect.left + rect.width / 2, rect.top + rect.height / 2);
   }, [view.zoom, applyZoom]);
 
-  const resetView = useCallback(() => setView({ x: 0, y: 0, zoom: 1 }), []);
+  const resetView = useCallback(() => setView({ ...DEFAULT_VIEWPORT }), []);
 
   /* ---- event handlers on the map panel ----------------------------- */
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
+      const delta = e.deltaY > 0 ? 1 / zoomStep : zoomStep;
       applyZoom(view.zoom * delta, e.clientX, e.clientY);
     },
     [view.zoom, applyZoom]
@@ -234,16 +183,19 @@ function GameMapInner({
     };
   }, [view.x, view.y]);
 
-  const handleRegionAction = useCallback(
-    (regionId: RegionId, alt: boolean) => {
+  const handleTileAction = useCallback(
+    (tile: MapTileShape, alt: boolean) => {
       if (gestureFlagRef.current) {
         gestureFlagRef.current = false;
         return;
       }
+      if (!tile.isPlayableRegion) {
+        return;
+      }
       if (alt) {
-        onFocusRegion?.(regionId);
+        onFocusRegion?.(tile.id);
       } else {
-        onSelect(regionId);
+        onSelect(tile.id);
       }
     },
     [onSelect, onFocusRegion]
@@ -253,9 +205,9 @@ function GameMapInner({
     gestureFlagRef.current = false;
   }, []);
 
-  const handleRegionPointerEnter = useCallback(
-    (regionId: RegionId, e: React.PointerEvent) => {
-      setHoveredRegionId(regionId);
+  const handleTilePointerEnter = useCallback(
+    (tile: MapTileShape, e: React.PointerEvent) => {
+      setHoveredTileId(tile.id);
       setHoverPos({ x: e.clientX, y: e.clientY });
       if (panelRef.current) {
         setContainerRect(panelRef.current.getBoundingClientRect());
@@ -264,21 +216,21 @@ function GameMapInner({
     []
   );
 
-  const handleRegionPointerLeave = useCallback(() => {
-    setHoveredRegionId(null);
+  const handleTilePointerLeave = useCallback(() => {
+    setHoveredTileId(null);
   }, []);
 
   const handlePanelPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (hoveredRegionId) {
+      if (hoveredTileId) {
         setHoverPos({ x: e.clientX, y: e.clientY });
       }
     },
-    [hoveredRegionId]
+    [hoveredTileId]
   );
 
   const handlePanelPointerLeave = useCallback(() => {
-    setHoveredRegionId(null);
+    setHoveredTileId(null);
   }, []);
 
   /* ---- render ------------------------------------------------------ */
@@ -299,87 +251,29 @@ function GameMapInner({
       onClick={handlePanelClick}
     >
       <div className="map-viewport" style={transformStyle}>
-        <StaticPhysicalLayer />
+        <BaseGeoLayer />
 
-        <svg className="route-layer" viewBox={mapCanvas.viewBox} aria-hidden="true">
-          {mapRegions.flatMap((shape) => {
-            const region = state.regions[shape.id];
-            return region.connections
-              .filter((cid) => shape.id < cid)
-              .map((cid) => {
-                const target = REGION_SHAPE_MAP.get(cid);
-                if (!target) return null;
-                return (
-                  <line
-                    key={`${shape.id}-${cid}`}
-                    x1={shape.labelX}
-                    y1={shape.labelY}
-                    x2={target.labelX}
-                    y2={target.labelY}
-                  />
-                );
-              });
-          })}
-        </svg>
+        <MapRoutesLayer playableTiles={playableMapRegions} state={state} />
 
-        <svg
-          id="lens-content"
-          className="political-layer"
-          viewBox={mapCanvas.viewBox}
-          role="img"
-          aria-label="万历朝动态势力区划图"
-        >
-          <StaticClipDefs />
-          {mapRegions.map((shape) => {
-            const region = state.regions[shape.id];
-            const faction = state.factions[region.controllerFactionId];
-            const fill = getRegionColor(region, state, lens);
-            const opacity = getRegionOpacity(region, lens);
-            const lblW = shape.labelWidth ?? 96;
+        <PoliticalOverlayLayer
+          tiles={mapTiles}
+          state={state}
+          lens={lens}
+          selectedRegionId={selectedRegionId}
+          hoveredRegionId={hoveredTileId}
+        />
 
-            return (
-              <g
-                key={shape.id}
-                data-testid={`region-${shape.id}`}
-                className={[
-                  "political-region",
-                  shape.isEnclave ? "is-enclave" : "",
-                  selectedRegionId === shape.id ? "is-selected" : "",
-                  hoveredRegionId === shape.id ? "is-hovered" : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                role="button"
-                tabIndex={0}
-                onClick={(e) => handleRegionAction(shape.id, e.altKey)}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Enter" || ev.key === " ") handleRegionAction(shape.id, false);
-                }}
-                onPointerEnter={(e) => handleRegionPointerEnter(shape.id, e)}
-                onPointerLeave={handleRegionPointerLeave}
-                aria-label={`${region.name},控制者:${faction.name}`}
-              >
-                {shape.paths.map((d, i) => (
-                  <path
-                    key={`${shape.id}-${i}`}
-                    data-testid={i === 0 ? `region-area-${shape.id}` : undefined}
-                    className="political-region__area"
-                    d={d}
-                    fill={fill}
-                    fillOpacity={opacity}
-                    clipPath="url(#map-land-clip)"
-                  />
-                ))}
-                <foreignObject x={shape.labelX - lblW / 2} y={shape.labelY - 27} width={lblW} height="54">
-                  <div className="political-label">
-                    <strong>{region.name}</strong>
-                    <span>{layerLabel(region, layer)}</span>
-                  </div>
-                </foreignObject>
-              </g>
-            );
-          })}
-        </svg>
+        <ProvinceTileLayer
+          tiles={mapTiles}
+          state={state}
+          selectedRegionId={selectedRegionId}
+          hoveredRegionId={hoveredTileId}
+          onTileAction={handleTileAction}
+          onTilePointerEnter={handleTilePointerEnter}
+          onTilePointerLeave={handleTilePointerLeave}
+        />
+
+        <MapLabelsLayer tiles={mapTiles} state={state} layer={layer} lens={lens} />
       </div>
 
       <div className="zoom-controls" aria-label="地图缩放">
@@ -398,35 +292,16 @@ function GameMapInner({
       </div>
 
       <RegionHoverCard
-        regionId={hoveredRegionId}
+        regionId={hoveredPlayableRegionId}
         state={state}
         lens={lens}
         screenX={hoverPos?.x ?? 0}
         screenY={hoverPos?.y ?? 0}
         containerRect={containerRect}
-        visible={hoveredRegionId !== null}
+        visible={hoveredPlayableRegionId !== null}
       />
     </section>
   );
 }
 
 export const GameMap = React.memo(GameMapInner);
-
-function layerLabel(region: GameState["regions"][string], layer: MapLayer): string {
-  switch (layer) {
-    case "population":
-      return `${Math.round(region.population / 10000)}万人`;
-    case "grain":
-      return `粮${Math.round(region.grainStock / 10000)}万`;
-    case "tax":
-      return `税${region.taxCapacity}`;
-    case "stability":
-      return `稳${region.stability}`;
-    case "army":
-      return `军${Math.round(region.garrison / 1000)}k`;
-    case "controlLevel":
-      return `控${region.control}`;
-    case "control":
-      return region.controllerFactionId;
-  }
-}

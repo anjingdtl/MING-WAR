@@ -40,4 +40,22 @@ describe("GameMap", () => {
     fireEvent.click(screen.getByTitle("重置视图"));
     expect(screen.getByText("100%")).toBeTruthy();
   });
+
+  it("renders the three-layer map structure", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    expect(screen.getByTestId("base-geo-layer")).toBeTruthy();
+    expect(screen.getByTestId("political-overlay-layer")).toBeTruthy();
+    expect(screen.getByTestId("province-tile-layer")).toBeTruthy();
+    expect(screen.getByTestId("map-labels-layer")).toBeTruthy();
+    expect(screen.getByTestId("map-routes-layer")).toBeTruthy();
+  });
+
+  it("separates political overlay fill from interaction hit area", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    const overlayArea = screen.getByTestId("region-area-beizhili");
+    const tileHit = screen.getByTestId("region-beizhili");
+    expect(overlayArea.getAttribute("fill")).toBeTruthy();
+    expect(overlayArea.getAttribute("fill-opacity")).toBeTruthy();
+    expect(tileHit.getAttribute("role")).toBe("button");
+  });
 });
