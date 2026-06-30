@@ -39,7 +39,7 @@
 
 ---
 
-## 1. 当前状态（v0.3.0）
+## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**
 
@@ -52,9 +52,26 @@
 | 外交战争环（外交博弈 + 战线战争） | S5 | ✅ 完成 |
 | 内容收口（历史局势 + 完整周期） | S6 | ✅ 完成 |
 
+**v0.6.0-stability 性能 / 稳定性底座（2026-06-30 完成）**
+
+6 阶段优化全部 commit + push 到 main（详见 `docs/perf-baseline.md` §5）：
+
+| 维度 | v0.3.0 baseline | v0.6.0 终值 |
+|---|---|---|
+| 单月 p95 | 24.15 ms | 24.23 ms（持平）|
+| 测试数 | 377 | **461**（+84）|
+| hash:state 5 节点漂移 | baseline | **0 漂移** |
+| batch errorRuns | 0 | **0**（100/100）|
+| `simulation.ts` 行数 | 777 | **145**（拆 7 阶段）|
+| `state` / `decision` / UI 分层 | 1 store | **3 stores**（UI / View / 基础设施）|
+| 存档格式 | 单版本字符串 | **versioned + 校验 + 迁移** |
+| CI | 无 | **2 workflow**（ci.yml + perf-regression.yml）|
+
+**底层模块**（v0.6-stability 新增）：`src/core/timing.ts` / `stateHash.ts` / `simulationContext.ts` / `simulationPhases/`（7 阶段）/ `src/store/uiStore.ts` / `gameViewStore.ts` / `src/runtime/simulationService.ts` / `viewSnapshot.ts` / `localSimulationService.ts` / `src/save/saveValidation.ts` / `saveMigrations.ts` / `autoSave.ts` / `src/scripts/perf*.ts` / `stateHash.ts` / `.github/workflows/ci.yml` / `perf-regression.yml`
+
 **维多利亚3 五环闭环全部接通（S1–S6）**。后续工作转入内容扩充与平衡迭代。
 
-最新提交：`1f69b23` docs: clear remaining backlog（本轮大改造收尾，详见 §8）
+最新提交：`f7ae8b4` docs: clear remaining backlog（v0.6-stability 6 阶段 + 全量回归收尾，详见 §8）
 
 ---
 
