@@ -164,8 +164,12 @@ export const situationLibrary: SituationDef[] = [
     },
     advance: (sit, st) => {
       const rebels = st.factions.rebels;
-      const speed = 2 + (rebels?.armyTotal ?? 0) / 50000;
-      return { progress: Math.max(0, Math.min(100, sit.progress + speed)) };
+      const north = ["shaanxi", "shanxi", "henan"];
+      const pressure = north.reduce((s, id) => s + (st.regions[id]?.rebelPressure ?? 0), 0);
+      // 流民军规模 + 北方叛乱压力共同推进；压力越大，局势恶化越快，更易达成
+      // rebellion-spreads 结局（避免长期卡在 act 状态）。
+      const speed = 2 + (rebels?.armyTotal ?? 0) / 50000 + pressure / 60;
+      return { progress: Math.max(0, Math.min(100, sit.progress + speed)), variables: { pressure } };
     },
     outcomes: [
       {

@@ -1,5 +1,6 @@
 import type { GameState, TreatyType } from "../../core/types";
 import { getRelation } from "../../core/diplomacy";
+import { getValidMilitaryTargets } from "../../core/decisions";
 import { Button } from "../common/Button";
 import { useGameStore } from "../../store/gameStore";
 
@@ -28,7 +29,9 @@ function relationLabel(relation: number): string {
 export function DiplomacyPanel({ state }: { state: GameState }) {
   const proposeAlliance = useGameStore((s) => s.proposeAlliance);
   const requestPeace = useGameStore((s) => s.requestPeace);
+  const setDecision = useGameStore((s) => s.setDecision);
   const playerId = state.playerFactionId;
+  const validTargets = getValidMilitaryTargets(state, playerId);
   const others = Object.values(state.factions).filter(
     (f) => f.id !== playerId && f.status === "active",
   );
@@ -47,11 +50,13 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
           const treaties = rel?.treaties ?? [];
           const truce = rel?.truceMonths ?? 0;
           const label = relationLabel(relation);
+          const isAllyF = !!rel && rel.treaties.includes("alliance");
           const canAlly =
-            !!rel &&
-            rel.truceMonths === 0 &&
-            !rel.treaties.includes("alliance") &&
-            rel.relation >= 20;
+            !!rel && rel.truceMonths === 0 && !isAllyF && rel.relation >= 20;
+          const fTarget = validTargets.find(
+            (rid) => state.regions[rid]?.controllerFactionId === f.id,
+          );
+          const canAttack = !isAllyF && truce === 0 && !!fTarget;
           return (
             <li key={f.id} className="diplomacy-item">
               <header>
@@ -65,11 +70,19 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
                 {treaties.length > 0 && ` · ${treaties.map((t) => TREATY_LABEL[t]).join("、")}`}
                 {truce > 0 && ` · 停战 ${truce} 月`}
               </p>
-              {canAlly && (
+              {canAlly ? (
                 <Button size="sm" variant="tertiary" onClick={() => proposeAlliance(f.id)}>
                   缔结同盟
                 </Button>
-              )}
+              ) : canAttack ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setDecision({ targetRegionId: fTarget ?? null })}
+                >
+                  宣战
+                </Button>
+              ) : null}
             </li>
           );
         })}

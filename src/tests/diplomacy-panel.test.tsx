@@ -25,6 +25,15 @@ describe("DiplomacyPanel (S6 遗留#2 外交交互)", () => {
     expect(isAlly(useGameStore.getState().state, "ming", "joseon")).toBe(true);
   });
 
+  it("敌对且有邻接地区的势力显示「宣战」，点击后设为军略目标", () => {
+    render(<DiplomacyPanel state={useGameStore.getState().state} />);
+    const btns = screen.getAllByText("宣战");
+    expect(btns.length).toBeGreaterThan(0);
+    fireEvent.click(btns[0]);
+    // setDecision 已更新玩家军略目标
+    expect(useGameStore.getState().decision.targetRegionId).not.toBeNull();
+  });
+
   it("战争显示进度与「求和」按钮，点击后战争结束", () => {
     // 给全局 store 注入一场大明参与的战争
     const cur = useGameStore.getState().state;
