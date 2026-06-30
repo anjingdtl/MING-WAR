@@ -10,3 +10,12 @@ clound
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+
+# Local tool / output (B10 v0.6.1-patch cleanup)
+example/
+output/
+.overview/
+.playwright-cli/
+.superpowers/
+.workbuddy/
+dev.err
