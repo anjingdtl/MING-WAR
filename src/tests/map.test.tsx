@@ -58,4 +58,20 @@ describe("GameMap", () => {
     expect(overlayArea.getAttribute("fill-opacity")).toBeTruthy();
     expect(tileHit.getAttribute("role")).toBe("button");
   });
+
+  it("renders context tiles without crashing or querying RegionState", () => {
+    const state = createMvpScenario();
+    render(<GameMap state={state} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    expect(screen.getByTestId("region-area-tibet")).toBeTruthy();
+    expect(screen.getByTestId("region-area-mobei")).toBeTruthy();
+    expect(screen.getByTestId("region-area-liuqiu")).toBeTruthy();
+    expect(screen.queryByText("乌斯藏")).toBeTruthy();
+    expect(screen.queryByText("漠北诸部")).toBeTruthy();
+  });
+
+  it("colors context tiles from defaultControllerFactionId fallback", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    const tibetArea = screen.getByTestId("region-area-tibet");
+    expect(tibetArea.getAttribute("fill")).toBe("#7A6B8A");
+  });
 });
