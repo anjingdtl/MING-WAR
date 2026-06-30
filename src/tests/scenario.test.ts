@@ -28,7 +28,7 @@ describe("MVP scenario", () => {
     expect(state.factions.ming.status).toBe("active");
     expect(state.factions.ming.capitalRegionId).toBe("beizhili");
     expect(state.currentDate).toBe("1573-01");
-    expect(state.endDate).toBe("1621-12");
+    expect(state.endDate).toBe("1662-12"); // S6：延伸至康熙元年，覆盖完整主线
   });
 
   it("keeps every connection pointed at an existing region", () => {

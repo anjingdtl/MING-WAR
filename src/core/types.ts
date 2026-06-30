@@ -327,6 +327,57 @@ export interface ReformProgress {
   monthsActive: number;
 }
 
+/**
+ * S6: 历史局势状态 —— 系统驱动的长期叙事。
+ *
+ * 把孤立事件升级为局势：trigger 由系统状态（S1–S5 的财政/军事/控制/外交）
+ * 推动，advance 月度推进 progress/stage/variables，outcomes 检测结局。
+ * 局势变量由系统状态喂入，事件作为局势的叙事表现。
+ */
+export interface SituationState {
+  id: string;
+  factionId: FactionId | "global";
+  /** 阶段索引（0=未触发，1+=进行中的阶段）。 */
+  stage: number;
+  /** 0-100 当前阶段进度。 */
+  progress: number;
+  /** 局势变量（由系统状态喂入，如占领数/战疲/腐败）。 */
+  variables: Record<string, number>;
+  active: boolean;
+  /** 已达成的结局 id（active=false 时存在）。 */
+  outcome?: string;
+}
+
+export interface SituationOutcome {
+  id: string;
+  label: string;
+  test: (sit: SituationState, state: GameState) => boolean;
+  /** S6b: 达成结局时施加效果（mutate 字段 / 写 modifier）。确定性。 */
+  effect?: (state: GameState) => void;
+}
+
+/** S6: 局势定义（数据驱动，定义在 src/data/situations.ts）。 */
+export interface SituationDef {
+  id: string;
+  name: string;
+  description: string;
+  factionId: FactionId | "global";
+  /** 由系统状态判断是否激活。 */
+  trigger: (state: GameState) => boolean;
+  /** 月度推进：基于系统状态返回 partial 更新（progress/stage/variables）。 */
+  advance: (sit: SituationState, state: GameState) => Partial<SituationState>;
+  outcomes: SituationOutcome[];
+}
+
+/** S6: 局势引擎产出的事件（转 MonthlyReport）。 */
+export interface SituationEvent {
+  situationId: string;
+  type: "triggered" | "outcome";
+  outcome?: string;
+  title: string;
+  body: string;
+}
+
 export interface GameState {
   version: string;
   currentDate: string;
@@ -350,6 +401,8 @@ export interface GameState {
   activeReforms?: ReformProgress[];
   /** S5: 双边外交关系表，key=relationKey(a,b)（字典序规范化）。 */
   diplomacy?: Record<string, DiplomaticRelation>;
+  /** S6: 进行中的历史局势（系统驱动的长期叙事）。 */
+  activeSituations?: SituationState[];
 }
 
 export interface SimulationInput {

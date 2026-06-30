@@ -16,7 +16,7 @@
 
 ## 1. 当前状态（v0.3.0）
 
-**维多利亚3 闭环进度：3 / 5 已接通**
+**维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**
 
 | 闭环 | 阶段 | 状态 |
 |---|---|---|
@@ -25,9 +25,11 @@
 | 社会政治环（利益集团政治力量） | S3 | ✅ 完成 |
 | 制度环（法律与改革系统） | S4 | ✅ 完成 |
 | 外交战争环（外交博弈 + 战线战争） | S5 | ✅ 完成 |
-| 内容收口（历史局势 + 完整周期） | S6 | ⬜ 下一步（里程碑） |
+| 内容收口（历史局势 + 完整周期） | S6 | ✅ 完成 |
 
-最新提交：`feat(diplomacy): S5 diplomacy + front-line war + peace talks`（外交战争环）
+**维多利亚3 五环闭环全部接通（S1–S6）**。后续工作转入内容扩充与平衡迭代。
+
+最新提交：`feat(situation): S6 historical situations engine + main-line content`（历史局势收口）
 
 ---
 
@@ -72,6 +74,15 @@
 - **外交约束开战**（S5d）：`getValidMilitaryTargets` 过滤停战/盟友地区（玩家与 AI 同规则），停战制造备战窗口、同盟阻止互攻。
 - **闭环达成**：战争咬合财政（战地军费/赔款/朝贡走账本）、补给（战线消耗）、动员（征募恢复）、外交（停战/盟友约束开战）、国内政治（战争支持度）。军费/补给/战疲能迫使停战，AI 受外交约束理性备战。
 
+### S6　历史局势与完整周期（内容收口）
+- **局势引擎** `src/core/situation.ts`：`SituationState`（stage/progress/variables/outcomes）+ `SituationDef`（trigger/advance/outcomes/effect）。`advanceSituations` 月度推进：检查 trigger → 推进 advance → 检测 outcome → 施加 effect。**确定性，不消费 random**。
+- **6 条主线局势** `src/data/situations.ts`：张居正改革（consolidated/stalled）、建州统一（unified）、壬辰倭乱（resolved）、辽东危机（liaodong-lost）、陕西流民（rebellion-spreads）、南明偏安（southern-ming）。trigger/advance 由 S1–S5 系统状态推动（腐败/军力/战争/控制区/叛乱）。
+- **结局效果接通系统**：outcome effect 写 S1 modifier（八旗 army-org-mult、张居正 tax-mult）或 mutate faction 字段（corruption/legitimacy/centralization/militaryOrganization）。
+- **完整周期**：endDate `1621-12` → `1662-12`（覆盖 1573–1662 主线）。
+- **平衡调参**：大明 armyTarget `0.01→0.006`、征募速率降、战线 attrition `0.015→0.022`、建州统一增强（+60k 军/+25 组织）、辽东危机基于建州威胁触发——避免大明无界膨胀，给中后期局势触发空间。
+- **批量自动推演**：batch 改为 player faction 由 AI 控制（无玩家干预的历史推演），不同 seed 的 AI 选择产生多样结局。
+- **闭环达成**：孤立事件升级为系统驱动的长期叙事；survey 8 seed 长跑中 **4 种局势结局实际触发**（张居正 consolidated / 建州 unified / 壬辰 resolved / 辽东 liaodong-lost）。
+
 ---
 
 ## 3. 验收红线与命令
@@ -89,29 +100,27 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 
 **当前基线指标（S4 完成时，供回归对比）**：
 
-| 指标 | S5 值 | S4 值 | 对比 |
+| 指标 | S6 值 | S5 值 | 对比 |
 |---|---|---|---|
-| 测试数 | 351 | 323 | +28（diplomacy 14 / peace 10 / warfare S5b 4） |
+| 测试数 | 360 | 351 | +9（situation 引擎 6 + 真实局势 3） |
 | batch errorRuns | 0 | 0 | = |
-| batch 大明存活率 | 1.0 | 0.82 | **回升**（军队归零修复）|
-| batch 平均控制区 | 25.08 | 14.49 | 回升（征募恢复 + 和谈割地）|
-| batch 粮价 | 3.42 | 4.13 | 略降 |
-| diagnose seed7（10年）| active，人口 −9.0%，**军队 846k** | active，−9.2%，军队 11 | 军队归零彻底修复 |
+| batch 大明存活率 | 1.0 | 1.0 | =（AI 自动推演，大明韧性高）|
+| batch 平均控制区 | 25.33 | 25.08 | ≈ |
+| batch 粮价 | 3.42 | 3.42 | = |
+| 局势结局（survey 8 seed × 480 月）| **4 种触发** | — | 张居正 consolidated / 建州 unified / 壬辰 resolved / 辽东 liaodong-lost |
 
 ---
 
-## 4. 下一步：S6 历史局势与完整周期（内容收口）
+## 4. 工程状态：S1–S6 全部完成
 
-**目标**：把孤立事件升级为系统驱动的长期局势，补齐 1573–1662 主线，多结局可重复出现。
+维多利亚3 五环闭环（后果 / 经济 / 社会政治 / 制度 / 外交战争）+ 内容收口（历史局势）全部接通。**360 测试全绿**，batch `errorRuns=0`，4 种局势结局在自动推演中实际触发。
 
-- `SituationState`（stage/progress/variables/outcomes）承载张居正改革、三大征、建州统一、辽东危机、陕西流民、南明分裂等。
-- 局势变量由 S1–S5 的系统状态推动（如建州统一由 jianzhou 控制区扩张+军事力量触发；辽东危机由 ming-jianzhou 战争+大明财政/战疲触发）；事件作为局势的叙事表现。
-- 当前 `endDate=1621-12`（万历末），S6 延伸到 1662（康熙元年），目标多结局（大明中兴 / 南明偏安 / 满清入关 / 流民建国等）。
-- 依赖：S1–S5 全部已就绪。**入口**：新建 `src/core/situation.ts` + `src/data/situations.ts`；`simulation.ts` 月度推进局势；`eventEngine.ts` 局势触发叙事事件。
+**后续工作（平衡迭代，非工程阻塞）**：
+- **晚期局势触发率**：陕西流民（rebellion-spreads）/ 南明（southern-ming）/ 张居正 stalled 需大明深度衰弱（失核心区 / 财政破产 / legitimacy 崩盘）。S5 修复军队归零后大明韧性高（存活 1.0），当前 batch 中晚期局势罕见。触发条件设计正确（`rebelPressure≥180` / `regions≤15` / `legitimacy<35`），待中后期压力机制（腐败累积 / 多线战争持续消耗）加强后自然出现。
+- 同盟参战（多边战争）未实现，stretch。
+- 玩家手选法律 / 手动外交 UI 留待后续。
 
-**验收**：历史局势由系统条件推动；完整周期可运行；多种结局在批量模拟中出现。
-
-**S5 后平衡备注**：S5 修复军队归零后大明存活 1.0、控制区 25/31，偏稳健。S6 引入建州统一 / 辽东危机 / 南明分裂等局势后，会系统性引入大明中后期压力，自然平衡挑战性——无需在 S5 人工削弱征募。
+**入口**（接手 agent）：`src/core/situation.ts`（引擎）+ `src/data/situations.ts`（6 局势）；`simulation.ts` 月度 `advanceSituations`；调参集中在 `simulation.ts` 征募段 / `warfare.ts` `baseAttrition` / `situations.ts` effect。
 
 ---
 
@@ -143,6 +152,9 @@ src/core/
   clique.ts          集团 strength（pop wealth 聚合）+ approval + administration
   politics.ts        S3c 政治运动
   reform.ts          S4 法律改革（propose/advance/enact/autoPropose）
+  diplomacy.ts       S5 外交关系 + 条约（relationKey / advanceDiplomacy）
+  peace.ts           S5c 和平谈判（warSupport / checkPeace / resolvePeace）
+  situation.ts       S6 历史局势引擎（advanceSituations）
   modifiers.ts       modifier 聚合 + queryModifier + collectModifiers（级联）
   ledger.ts          财政账本（唯一真相源）+ applyLedgerToState
   eventEngine.ts     事件条件/效果/触发
@@ -169,7 +181,8 @@ docs/
 
 ## 7. 提交历史（最近）
 
-- `feat(diplomacy): S5 diplomacy + front-line war + peace talks`（外交战争环，本次）
+- `feat(situation): S6 historical situations engine + main-line content`（历史局势收口，本次）
+- `f89b3f7` feat(diplomacy): S5 diplomacy + front-line war + peace talks（外交战争环）
 - `fa69b64` feat(reform): S4 law & reform system closing the institutional loop
 - `128ff48` feat(politics): S3 interest-group political power from pop wealth
 - `b803dfd` feat(economy): ledger-driven finance + unified market-pop loop (S1c+S2)

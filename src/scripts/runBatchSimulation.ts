@@ -1,6 +1,7 @@
 import { simulateMonth } from "../core/simulation";
 import { scoreAllFactions } from "../core/scoring";
-import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
+import { createMvpScenario } from "../data/scenarios";
+import { chooseAiDecision } from "../core/ai";
 import { BASE_PRICES } from "../core/market";
 
 export interface BatchSummary {
@@ -60,9 +61,12 @@ export function runBatchSimulation(runs = 100, months = 240): BatchSummary {
 
     try {
       for (let month = 0; month < months && state.gameStatus !== "finished"; month += 1) {
+        // S6: 批量为"无玩家干预的自动历史推演"——player faction 也由 AI 决策，
+        // 让不同 seed 的 AI 选择产生多样结局（中兴 / 偏安 / 衰亡），满足 SPEC
+        // S6"多种结局在批量模拟中出现"。手动游戏时玩家自行决策。
         const result = simulateMonth({
           state,
-          playerDecision: defaultPlayerDecision,
+          playerDecision: chooseAiDecision(state, state.playerFactionId),
           randomSeed: state.seed
         });
         state = result.nextState;

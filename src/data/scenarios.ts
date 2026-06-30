@@ -112,7 +112,7 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
   const state: GameState = {
     version: "0.3.0",
     currentDate: "1573-01",
-    endDate: "1621-12",
+    endDate: "1662-12", // S6：延伸至康熙元年，覆盖 1573–1662 完整主线
     seed,
     playerFactionId,
     factions: { ...structuredClone(factionTemplates), rebels: structuredClone(rebelFaction) },

@@ -10,6 +10,8 @@ import { updateRebellion } from "./rebellion";
 import { resolveBattle, advanceWar } from "./warfare";
 import { advanceDiplomacy } from "./diplomacy";
 import { checkPeace, computeWarSupport, resolvePeace } from "./peace";
+import { advanceSituations } from "./situation";
+import { situationLibrary } from "../data/situations";
 import { applyNaturalDecay, computeAdministrationModifier, computeCliqueApproval, computeFactionCliqueStrengthFromPops } from "./clique";
 import { advancePoliticalMovements, DEMAND_LABEL } from "./politics";
 import { advanceReforms, autoProposeReforms } from "./reform";
@@ -278,16 +280,16 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const controlledPop = Object.values(state.regions)
       .filter((r) => r.controllerFactionId === faction.id)
       .reduce((sum, r) => sum + r.population, 0);
-    const armyTarget = controlledPop * (faction.type === "tribal" ? 0.02 : 0.01);
+    const armyTarget = controlledPop * (faction.type === "tribal" ? 0.015 : 0.006);
     // S5b: 战疲分级征募（修军队归零脆弱性）。原 0.005 单一速率 + warExhaustion
     // <40 硬门槛使长期多线战争的军队只减不增、耗到个位数。现按战疲分级：低
     // 战疲高速补员，高战疲仍低速补员（而非完全停补），让军队能在长期战争中
     // 动态恢复，配合战线消耗达到稳态而非归零。
     if (faction.armyTotal < armyTarget && faction.treasury > maintenance.treasuryCost * 2) {
       const recruitRate =
-        faction.warExhaustion < 40 ? 0.012
-        : faction.warExhaustion < 65 ? 0.006
-        : 0.003;
+        faction.warExhaustion < 40 ? 0.008
+        : faction.warExhaustion < 65 ? 0.004
+        : 0.0015;
       const recruit = Math.min(Math.round(armyTarget - faction.armyTotal), Math.round(armyTarget * recruitRate));
       const recruitCost = Math.round(recruit * 0.5);
       if (recruit > 0 && faction.treasury >= recruitCost) {
@@ -375,6 +377,20 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       title: `${factionName}·${DEMAND_LABEL[m.demand]}运动取得让步`,
       body: `利益集团持续施压的${DEMAND_LABEL[m.demand]}诉求迫使朝廷让步，相关政令随之调整。`,
       severity: "warning",
+    });
+  }
+
+  // S6: 历史局势推进（系统驱动的长期叙事）。trigger/advance 由 S1–S5 系统状态
+  // 推动，outcomes 施加效果（mutate 字段 / 写 modifier，确定性，不走 ledger）。
+  const sitEvents = advanceSituations(state, situationLibrary);
+  for (const ev of sitEvents) {
+    reports.push({
+      id: `${state.currentDate}-sit-${ev.situationId}-${ev.type}`,
+      date: state.currentDate,
+      type: "event",
+      title: ev.title,
+      body: ev.body,
+      severity: ev.type === "outcome" ? "warning" : "info",
     });
   }
 

@@ -365,3 +365,44 @@ S5 外交博弈与持续战争落地，第四条维多利亚3式闭环（外交 
 - 当前 `endDate=1621-12`（万历末），S6 延伸到 1662 + 多结局。
 
 **下一阶段：S6 历史局势与完整周期**（SituationState 承载主线，1573–1662 多结局）。
+
+---
+
+## 12. S6 实施完成战报（2026-06-30）
+
+S6 历史局势与完整周期落地，第五条也是最后一条闭环（内容收口）接通。**维多利亚3 五环闭环全部完成（S1–S6）**。
+
+### 12.1 交付内容
+
+| 阶段 | 内容 |
+|---|---|
+| S6a 局势引擎 | `situation.ts` + types：SituationState / SituationDef / SituationOutcome（含 effect）/ SituationEvent；`advanceSituations` 月度推进（trigger → advance → outcome → effect）；确定性 |
+| S6b 主线内容 | `situations.ts` 6 条局势：张居正改革 / 建州统一 / 壬辰倭乱 / 辽东危机 / 陕西流民 / 南明偏安；trigger/advance 由 S1–S5 系统状态推动；outcome effect 接通 modifier + 字段 |
+| S6b 平衡调参 | 大明 armyTarget `0.01→0.006`、征募速率降、战线 attrition `0.015→0.022`、建州统一增强、辽东危机基于建州威胁触发；endDate `1621→1662`；batch 改 AI 控制 player（自动推演） |
+| S6b 验收 | 局势引擎 + 真实局势测试；4 种结局实际触发 |
+
+### 12.2 验收（红线全绿）
+
+- typecheck 清洁；**360 测试全绿**（S6 新增 9：situation 引擎 6 + 真实局势 3）
+- build 通过；map:validate 31 地区
+- batch 100×240 `errorRuns=0`（AI 自动推演）：大明存活 1.0、控制区 25.33、粮价 3.42
+- survey 8 seed × 480 月：**4 种局势结局实际触发**（张居正 consolidated / 建州 unified / 壬辰 resolved / 辽东 liaodong-lost）
+
+### 12.3 闭环达成
+
+第五条闭环接通：S1–S5 系统状态（腐败 / 军力 / 战争 / 控制区 / 叛乱）→ 局势 trigger → 月度 advance → outcome effect（写 modifier / mutate 字段）→ 反作用于系统。孤立事件升级为系统驱动的长期叙事；1573–1662 完整周期可运行。
+
+### 12.4 设计权衡
+
+- **局势引擎数据驱动**：trigger/advance/outcome/effect 全是函数字段，新增局势只需加 SituationDef，不改引擎。确定性（advance 基于 state，不消费 random）。
+- **结局效果不走 ledger**：outcome effect 用字段 mutate（corruption/legitimacy 等）+ S1 modifier（tax-mult/army-org-mult）。避免引擎返回 ledger entries 的复杂性，不破坏 Δtreasury 不变量。
+- **batch 自动推演**：player faction 由 AI 控制（无玩家干预），让不同 seed 的 AI 选择产生多样结局——这是 SPEC"批量多结局"的正确语义。
+- **大明韧性与晚期局势**：S5 修复军队归零后大明韧性高（存活 1.0），晚期危机局势（陕西 / 南明，需大明深度衰弱）在当前平衡下罕见。这是 S5 成果的副作用，设计上触发条件正确，待中后期压力机制加强后自然出现。
+
+### 12.5 已知遗留（后续平衡迭代）
+
+- 晚期局势（陕西流民 / 南明分裂 / 张居正 stalled）触发率低（需大明深度衰弱）——后续加强中后期压力（腐败累积 / 多线战争持续消耗）。
+- 同盟参战（多边战争）未实现，stretch。
+- 玩家手选法律 / 手动外交 UI 留待后续。
+
+**S1–S6 全部完成。维多利亚3 五环闭环就位。**

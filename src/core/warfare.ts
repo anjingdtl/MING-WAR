@@ -85,7 +85,7 @@ export function advanceWar(
   const supplyD = Math.max(0.3, front.defenderSupply / 100);
   const committedAttacker = Math.max(500, Math.round(attacker.armyTotal * 0.25));
   const committedDefender = Math.max(region.garrison, Math.round(defender.armyTotal * 0.15));
-  const baseAttrition = 0.015;
+  const baseAttrition = 0.022;
   const attackerLosses = Math.round((committedAttacker * baseAttrition) / supplyA);
   const defenderLosses = Math.round((committedDefender * baseAttrition) / supplyD);
   // 战地军费/军粮：在常规维护（calculateFactionMaintenance）之上的额外消耗，
