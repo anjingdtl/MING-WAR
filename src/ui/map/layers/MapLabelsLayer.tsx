@@ -66,7 +66,7 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
             x={fl.x - 60}
             y={fl.y - 18}
             width={120}
-            height={36}
+            height={28} /* v0.7.3 — 对齐 .faction-map-label height */
           >
             <div className={`faction-map-label importance-${fl.importance}`}>{fl.label}</div>
           </foreignObject>
@@ -89,7 +89,7 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
             x={tile.labelX - lblW / 2}
             y={tile.labelY - 27}
             width={lblW}
-            height={54}
+            height={40} /* v0.7.3 — 对齐 .political-label height */
           >
             <div className={tile.isPlayableRegion ? "political-label" : "political-label context-label"}>
               <strong>{name}</strong>

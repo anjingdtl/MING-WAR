@@ -318,7 +318,7 @@ a:hover {
 .political-label {
   display: grid;
   place-items: center;
-  height: 54px;
+  height: 40px; /* v0.7.3 — 缩 */
   color: var(--color-ink);
   text-align: center;
   pointer-events: none;
@@ -338,14 +338,16 @@ a:hover {
 
 .political-label strong {
   align-self: end;
-  font-size: clamp(13px, 1.28vw, 22px);
+  font-size: clamp(11px, 1.0vw, 16px); /* v0.7.3 — 13..22 → 11..16 */
   font-weight: 900;
+  line-height: 1.05;
 }
 
 .political-label span {
   align-self: start;
-  font-size: clamp(10px, 0.92vw, 14px);
+  font-size: clamp(9px, 0.78vw, 12px); /* v0.7.3 — 10..14 → 9..12 */
   font-weight: 700;
+  line-height: 1.0;
 }
 
 /* === 三层地图架构（Victoria 3 式） ============================= */
@@ -461,16 +463,18 @@ a:hover {
 }
 
 .context-label strong {
-  font-size: clamp(10px, 0.82vw, 14px);
+  font-size: clamp(9px, 0.7vw, 12px); /* v0.7.3 — 10..14 → 9..12 */
   font-weight: 700;
   font-style: italic;
   color: rgba(60, 50, 40, 0.82);
+  line-height: 1.05;
 }
 
 .context-label span {
-  font-size: clamp(8px, 0.68vw, 11px);
+  font-size: clamp(7px, 0.55vw, 9.5px); /* v0.7.3 — 8..11 → 7..9.5 */
   font-weight: 600;
   opacity: 0.7;
+  line-height: 1.0;
 }
 
 /* 势力大字标签（低缩放显示） */
@@ -478,7 +482,7 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
+  height: 28px; /* v0.7.3 — 36 → 28，避免撑破 SVG foreignObject */
   font-family: var(--font-display);
   font-weight: 900;
   text-align: center;
@@ -490,11 +494,12 @@ a:hover {
     0 0 8px rgba(255, 250, 232, 0.78),
     0 0 14px rgba(255, 250, 232, 0.5);
   white-space: nowrap;
+  line-height: 1.0;
 }
 
 .faction-map-label.importance-1 {
-  font-size: clamp(20px, 2.4vw, 38px);
-  letter-spacing: 0.14em;
+  font-size: clamp(14px, 1.6vw, 22px); /* v0.7.3 — 20..38 → 14..22 */
+  letter-spacing: 0.1em;
   color: var(--color-imperial-red);
   text-shadow:
     0 1px 0 rgba(255, 250, 232, 0.95),
@@ -503,14 +508,14 @@ a:hover {
 }
 
 .faction-map-label.importance-2 {
-  font-size: clamp(15px, 1.6vw, 26px);
-  letter-spacing: 0.1em;
+  font-size: clamp(11px, 1.1vw, 16px); /* v0.7.3 — 15..26 → 11..16 */
+  letter-spacing: 0.08em;
 }
 
 .faction-map-label.importance-3 {
-  font-size: clamp(12px, 1.2vw, 19px);
+  font-size: clamp(9px, 0.85vw, 12px); /* v0.7.3 — 12..19 → 9..12 */
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   opacity: 0.78;
 }
 

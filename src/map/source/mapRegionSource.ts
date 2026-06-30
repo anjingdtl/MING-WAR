@@ -174,65 +174,65 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "tumed_steppe",
     "paths": [
-      "M456.3 236.1 L482.5 240.2 L517.5 238.8 L566.2 232 L587.5 222.4 L602.5 215.5 L597.5 204.5 L577.5 200.4 L540 201.8 L503.7 204.5 L475 212.7 L470 221 Z"
+      "M475 247.1 L575 247.1 L575 233.3 L475 233.3 Z"
     ],
-    "labelX": 536.3,
-    "labelY": 219.6,
-    "labelWidth": 116,
+    "labelX": 525,
+    "labelY": 240.2,
+    "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
   },
   {
     "id": "chahar_steppe",
     "paths": [
-      "M532.5 241.6 L560 230.6 L600 230.6 L640 223.7 L670 214.1 L697.5 197.6 L690 182.5 L670 178.4 L625 182.5 L590 189.4 L555 200.4 L537.5 210 Z"
+      "M500 233.3 L600 233.3 L600 192.2 L500 192.2 Z"
     ],
-    "labelX": 622.5,
-    "labelY": 205.9,
-    "labelWidth": 112,
+    "labelX": 550,
+    "labelY": 212.7,
+    "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
   },
   {
     "id": "korchin_steppe",
     "paths": [
-      "M602.5 223.7 L640 214.1 L675 211.4 L718.8 203.1 L747.5 186.7 L765 162 L752.5 148.2 L730 138.6 L715 135.9 L675 141.4 L642.5 151 L620 164.7 L600 185.3 Z"
+      "M600 192.2 L725 192.2 L725 137.3 L600 137.3 Z"
     ],
-    "labelX": 695,
-    "labelY": 171.6,
-    "labelWidth": 104,
+    "labelX": 662.5,
+    "labelY": 164.7,
+    "labelWidth": 100,
     "source": "historical-frontier-manual",
     "group": "mongolia"
   },
   {
     "id": "hulunbuir",
     "paths": [
-      "M522.5 164.7 L552.5 148.2 L592.5 142.7 L637.5 141.4 L675 123.5 L697.5 104.3 L687.5 82.4 L652.5 65.9 L615 71.4 L568.8 87.8 L542.5 109.8 L537.5 127.6 Z"
+      "M525 137.3 L725 137.3 L725 68.6 L525 68.6 Z"
     ],
-    "labelX": 612.5,
-    "labelY": 109.8,
-    "labelWidth": 116,
+    "labelX": 625,
+    "labelY": 102.9,
+    "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
   },
   {
     "id": "haixi",
     "paths": [
-      "M660 211.4 L675 205.9 L707.5 201.8 L732.5 200.4 L747.5 200.4 L767.5 183.9 L776.2 163.3 L762.5 151 L740 144.1 L710 148.2 L682.5 156.5 L667.5 167.5 Z"
+      "M725 192.2 L825 192.2 L825 137.3 L725 137.3 Z"
     ],
-    "labelX": 725,
-    "labelY": 172.9,
-    "labelWidth": 90,
+    "labelX": 775,
+    "labelY": 164.7,
+    "labelWidth": 96,
     "source": "historical-frontier-manual",
     "group": "jurchen"
   },
   {
     "id": "jianzhou",
     "paths": [
-      "M667.5 247.1 L687.5 242.9 L717.5 238.8 L742.5 236.1 L758.7 233.3 L780 219.6 L787.5 199 L770 186.7 L750 182.5 L725 186.7 L700 197.6 L675 208.6 Z"
+      "M700 219.6 L800 219.6 L800 192.2 L700 192.2 Z"
     ],
-    "labelX": 735,
-    "labelY": 212.7,
+    "labelX": 750,
+    "labelY": 205.9,
     "labelWidth": 96,
     "source": "historical-frontier-manual",
     "group": "jurchen"
@@ -278,7 +278,7 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "joseon_north",
     "paths": [
-      "M707.5 247.1 L716.2 233.3 L730 223.7 L743.8 222.4 L755 219.6 L767.5 212.7 L780 211.4 L787.5 214.1 L771.2 225.1 L765 240.2 L755 253.9 L743.8 264.9 L731.3 270.4 L712.5 270.4 Z"
+      "M715 225.1 L730 223.7 L747.5 225.1 L760 226.5 L770 227.8 L777.5 233.3 L782.5 241.6 L780 252.5 L767.5 258 L755 262.2 L742.5 264.9 L730 267.6 L717.5 269 L715 253.9 L717.5 240.2 Z"
     ],
     "labelX": 743.8,
     "labelY": 238.8,

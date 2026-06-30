@@ -216,15 +216,14 @@ function pathsForRussianAdmin1(admin1: GeoFeatureCollection, names: string[]): s
 
 /**
  * Hand-drawn (but NE-aligned) polygons for the unified Wanli-era Joseon
- * peninsula, split at lat ~38°. We can't do real polygon clipping against
- * the modern admin0 ring without a dependency, so two non-overlapping
- * polygons approximate the unified Joseon rather than the 1948 split.
+ * peninsula, split at lat 38°. v0.7.3 — 北界收到 lat=42，与 jianzhou
+ * (lat 42–44) 严格不重叠；沿鸭绿江/长白山主脉。
  */
 const JOSEON_NORTH_RING: Ring = [
-  [124.6, 40.0], [125.3, 41.0], [126.4, 41.7], [127.5, 41.8],
-  [128.4, 42.0], [129.4, 42.5], [130.4, 42.6], [131.0, 42.4],
-  [129.7, 41.6], [129.2, 40.5], [128.4, 39.5], [127.5, 38.7],
-  [126.5, 38.3], [125.0, 38.3]
+  [125.2, 41.6], [126.4, 41.7], [127.8, 41.6], [128.8, 41.5],
+  [129.6, 41.4], [130.2, 41.0], [130.6, 40.4], [130.4, 39.6],
+  [129.4, 39.2], [128.4, 38.9], [127.4, 38.7], [126.4, 38.5],
+  [125.4, 38.4], [125.2, 39.5], [125.4, 40.5]
 ];
 const JOSEON_SOUTH_RING: Ring = [
   [125.0, 38.3], [126.5, 38.3], [127.5, 38.7], [128.4, 38.5],
@@ -328,12 +327,27 @@ function buildRegions(admin1: GeoFeatureCollection, admin0: GeoFeatureCollection
     region("yunnan", china(["Yunnan"]), [101.6, 24.8], 90, "natural-earth-admin1"),
     region("guizhou", china(["Guizhou"]), [106.7, 26.8], 90, "natural-earth-admin1"),
     region("liaodong", china(["Liaoning"]), [122.9, 41.2], 92, "natural-earth-admin1"),
-    region("tumed_steppe", [manualPath([[104.5, 40.8], [106.6, 40.5], [109.4, 40.6], [113.3, 41.1], [115.0, 41.8], [116.2, 42.3], [115.8, 43.1], [114.2, 43.4], [111.2, 43.3], [108.3, 43.1], [106.0, 42.5], [105.6, 41.9]])], [110.9, 42.0], 116, "historical-frontier-manual", { group: "mongolia" }),
-    region("chahar_steppe", [manualPath([[110.6, 40.4], [112.8, 41.2], [116.0, 41.2], [119.2, 41.7], [121.6, 42.4], [123.8, 43.6], [123.2, 44.7], [121.6, 45.0], [118.0, 44.7], [115.2, 44.2], [112.4, 43.4], [111.0, 42.7]])], [117.8, 43.0], 112, "historical-frontier-manual", { group: "mongolia" }),
-    region("korchin_steppe", [manualPath([[116.2, 41.7], [119.2, 42.4], [122.0, 42.6], [125.5, 43.2], [127.8, 44.4], [129.2, 46.2], [128.2, 47.2], [126.4, 47.9], [125.2, 48.1], [122.0, 47.7], [119.4, 47.0], [117.6, 46.0], [116.0, 44.5]])], [123.6, 45.5], 104, "historical-frontier-manual", { group: "mongolia" }),
-    region("hulunbuir", [manualPath([[109.8, 46.0], [112.2, 47.2], [115.4, 47.6], [119.0, 47.7], [122.0, 49.0], [123.8, 50.4], [123.0, 52.0], [120.2, 53.2], [117.2, 52.8], [113.5, 51.6], [111.4, 50.0], [111.0, 48.7]])], [117.0, 50.0], 116, "historical-frontier-manual", { group: "mongolia" }),
-    region("haixi", [manualPath([[120.8, 42.6], [122.0, 43.0], [124.6, 43.3], [126.6, 43.4], [127.8, 43.4], [129.4, 44.6], [130.1, 46.1], [129.0, 47.0], [127.2, 47.5], [124.8, 47.2], [122.6, 46.6], [121.4, 45.8]])], [126.0, 45.4], 90, "historical-frontier-manual", { group: "jurchen" }),
-    region("jianzhou", [manualPath([[121.4, 40.0], [123.0, 40.3], [125.4, 40.6], [127.4, 40.8], [128.7, 41.0], [130.4, 42.0], [131.0, 43.5], [129.6, 44.4], [128.0, 44.7], [126.0, 44.4], [124.0, 43.6], [122.0, 42.8]])], [126.8, 42.5], 96, "historical-frontier-manual", { group: "jurchen" }),
+    // v0.7.3 — 万历年草原 / 女真 / 朝鲜按"严格纬度分带"重新规划：
+    // 每个 polygon 是一个矩形（5–10 个点紧凑多边形），与邻接区共享 1 条
+    // 纬线或经线边界，避免"互相交错混合"。
+    //
+    // 网格坐标（从北到南、西到东；lng 100-150；lat 5-65）：
+    //   lat 53  ┌─────────────┐
+    //   lat 48  │   hulunbuir  (110–126, 48–53)
+    //   lat 48  ├───────┬─────┤
+    //   lat 44  │korchin│haixi │  (korchin 116–126, haixi 126–134, 各 lat 44–48)
+    //   lat 44  ├───┬───┴──┬──┤
+    //   lat 41  │cha│      │ji │  chahar 108–116, jianzhou 124–132 (各 41–44)
+    //   lat 41  ├───┴─┐    ├──┤
+    //   lat 40  │tum  │lia │   tum 106–114, lia 119–124 (各 39–41/42)
+    //   lat 38  ├─────┴────j_n┤ joseon_north 125–131 (38–42)
+    //   lat 33  └─────joseon_s─┘ joseon_south 126–130 (33–38)
+    region("tumed_steppe", [manualPath([[106, 40], [114, 40], [114, 41], [106, 41]])], [110, 40.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+    region("chahar_steppe", [manualPath([[108, 41], [116, 41], [116, 44], [108, 44]])], [112, 42.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+    region("korchin_steppe", [manualPath([[116, 44], [126, 44], [126, 48], [116, 48]])], [121, 46], 100, "historical-frontier-manual", { group: "mongolia" }),
+    region("hulunbuir", [manualPath([[110, 48], [126, 48], [126, 53], [110, 53]])], [118, 50.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+    region("haixi", [manualPath([[126, 44], [134, 44], [134, 48], [126, 48]])], [130, 46], 96, "historical-frontier-manual", { group: "jurchen" }),
+    region("jianzhou", [manualPath([[124, 42], [132, 42], [132, 44], [124, 44]])], [128, 43], 96, "historical-frontier-manual", { group: "jurchen" }),
     region("amur_basin", russian(["Amur", "Yevrey"]), [127.5, 50.2], 104, "natural-earth-admin1", { group: "jurchen" }),
     region("nurgan_coast", russian(["Khabarovsk", "Primor'ye"]), [135.5, 47.0], 96, "natural-earth-admin1", { group: "jurchen" }),
     region("sakhalin", russian(["Sakhalin"]), [142.4, 49.0], 86, "natural-earth-admin1", { group: "japan" }),
