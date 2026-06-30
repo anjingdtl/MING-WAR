@@ -7,7 +7,7 @@ import { findTriggeredEvents } from "./eventEngine";
 import { calculatePopulation } from "./population";
 import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
-import { resolveBattle, advanceWar } from "./warfare";
+import { advanceWar, alliesJoinWar, resolveBattle } from "./warfare";
 import { advanceDiplomacy } from "./diplomacy";
 import { checkPeace, computeWarSupport, resolvePeace } from "./peace";
 import { advanceSituations } from "./situation";
@@ -426,6 +426,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     });
     if (battle.war) {
       state.wars = state.wars.filter((war) => war.id !== battle.war?.id).concat(battle.war);
+      // S5 遗留#2：同盟参战——进攻方盟友同步对防守方开战
+      state.wars.push(...alliesJoinWar(state, attacker.id, defender.id));
     }
   }
 

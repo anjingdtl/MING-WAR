@@ -1,6 +1,8 @@
-import type { FactionState, FrontState, MilitaryPosture, Modifier, RegionState, WarState } from "./types";
+import type { FactionState, FrontState, GameState, MilitaryPosture, Modifier, RegionState, WarState } from "./types";
 import type { RandomSource } from "./random";
 import { queryModifier } from "./modifiers";
+import { hasTruce, isAlly } from "./diplomacy";
+import { getValidMilitaryTargets } from "./decisions";
 
 /** S5: 战线初始状态 —— 双方支持度与补给均充足，随战争消耗演变。 */
 function createInitialFront(): FrontState {
@@ -187,4 +189,34 @@ export function resolveBattle(
           front: createInitialFront(),
         }
   };
+}
+
+/**
+ * S5 遗留#2：同盟参战（简化双边累加，非多边战争模型）。
+ *
+ * 进攻方的盟友（有 alliance 条约）若与防守方相邻、非防守方盟友、无停战、且
+ * 未已在交战，则同步对防守方开战。让"拉盟友"真实改变战局——同盟不再只是
+ * "不互攻"的消极约束，而是会主动加入战争。确定性，不消费 random。
+ */
+export function alliesJoinWar(
+  state: GameState,
+  attackerId: string,
+  defenderId: string,
+): WarState[] {
+  const defender = state.factions[defenderId];
+  if (!defender) return [];
+  const newWars: WarState[] = [];
+  for (const allyId of Object.keys(state.factions)) {
+    if (allyId === attackerId || allyId === defenderId) continue;
+    const ally = state.factions[allyId];
+    if (ally.status !== "active") continue;
+    if (!isAlly(state, attackerId, allyId)) continue;
+    if (isAlly(state, allyId, defenderId) || hasTruce(state, allyId, defenderId)) continue;
+    if (state.wars.some((w) => w.attackerFactionId === allyId && w.defenderFactionId === defenderId)) continue;
+    const targets = getValidMilitaryTargets(state, allyId);
+    const target = targets.find((rid) => state.regions[rid]?.controllerFactionId === defenderId);
+    if (!target) continue;
+    newWars.push(createInitialWar(ally, defender, state.regions[target]));
+  }
+  return newWars;
 }

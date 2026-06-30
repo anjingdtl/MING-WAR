@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { advanceWar, createInitialWar } from "../core/warfare";
+import { advanceWar, alliesJoinWar, createInitialWar } from "../core/warfare";
+import { addTreaty, ensureRelation } from "../core/diplomacy";
 import { simulateMonth } from "../core/simulation";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import type { FactionState, RegionState } from "../core/types";
@@ -206,5 +207,48 @@ describe("P0-4: simulation advances war over time", () => {
     // S5c：弱方（建州）攻强方（大明）会因支持度崩塌而和谈结束；战争要么仍
     // 在推进（monthsActive 增长），要么已通过议和结束 —— 两者皆合法。
     expect(war === undefined || war.monthsActive === 7 || peaceHappened).toBe(true);
+  });
+});
+
+describe("S5 遗留#2：同盟参战（alliesJoinWar）", () => {
+  function setupNeighborPair(state: ReturnType<typeof createMvpScenario>) {
+    const x = Object.values(state.regions).find((r) => r.connections.length > 0)!;
+    const y = state.regions[x.connections[0]];
+    state.regions[x.id].controllerFactionId = "joseon";
+    state.regions[y.id].controllerFactionId = "jianzhou";
+    return { x, y };
+  }
+
+  it("进攻方盟友（与防守方相邻）同步参战", () => {
+    const s = createMvpScenario("ming", 1);
+    setupNeighborPair(s);
+    addTreaty(s, "ming", "joseon", "alliance");
+    const newWars = alliesJoinWar(s, "ming", "jianzhou");
+    expect(newWars.some((w) => w.attackerFactionId === "joseon" && w.defenderFactionId === "jianzhou")).toBe(true);
+  });
+
+  it("盟友若与防守方也是盟友，不参战", () => {
+    const s = createMvpScenario("ming", 1);
+    setupNeighborPair(s);
+    addTreaty(s, "ming", "joseon", "alliance");
+    addTreaty(s, "joseon", "jianzhou", "alliance");
+    const newWars = alliesJoinWar(s, "ming", "jianzhou");
+    expect(newWars.some((w) => w.attackerFactionId === "joseon")).toBe(false);
+  });
+
+  it("盟友与防守方停战时不参战", () => {
+    const s = createMvpScenario("ming", 1);
+    setupNeighborPair(s);
+    addTreaty(s, "ming", "joseon", "alliance");
+    const rel = ensureRelation(s, "joseon", "jianzhou");
+    rel.truceMonths = 30;
+    addTreaty(s, "joseon", "jianzhou", "truce");
+    const newWars = alliesJoinWar(s, "ming", "jianzhou");
+    expect(newWars.some((w) => w.attackerFactionId === "joseon")).toBe(false);
+  });
+
+  it("无盟友时不产生参战 war", () => {
+    const s = createMvpScenario("ming", 1);
+    expect(alliesJoinWar(s, "ming", "jianzhou")).toEqual([]);
   });
 });
