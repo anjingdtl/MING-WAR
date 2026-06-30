@@ -171,8 +171,9 @@ a:hover {
 
 .map-land {
   fill: url("#terrain-light");
-  stroke: rgba(71, 63, 48, 0.54);
-  stroke-width: 0.72;
+  stroke: rgba(60, 48, 30, 0.85);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
@@ -393,6 +394,26 @@ a:hover {
 
 .province-tile.is-context-tile {
   cursor: default;
+}
+
+.province-tile__outline {
+  fill: rgba(0, 0, 0, 0);
+  stroke: rgba(40, 28, 16, 0.72);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition: stroke 120ms var(--ease-out), stroke-width 120ms var(--ease-out);
+}
+
+.province-tile.is-context-tile .province-tile__outline {
+  stroke: rgba(80, 68, 50, 0.55);
+  stroke-width: 1.0;
+  stroke-dasharray: 4 3;
+}
+
+.province-tile.is-enclave .province-tile__outline {
+  stroke-dasharray: 5 3;
 }
 
 .province-tile__hit {

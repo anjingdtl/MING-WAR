@@ -70,6 +70,13 @@ export const ProvinceTileLayer = React.memo(function ProvinceTileLayer({
           >
             {tile.paths.map((d, i) => (
               <path
+                key={`${tile.id}-outline-${i}`}
+                className="province-tile__outline"
+                d={d}
+              />
+            ))}
+            {tile.paths.map((d, i) => (
+              <path
                 key={`${tile.id}-hit-${i}`}
                 className="province-tile__hit"
                 d={d}
