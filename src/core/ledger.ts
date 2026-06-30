@@ -28,6 +28,7 @@ export type LedgerCategory =
   | "expense-relief"     // 支出-赈灾
   | "expense-construction" // 支出-建设
   | "expense-debt-interest" // 支出-债务利息
+  | "expense-tribute"    // 支出-朝贡（朝贡国→宗主白银转移）
   | "expense-court"      // 支出-宫廷
   | "expense-event"      // 支出-事件
   | "grain-production"   // 粮食产出

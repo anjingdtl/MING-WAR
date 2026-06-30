@@ -8,6 +8,8 @@ import { calculatePopulation } from "./population";
 import { createRandom } from "./random";
 import { updateRebellion } from "./rebellion";
 import { resolveBattle, advanceWar } from "./warfare";
+import { advanceDiplomacy } from "./diplomacy";
+import { checkPeace, computeWarSupport, resolvePeace } from "./peace";
 import { applyNaturalDecay, computeAdministrationModifier, computeCliqueApproval, computeFactionCliqueStrengthFromPops } from "./clique";
 import { advancePoliticalMovements, DEMAND_LABEL } from "./politics";
 import { advanceReforms, autoProposeReforms } from "./reform";
@@ -34,7 +36,7 @@ import {
 } from "./market";
 import { mvpEvents } from "../data/events";
 import { cliqueTemplates } from "../data/cliques";
-import type { FactionState, GameState, GoodId, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult } from "./types";
+import type { FactionState, GameState, GoodId, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult, WarState } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
   const state = structuredClone(input.state);
@@ -277,12 +279,16 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       .filter((r) => r.controllerFactionId === faction.id)
       .reduce((sum, r) => sum + r.population, 0);
     const armyTarget = controlledPop * (faction.type === "tribal" ? 0.02 : 0.01);
-    if (
-      faction.armyTotal < armyTarget &&
-      faction.treasury > maintenance.treasuryCost * 2 &&
-      faction.warExhaustion < 40
-    ) {
-      const recruit = Math.min(Math.round(armyTarget - faction.armyTotal), Math.round(armyTarget * 0.005));
+    // S5b: 战疲分级征募（修军队归零脆弱性）。原 0.005 单一速率 + warExhaustion
+    // <40 硬门槛使长期多线战争的军队只减不增、耗到个位数。现按战疲分级：低
+    // 战疲高速补员，高战疲仍低速补员（而非完全停补），让军队能在长期战争中
+    // 动态恢复，配合战线消耗达到稳态而非归零。
+    if (faction.armyTotal < armyTarget && faction.treasury > maintenance.treasuryCost * 2) {
+      const recruitRate =
+        faction.warExhaustion < 40 ? 0.012
+        : faction.warExhaustion < 65 ? 0.006
+        : 0.003;
+      const recruit = Math.min(Math.round(armyTarget - faction.armyTotal), Math.round(armyTarget * recruitRate));
       const recruitCost = Math.round(recruit * 0.5);
       if (recruit > 0 && faction.treasury >= recruitCost) {
         // S1c: recruitment silver cost via ledger; headcount applied directly
@@ -308,6 +314,13 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       });
     }
   }
+
+  // S5: 外交月度演变（停战倒计时 / 威胁 / 关系）+ 条约财政后果（互市关税 /
+  // 朝贡白银）走账本，保持 Δtreasury === 账本净额。本模块确定性，不消费
+  // random，故插在 applyResourceCrises 之前不扰动确定性随机序列。
+  const diploEntries = advanceDiplomacy(state);
+  applyLedgerToState(state, diploEntries);
+  ledgerEntries.push(...diploEntries);
 
   applyResourceCrises(state, reports, random);
 
@@ -395,15 +408,73 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
 
   const triggered = findTriggeredEvents(state, mvpEvents).slice(0, 1);
 
-  // P0-4: advance ongoing wars (monthsActive++, progress update based on relative strength)
-  state.wars = state.wars.map((war) => {
+  // S5b: 战线推进 + 持续消耗。战争每月咬合财政/补给/动员：双方军队损耗、
+  // 战地军费/军粮走账本（保持 Δtreasury===账本净额）、战疲累积。战争不再由
+  // 单月攻击决定，长期战争真实侵蚀资源。消耗确定性，不消费 random。
+  const survivingWars: WarState[] = [];
+  for (const war of state.wars) {
     const attacker = state.factions[war.attackerFactionId];
     const defender = state.factions[war.defenderFactionId];
     const region = state.regions[war.targetRegionId];
-    if (!attacker || !defender || !region) return war;
-    if (attacker.status !== "active" || defender.status !== "active") return war;
-    return advanceWar(war, attacker, defender, region, state.activeModifiers);
-  });
+    // 无效或已停战的 war 不推进，但保留在 wars 中供 validateInvariants
+    // 报告（war-attacker-missing 等不变量需能看到它，而非被静默移除）。
+    if (!attacker || !defender || !region || attacker.status !== "active" || defender.status !== "active") {
+      survivingWars.push(war);
+      continue;
+    }
+    const r = advanceWar(war, attacker, defender, region, state.activeModifiers);
+    attacker.armyTotal = Math.max(0, attacker.armyTotal - r.attackerLosses);
+    defender.armyTotal = Math.max(0, defender.armyTotal - r.defenderLosses);
+    attacker.warExhaustion = Math.min(100, attacker.warExhaustion + r.attackerExhaustionDelta);
+    defender.warExhaustion = Math.min(100, defender.warExhaustion + r.defenderExhaustionDelta);
+    const warEntries: LedgerEntry[] = [
+      { category: "expense-army-pay", source: `${attacker.name} 战地军费`, amount: -r.attackerSilverCost, factionId: attacker.id },
+      { category: "expense-army-pay", source: `${defender.name} 战地军费`, amount: -r.defenderSilverCost, factionId: defender.id },
+      { category: "grain-consumption", source: `${attacker.name} 战地军粮`, amount: -r.attackerGrainCost, factionId: attacker.id, goodId: "grain" },
+      { category: "grain-consumption", source: `${defender.name} 战地军粮`, amount: -r.defenderGrainCost, factionId: defender.id, goodId: "grain" }
+    ];
+    applyLedgerToState(state, warEntries);
+    ledgerEntries.push(...warEntries);
+    if (r.war.front) {
+      r.war.front.attackerWarSupport = computeWarSupport(state, r.war, attacker.id);
+      r.war.front.defenderWarSupport = computeWarSupport(state, r.war, defender.id);
+    }
+    survivingWars.push(r.war);
+  }
+  state.wars = survivingWars;
+
+  // S5c: 和平谈判。战争支持度崩塌 / 完胜 / 长期疲惫 → 和谈结算（割地 /
+  // 赔款 / 朝贡 / 停战），军费/补给/国内政治能迫使停战，而非单月占领即吞并。
+  const warsAfterAdvance = state.wars;
+  state.wars = [];
+  for (const war of warsAfterAdvance) {
+    const peace = checkPeace(state, war);
+    if (!peace) {
+      state.wars.push(war);
+      continue;
+    }
+    const peaceEntries = resolvePeace(state, peace);
+    applyLedgerToState(state, peaceEntries);
+    ledgerEntries.push(...peaceEntries);
+    const winner = state.factions[peace.winnerId];
+    const loser = state.factions[peace.loserId];
+    const reasonText =
+      peace.reason === "total-victory" ? "完胜"
+      : peace.reason === "exhaustion" ? "双方疲惫媾和" : "战败求和";
+    const terms: string[] = [];
+    if (peace.cedeRegions.length > 0) terms.push(`割让${peace.cedeRegions.length}地`);
+    if (peace.indemnity > 0) terms.push("赔款");
+    if (peace.tribute) terms.push("纳贡");
+    terms.push(`停战${peace.truceMonths}月`);
+    reports.push({
+      id: `${state.currentDate}-${peace.warId}-peace`,
+      date: state.currentDate,
+      type: "war",
+      title: `${winner.name}与${loser.name}议和`,
+      body: `${reasonText}：${terms.join("、")}。`,
+      severity: "info",
+    });
+  }
   const nextDate = advanceMonth(state.currentDate);
   state.currentDate = nextDate;
   state.seed = random.seed;

@@ -180,6 +180,16 @@ export interface PlayerDecision {
   domesticFocus: DomesticFocus;
 }
 
+/** S5: 战线状态 —— 让战争成为兵力/组织/补给的持续消耗，而非单月决胜。 */
+export interface FrontState {
+  /** 0..100 战争支持度（S5c 和谈阈值，由 warExhaustion/treasury/占领驱动）。 */
+  attackerWarSupport: number;
+  defenderWarSupport: number;
+  /** 0..100 补给状况（进攻方远离本土会衰减，抬高损耗）。 */
+  attackerSupply: number;
+  defenderSupply: number;
+}
+
 export interface WarState {
   id: string;
   attackerFactionId: FactionId;
@@ -187,6 +197,38 @@ export interface WarState {
   targetRegionId: RegionId;
   progress: number;
   monthsActive: number;
+  /** S5: 战线状态（消耗/补给/支持度）。 */
+  front?: FrontState;
+}
+
+/** S5: 外交条约类型。 */
+export type TreatyType = "alliance" | "tribute" | "trade" | "vassal" | "truce";
+
+/**
+ * S5: 双边外交关系（接通"外交环"）。
+ *
+ * 存于 `GameState.diplomacy`，key = `relationKey(a,b)`（字典序规范化，保证
+ * A↔B 双向只存一份）。同盟可触发参战、停战阻止开战、朝贡/互市作为条约
+ * 月度反作用于财政（S2 账本）与 modifier（S1 后果环）——这是战争不再是
+ * "单月战斗"的外交前置：开战前先过关系/威胁/停战/同盟的判断。
+ */
+export interface DiplomaticRelation {
+  factionA: FactionId;
+  factionB: FactionId;
+  /** -100..100 综合关系（负=敌对，正=友善）。 */
+  relation: number;
+  /** 0..100 互信。 */
+  trust: number;
+  /** 0..100 互相威胁感知（取较大值，强邻即高威胁）。 */
+  threat: number;
+  /** 0..100 宿敌度（结构性对立，缓慢衰减）。 */
+  rivalry: number;
+  /** 停战剩余月（>0 时双方禁止相互攻击）。 */
+  truceMonths: number;
+  /** 当前生效的条约集合。 */
+  treaties: TreatyType[];
+  /** 恩义/义务（正=factionA 欠 factionB，负反之）。 */
+  obligations: number;
 }
 
 export interface Modifier {
@@ -306,6 +348,8 @@ export interface GameState {
   activeMovements?: PoliticalMovement[];
   /** S4: 进行中的法律改革（提出→辩论→落实/停滞/失败）。 */
   activeReforms?: ReformProgress[];
+  /** S5: 双边外交关系表，key=relationKey(a,b)（字典序规范化）。 */
+  diplomacy?: Record<string, DiplomaticRelation>;
 }
 
 export interface SimulationInput {

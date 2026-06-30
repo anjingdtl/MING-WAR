@@ -1,4 +1,5 @@
 import type { GameState, PlayerDecision, RegionId } from "./types";
+import { hasTruce, isAlly } from "./diplomacy";
 
 export function getFactionRegionIds(state: GameState, factionId: string): RegionId[] {
   return Object.values(state.regions)
@@ -14,7 +15,16 @@ export function getValidMilitaryTargets(state: GameState, factionId: string): Re
     for (const connectionId of region.connections) {
       const connection = state.regions[connectionId];
       if (connection.controllerFactionId !== factionId) {
-        targets.add(connectionId);
+        const ownerFaction = connection.controllerFactionId;
+        // S5d: 外交约束开战 —— 停战期或盟友控制的地区不可攻击（玩家与 AI
+        // 同规则，复用 getValidMilitaryTargets 通道）。停战制造备战窗口、
+        // 同盟阻止互攻，让外交环真正约束战争。
+        if (
+          !hasTruce(state, factionId, ownerFaction) &&
+          !isAlly(state, factionId, ownerFaction)
+        ) {
+          targets.add(connectionId);
+        }
       }
     }
   }

@@ -24,10 +24,10 @@
 | 经济环（市场—人口—生产整合） | S2 | ✅ 完成 |
 | 社会政治环（利益集团政治力量） | S3 | ✅ 完成 |
 | 制度环（法律与改革系统） | S4 | ✅ 完成 |
-| 外交战争环（外交博弈 + 战线战争） | S5 | ⬜ 下一步 |
-| 内容收口（历史局势 + 完整周期） | S6 | ⬜ 里程碑 |
+| 外交战争环（外交博弈 + 战线战争） | S5 | ✅ 完成 |
+| 内容收口（历史局势 + 完整周期） | S6 | ⬜ 下一步（里程碑） |
 
-最新提交：`fa69b64 feat(reform): S4 law & reform system closing the institutional loop`
+最新提交：`feat(diplomacy): S5 diplomacy + front-line war + peace talks`（外交战争环）
 
 ---
 
@@ -64,6 +64,14 @@
   - region-instant（stability-flat）→ 遍历控制区一次性施加
 - 改革目前由 `domesticFocus` 自动驱动；"玩家手选某条法律"的 UI 留待后续。
 
+### S5　外交博弈与持续战争（外交战争环）
+- **外交关系层** `src/core/diplomacy.ts`：`DiplomaticRelation`（relation/trust/threat/rivalry/truceMonths/treaties/obligations）+ 5 类条约（alliance/tribute/trade/vassal/truce）。`GameState.diplomacy` 双边表，1573 开局初始化历史关系（朝鲜朝贡大明、土默特俺答封贡互市+停战 60 月、建州敌对、日本威胁朝鲜）。`advanceDiplomacy` 月度演变（停战倒计时/威胁重算/关系趋近）+ 条约财政后果走账本（互市关税 income-tariff、朝贡白银守恒转移），**确定性不消费 random**。
+- **战线消耗模型** `warfare.ts`：`FrontState`（warSupport/supply）嵌入 WarState；`advanceWar` 改返回 `WarAdvanceResult`——每月按兵力×组织×地形推进 progress + **持续消耗**（军队 attrition、战地军费/军粮走 ledger、战疲累积、进攻方补给衰减），取代单月决胜。**确定性**。
+- **修军队归零**（§5.2 核心）：征募从单一 `0.005 + warExhaustion<40 硬门槛` 改为分级 `0.012/0.006/0.003`，长期战争仍低速补员。seed7 10 年军队从 S4 的 11 回升到 **846,274**。
+- **和平谈判** `src/core/peace.ts`：战争支持度（战疲/财政/占领/合法性）→ 触发和谈（支持度≤25 求和 / progress≥95 完胜 / 48 月双方疲惫媾和）→ 结算（割地/赔款/朝贡/停战 写回 diplomacy）。不止"占领即吞并"。
+- **外交约束开战**（S5d）：`getValidMilitaryTargets` 过滤停战/盟友地区（玩家与 AI 同规则），停战制造备战窗口、同盟阻止互攻。
+- **闭环达成**：战争咬合财政（战地军费/赔款/朝贡走账本）、补给（战线消耗）、动员（征募恢复）、外交（停战/盟友约束开战）、国内政治（战争支持度）。军费/补给/战疲能迫使停战，AI 受外交约束理性备战。
+
 ---
 
 ## 3. 验收红线与命令
@@ -81,28 +89,29 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 
 **当前基线指标（S4 完成时，供回归对比）**：
 
-| 指标 | S4 值 | 对比 S3 |
-|---|---|---|
-| 测试数 | 323 | +10 |
-| batch errorRuns | 0 | = |
-| batch 大明存活率 | 0.82 | 0.86（略降，见 §5）|
-| batch 平均控制区 | 14.49 | 19.45（略降，见 §5）|
-| batch 粮价 | 4.13 | 3.91 |
-| diagnose seed7（10年）| active，人口 −9.2% | −11.3%（S4 更优）|
+| 指标 | S5 值 | S4 值 | 对比 |
+|---|---|---|---|
+| 测试数 | 351 | 323 | +28（diplomacy 14 / peace 10 / warfare S5b 4） |
+| batch errorRuns | 0 | 0 | = |
+| batch 大明存活率 | 1.0 | 0.82 | **回升**（军队归零修复）|
+| batch 平均控制区 | 25.08 | 14.49 | 回升（征募恢复 + 和谈割地）|
+| batch 粮价 | 3.42 | 4.13 | 略降 |
+| diagnose seed7（10年）| active，人口 −9.0%，**军队 846k** | active，−9.2%，军队 11 | 军队归零彻底修复 |
 
 ---
 
-## 4. 下一步：S5 外交博弈与持续战争
+## 4. 下一步：S6 历史局势与完整周期（内容收口）
 
-**目标**：战争是财政、补给、动员、外交、国内政治的综合结果，而非单月战斗。
+**目标**：把孤立事件升级为系统驱动的长期局势，补齐 1573–1662 主线，多结局可重复出现。
 
-- `DiplomaticRelation`（relation/trust/threat/rivalry/obligations/truce）+ 条约（同盟/朝贡/互市/附庸/停战）。
-- 外交博弈阶段：提要求 → 拉盟友 → 威胁评估 → 动员集结 → 让步/妥协/开战。
-- 战线 `FrontState`：玩家选主战区/姿态/动员规模/补给优先级，每月按 兵力×组织×补给×地形 推进。
-- 和平谈判：按战争支持、占领、战损、财政、国内政治结算，不止"占领即吞并"。
-- 依赖：S2 财政 + S4 制度。**入口文件**：`src/core/warfare.ts`（当前只有单次 `resolveBattle` + `advanceWar` 推 progress）、`src/core/ai.ts`、`src/core/simulation.ts` 的战斗/战争推进段。
+- `SituationState`（stage/progress/variables/outcomes）承载张居正改革、三大征、建州统一、辽东危机、陕西流民、南明分裂等。
+- 局势变量由 S1–S5 的系统状态推动（如建州统一由 jianzhou 控制区扩张+军事力量触发；辽东危机由 ming-jianzhou 战争+大明财政/战疲触发）；事件作为局势的叙事表现。
+- 当前 `endDate=1621-12`（万历末），S6 延伸到 1662（康熙元年），目标多结局（大明中兴 / 南明偏安 / 满清入关 / 流民建国等）。
+- 依赖：S1–S5 全部已就绪。**入口**：新建 `src/core/situation.ts` + `src/data/situations.ts`；`simulation.ts` 月度推进局势；`eventEngine.ts` 局势触发叙事事件。
 
-**验收**：战争不再由单月攻击决定；军费/补给/国内政治能迫使停战；AI 能备战与让步。
+**验收**：历史局势由系统条件推动；完整周期可运行；多种结局在批量模拟中出现。
+
+**S5 后平衡备注**：S5 修复军队归零后大明存活 1.0、控制区 25/31，偏稳健。S6 引入建州统一 / 辽东危机 / 南明分裂等局势后，会系统性引入大明中后期压力，自然平衡挑战性——无需在 S5 人工削弱征募。
 
 ---
 
@@ -110,11 +119,11 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 
 1. **确定性模拟的蝴蝶效应**：`simulateMonth` 用固定种子，`applyResourceCrises` 的 `random.next()` 调用次数依赖当月 crisis faction 数。任何**持久**状态改变（如 S4 改革落实改 corruption → 税收 → treasury → crisis 判定）都会扰动后续整个 random 序列，让不同 seed 的命运重新分配。**这是特性不是 bug**——评估改动时看 batch 整体指标，别被单个 seed 的剧烈变化误导。对照实验方法：临时注释新功能跑 batch 对比。
 
-2. **军队归零脆弱性（S5 核心待修）**：长期多线战争里军队会耗到个位数（seed7 10 年军队 11），和平期征募恢复极慢（`simulation.ts` 征募量 = `armyTarget×0.005`/月，且需 `warExhaustion<40`）。这是 S4 batch 存活率/控制区略降的主因。S5 应提升征募恢复速率 + 引入战线消耗模型。
+2. **军队归零脆弱性（S5 已修）**：~~长期多线战争里军队会耗到个位数（seed7 10 年军队 11）~~。S5 引入战线消耗模型 + 征募分级恢复（`0.012/0.006/0.003`，移除 `warExhaustion<40` 硬门槛），seed7 10 年军队回升到 846k。副作用是大明偏稳健（存活 1.0、控制区 25/31），待 S6 历史局势引入中后期压力自然平衡。
 
 3. **modifier effectKey 接入不一致**：见 §2 S1 的警告——`corruption-flat`/`stability-flat` 注释标了接入但实际没接。新增 modifier 效果前先 grep 确认 effectKey 有计算点消费，否则就是死数据。
 
-4. **月度流水线顺序**（`simulation.ts`）：expire modifiers → region 循环（经济/控制/叛乱/市场/人口/账本）→ faction 循环（维护费/征募）→ `applyResourceCrises` → `eliminateDefeatedFactions` → `updateFactionCliques` → **`autoProposeReforms` + `advanceReforms`（S4）** → `advancePoliticalMovements`（S3c）→ 战斗 → 事件 → 战争推进 → 账本归档 → 贸易/价格。S4 改革落实故意放在政治运动之前，让"落实→反对者不满→当月触发运动"闭环在同一月跑通。
+4. **月度流水线顺序**（`simulation.ts`）：expire modifiers → region 循环（经济/控制/叛乱/市场/人口/账本）→ faction 循环（维护费 / **征募 S5b 分级**）→ **`advanceDiplomacy`（S5a 外交演变 + 条约财政）** → `applyResourceCrises` → `eliminateDefeatedFactions` → `updateFactionCliques` → `autoProposeReforms` + `advanceReforms`（S4）→ `advancePoliticalMovements`（S3c）→ 战斗（**S5d 外交约束开战**）→ 事件 → **`advanceWar` 战线消耗 + warSupport（S5b）→ `checkPeace` / `resolvePeace` 和谈（S5c）** → 账本归档 → 贸易/价格。S4 改革落实放在政治运动之前；S5 外交/战线/和谈全链路确定性，不消费 random（random 仅在 resolveBattle 首月遭遇战）。
 
 5. **玩家与 AI 同规则**：所有系统对玩家 faction 和 AI faction 一视同仁（改革、运动、经济）。新增机制不要写 player-only 分支。
 
@@ -160,6 +169,7 @@ docs/
 
 ## 7. 提交历史（最近）
 
+- `feat(diplomacy): S5 diplomacy + front-line war + peace talks`（外交战争环，本次）
 - `fa69b64` feat(reform): S4 law & reform system closing the institutional loop
 - `128ff48` feat(politics): S3 interest-group political power from pop wealth
 - `b803dfd` feat(economy): ledger-driven finance + unified market-pop loop (S1c+S2)

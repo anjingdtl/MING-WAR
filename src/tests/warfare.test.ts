@@ -60,7 +60,7 @@ function makeFaction(overrides: Partial<FactionState> = {}): FactionState {
 }
 
 describe("createInitialWar", () => {
-  it("creates a war with monthsActive = 1", () => {
+  it("creates a war with monthsActive = 1 and an initial front", () => {
     const attacker = makeFaction({ id: "jurchen" });
     const defender = makeFaction({ id: "ming" });
     const region = makeRegion();
@@ -71,6 +71,9 @@ describe("createInitialWar", () => {
     expect(war.targetRegionId).toBe("test-region");
     expect(war.progress).toBeGreaterThanOrEqual(0);
     expect(war.progress).toBeLessThanOrEqual(100);
+    expect(war.front).toBeDefined();
+    expect(war.front?.attackerSupply).toBe(100);
+    expect(war.front?.defenderWarSupport).toBe(70);
   });
 });
 
@@ -81,7 +84,7 @@ describe("advanceWar", () => {
     const region = makeRegion();
     const war = createInitialWar(attacker, defender, region);
     const advanced = advanceWar(war, attacker, defender, region);
-    expect(advanced.monthsActive).toBe(2);
+    expect(advanced.war.monthsActive).toBe(2);
   });
 
   it("progress increases when attacker is significantly stronger", () => {
@@ -91,7 +94,7 @@ describe("advanceWar", () => {
     const war = createInitialWar(attacker, defender, region);
     let current = war;
     for (let i = 0; i < 6; i++) {
-      current = advanceWar(current, attacker, defender, region);
+      current = advanceWar(current, attacker, defender, region).war;
     }
     expect(current.progress).toBeGreaterThan(war.progress);
   });
@@ -103,10 +106,54 @@ describe("advanceWar", () => {
     const war = createInitialWar(attacker, defender, region);
     let current = war;
     for (let i = 0; i < 24; i++) {
-      current = advanceWar(current, attacker, defender, region);
+      current = advanceWar(current, attacker, defender, region).war;
     }
     expect(current.progress).toBeLessThanOrEqual(100);
     expect(current.progress).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("S5b: 战线持续消耗", () => {
+  it("返回军队损耗、战地军费/军粮与战疲（进攻方战疲更高）", () => {
+    const attacker = makeFaction({ armyTotal: 100000 });
+    const defender = makeFaction({ id: "ming", armyTotal: 80000 });
+    const region = makeRegion({ garrison: 5000 });
+    const war = createInitialWar(attacker, defender, region);
+    const r = advanceWar(war, attacker, defender, region);
+    expect(r.attackerLosses).toBeGreaterThan(0);
+    expect(r.defenderLosses).toBeGreaterThan(0);
+    expect(r.attackerSilverCost).toBeGreaterThan(0);
+    expect(r.defenderGrainCost).toBeGreaterThan(0);
+    expect(r.attackerExhaustionDelta).toBeGreaterThan(r.defenderExhaustionDelta);
+  });
+
+  it("进攻方补给逐月衰减，防守方本土补给稳定", () => {
+    const attacker = makeFaction();
+    const defender = makeFaction({ id: "ming" });
+    const region = makeRegion();
+    const war = createInitialWar(attacker, defender, region);
+    const r = advanceWar(war, attacker, defender, region);
+    expect(r.war.front?.attackerSupply).toBeLessThan(100);
+    expect(r.war.front?.defenderSupply).toBe(100);
+  });
+
+  it("补给越低，损耗越高（劳师远征代价）", () => {
+    const attacker = makeFaction({ armyTotal: 100000 });
+    const defender = makeFaction({ id: "ming" });
+    const region = makeRegion();
+    const rHigh = advanceWar(createInitialWar(attacker, defender, region), attacker, defender, region);
+    const warLow = createInitialWar(attacker, defender, region);
+    warLow.front = { attackerWarSupport: 70, defenderWarSupport: 70, attackerSupply: 40, defenderSupply: 100 };
+    const rLow = advanceWar(warLow, attacker, defender, region);
+    expect(rLow.attackerLosses).toBeGreaterThan(rHigh.attackerLosses);
+  });
+
+  it("战地军费与军队规模成正比（战争咬合财政）", () => {
+    const defender = makeFaction({ id: "ming", armyTotal: 80000 });
+    const region = makeRegion();
+    const small = advanceWar(createInitialWar(makeFaction({ armyTotal: 20000 }), defender, region), makeFaction({ armyTotal: 20000 }), defender, region);
+    const large = advanceWar(createInitialWar(makeFaction({ armyTotal: 200000 }), defender, region), makeFaction({ armyTotal: 200000 }), defender, region);
+    expect(large.attackerSilverCost).toBeGreaterThan(small.attackerSilverCost);
   });
 });
 
@@ -132,7 +179,7 @@ describe("P0-4: simulation advances war over time", () => {
     expect(war?.monthsActive).toBe(2);
   });
 
-  it("accumulates war progress over multiple months", () => {
+  it("war either advances or concludes via peace (S5c) over multiple months", () => {
     const state = createMvpScenario("ming", 51);
     state.wars = [{
       id: "test-war",
@@ -144,15 +191,20 @@ describe("P0-4: simulation advances war over time", () => {
     }];
 
     let current = state;
+    let peaceHappened = false;
     for (let i = 0; i < 6; i++) {
-      current = simulateMonth({
+      const res = simulateMonth({
         state: current,
         playerDecision: defaultPlayerDecision,
         randomSeed: current.seed
-      }).nextState;
+      });
+      if (res.reports.some((r) => r.title.includes("议和"))) peaceHappened = true;
+      current = res.nextState;
     }
 
     const war = current.wars.find((w) => w.id === "test-war");
-    expect(war?.monthsActive).toBe(7);
+    // S5c：弱方（建州）攻强方（大明）会因支持度崩塌而和谈结束；战争要么仍
+    // 在推进（monthsActive 增长），要么已通过议和结束 —— 两者皆合法。
+    expect(war === undefined || war.monthsActive === 7 || peaceHappened).toBe(true);
   });
 });

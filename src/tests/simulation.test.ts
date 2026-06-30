@@ -48,7 +48,10 @@ describe("monthly simulation", () => {
     state.regions.shaanxi.garrison = 120000;
     state.regions.shaanxi.fortification = 95;
     const result = simulateMonth({ state, playerDecision: defaultPlayerDecision, randomSeed: state.seed });
-    expect(result.nextState.regions.shaanxi.controllerFactionId).toBe("rebels");
+    // 叛乱触发民众起义、瓦解大明对陕西的控制。S5 战争系统更活跃后，最终
+    // 控制权可能因后续战斗易主给进攻方（蝴蝶效应），故断言脱离大明 + 起义
+    // 报告，而非硬性等于 rebels。
+    expect(result.nextState.regions.shaanxi.controllerFactionId).not.toBe("ming");
     expect(result.reports.some((report) => report.title.includes("民众起义"))).toBe(true);
   });
 
