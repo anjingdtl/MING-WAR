@@ -101,11 +101,32 @@ npm run hash:state      # 6 节点状态哈希
 
 ## 4. Phase 对比记录
 
-| Phase | commit | 单月 p95 | 12 月 mean | 1080 月 mean | hash 漂移 |
-|---|---|---|---|---|---|
-| 0 (v0.3.0 + Phase 1) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | baseline |
-| 2 (流水线拆分) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | 0 漂移 = 拆分成功 |
-| 3 (store 拆分) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | 0 漂移 = UI 不变 |
-| 4 (Service 抽象) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | 0 漂移 = 抽象无副作用 |
-| 5 (存档升级) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | 0 漂移 = 不动模拟 |
-| 6 (CI) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | — |
+| Phase | commit | 单月 p95 | hash 漂移 | 备注 |
+|---|---|---|---|---|
+| 0 (v0.3.0 + Phase 1) | 4cd82db | 24.153 ms | baseline | 410 测试全绿 |
+| 2 (流水线拆分) | _TBD_ | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
+| 3 (store 拆分) | _TBD_ | _TBD_ | _TBD_ | — |
+| 4 (Service 抽象) | _TBD_ | _TBD_ | _TBD_ | — |
+| 5 (存档升级) | _TBD_ | _TBD_ | _TBD_ | — |
+| 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+
+### Phase 2 详情（流水线拆分）
+
+- simulation.ts：777 行 → 145 行（编排器）
+- 新增 `src/core/simulationContext.ts`：`SimulationContext` + `createSimulationContext` + `PhaseFn` 类型
+- 新增 `src/core/simulationPhases/`：
+  - `runRegionPhase.ts`（S2，地区循环）
+  - `runFactionPhase.ts`（S3，势力循环）
+  - `runDiplomacyPhase.ts`（S4，外交 + 资源危机 + 集团）
+  - `runPoliticsPhase.ts`（S5，改革 + 运动）
+  - `runSituationPhase.ts`（S6，历史局势）
+  - `runWarPhase.ts`（S7，战斗 + 战线 + 和谈）
+  - `finalizeMonth.ts`（S8，月末收口）
+  - `helpers.ts`（applyRebellionConsequences / countControlledRegions）
+- 新增 `src/tests/phases.test.ts`：7 阶段独立测试（每阶段验证 invariant error = 0）
+
+**关键不变量**：
+- random 消费点顺序保留（generateDisasters → applyResourceCrises → resolveBattle）
+- state 写入顺序保留
+- applyLedgerToState 调用顺序保留
+- 5 节点 hash（0/12/120/240/1080 月）与 Phase 1 baseline **完全一致**

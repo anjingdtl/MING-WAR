@@ -24,27 +24,31 @@ function runMonths(seed: number, count: number): string {
   return computeStateHash(state);
 }
 
+// Long simulations need a higher timeout (120 months × 2 runs ~ 10s in CI)
+const LONG_TIMEOUT = 30_000;
+const SHORT_TIMEOUT = 5_000;
+
 describe("determinism (hash stability)", () => {
   it("seed=7, 12 months: two independent runs yield same hash", () => {
     const a = runMonths(7, 12);
     const b = runMonths(7, 12);
     expect(a).toBe(b);
-  });
+  }, SHORT_TIMEOUT);
 
   it("seed=7, 120 months: two independent runs yield same hash", () => {
     const a = runMonths(7, 120);
     const b = runMonths(7, 120);
     expect(a).toBe(b);
-  });
+  }, LONG_TIMEOUT);
 
   it("seed=42, 12 months: different seed yields different hash from seed=7", () => {
     const a = runMonths(7, 12);
     const b = runMonths(42, 12);
     expect(a).not.toBe(b);
-  });
+  }, SHORT_TIMEOUT);
 
   it("hash format is stable 40-char hex", () => {
     const h = runMonths(7, 12);
     expect(h).toMatch(/^[0-9a-f]{40}$/);
-  });
+  }, SHORT_TIMEOUT);
 });
