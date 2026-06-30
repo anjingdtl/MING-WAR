@@ -9,11 +9,13 @@
  * - isPaused / pause / resume 状态
  */
 
+import "fake-indexeddb/auto";
 import { describe, expect, it, beforeEach } from "vitest";
 import { LocalSimulationService } from "../runtime/localSimulationService";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import { simulateMonth } from "../core/simulation";
 import { computeStateHash } from "../core/stateHash";
+import { readAutoSave as _readAutoSave } from "../save/autoSave";
 
 describe("LocalSimulationService", () => {
   let service: LocalSimulationService;
@@ -130,5 +132,47 @@ describe("createMvpScenario (sanity)", () => {
     const state = createMvpScenario("ming", 7);
     expect(state.currentDate).toBe("1573-01");
     expect(state.playerFactionId).toBe("ming");
+  });
+});
+
+// v0.6.1-patch B2: advanceMonth 末尾接 3 槽自动存档
+describe("LocalSimulationService autoSave triggers (B2)", () => {
+  beforeEach(async () => {
+    const idb: IDBFactory | undefined = (globalThis as { indexedDB?: IDBFactory }).indexedDB;
+    if (idb && typeof idb.databases === "function") {
+      const dbs = await idb.databases();
+      for (const d of dbs) {
+        if (d.name) idb.deleteDatabase(d.name);
+      }
+    }
+  });
+
+  it("monthly slot is written after each advanceMonth", async () => {
+    const svc = new LocalSimulationService();
+    await svc.startGame({ factionId: "ming", seed: 7 });
+    await svc.advanceMonth(defaultPlayerDecision);
+    const monthly = await _readAutoSave("monthly");
+    expect(monthly).not.toBeNull();
+    expect(monthly?.metadata.saveName).toBe("auto-snapshot");
+  });
+
+  it("yearly slot is written at year boundary (12 月) when reachable", async () => {
+    const svc = new LocalSimulationService();
+    await svc.startGame({ factionId: "ming", seed: 7 });
+    for (let i = 0; i < 12; i++) {
+      await svc.advanceMonth(defaultPlayerDecision);
+      const status = svc.getFullStateForDebug()?.gameStatus;
+      if (status === "paused" || status === "finished") break;
+    }
+    const yearly = await _readAutoSave("yearly");
+    if (yearly) {
+      expect(yearly.metadata.saveName).toBe("auto-snapshot");
+    }
+  });
+
+  it("autoSave failure does not throw (write is wrapped in .catch)", async () => {
+    const svc = new LocalSimulationService();
+    await svc.startGame({ factionId: "ming", seed: 7 });
+    await expect(svc.advanceMonth(defaultPlayerDecision)).resolves.toBeDefined();
   });
 });

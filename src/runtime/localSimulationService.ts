@@ -18,7 +18,8 @@ import { computeStateHash } from "../core/stateHash";
 import { isAfter } from "../core/calendar";
 import { GAME_VERSION } from "../core/version";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
-import type { GameState, PlayerDecision } from "../core/types";
+import type { GameState, PlayerDecision, SimulationResult } from "../core/types";
+import { isYearBoundary, writeAutoSave } from "../save/autoSave";
 import type {
   AdvanceResult,
   DecisionProvider,
@@ -56,12 +57,15 @@ export class LocalSimulationService implements SimulationService {
       throw new Error("Simulation not started; call startGame() first");
     }
     this.decision = decision;
+    const prevState = this.state;
     const result = simulateMonth({
       state: this.state,
       playerDecision: decision,
       randomSeed: this.state.seed
     });
     this.state = result.nextState;
+    // B2: 触发 3 槽自动存档（写失败不阻塞主流程）
+    await this.maybeAutoSave(prevState, result).catch(() => undefined);
     return {
       date: this.state.currentDate,
       newReports: result.reports,
@@ -178,6 +182,38 @@ export class LocalSimulationService implements SimulationService {
     return () => {
       this.progressHandlers.delete(handler);
     };
+  }
+
+  /** 内部：触发 3 槽自动存档。每个 writeAutoSave 失败独立吞掉，绝不阻塞主流程。 */
+  private async maybeAutoSave(prev: GameState, result: SimulationResult): Promise<void> {
+    const cur = this.state;
+    if (!cur) return;
+    const save = await this.saveGame("auto-snapshot");
+    // 1. monthly: 每月结算后
+    await writeAutoSave("monthly", save).catch(() => undefined);
+    // 2. yearly: 年末（12 月）
+    if (isYearBoundary(cur.currentDate)) {
+      await writeAutoSave("yearly", save).catch(() => undefined);
+    }
+    // 3. milestone: 重大事件
+    if (this.detectMilestone(prev, result, cur)) {
+      await writeAutoSave("milestone", save).catch(() => undefined);
+    }
+  }
+
+  /** 内部：判断本月是否触发 milestone autosave。 */
+  private detectMilestone(prev: GameState, result: SimulationResult, cur: GameState): boolean {
+    // 1. 战争开战 / 媾和
+    if (prev.wars.length !== cur.wars.length) return true;
+    // 2. 玩家势力状态变化
+    const prevPlayer = prev.factions[prev.playerFactionId];
+    const curPlayer = cur.factions[cur.playerFactionId];
+    if ((prevPlayer?.status ?? "") !== (curPlayer?.status ?? "")) return true;
+    // 3. 改革落实 / 失败（reports 中有 "颁行" / "改革受挫"）
+    if (result.reports.some((r) => r.title.includes("颁行") || r.title.includes("改革受挫"))) return true;
+    // 4. 局势/事件密集触发（heuristic）
+    if (result.reports.filter((r) => r.type === "event").length > 3) return true;
+    return false;
   }
 
   /** 内部：派生 GameViewSnapshot。 */
