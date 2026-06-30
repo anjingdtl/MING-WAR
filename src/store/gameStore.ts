@@ -4,22 +4,31 @@ import { simulateMonth } from "../core/simulation";
 import { applyCliqueReactions, computeCliqueReactions } from "../core/clique";
 import { cliqueTemplates } from "../data/cliques";
 import type { GameEvent } from "../core/eventEngine";
-import type { GameState, MapLayer, PlayerDecision, RegionId } from "../core/types";
+import type { GameState, PlayerDecision } from "../core/types";
 import { mvpEvents } from "../data/events";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import { proposeAlliance as doProposeAlliance } from "../core/diplomacy";
 import { requestPeace as doRequestPeace } from "../core/peace";
+import { useUiStore } from "./uiStore";
+import { useGameViewStore, derivePlayerFactionSummary } from "./gameViewStore";
+
+/**
+ * v0.6-stability-design §3.4: 兼容层 gameStore。
+ *
+ * 新版架构推荐：
+ * - useUiStore 持有 UI 状态（selectedRegionId / mapLayer / pendingEventId）
+ * - useGameViewStore 持有 view 派生（playerFaction / reports / alerts）
+ * - useGameStore 保留完整 state + 玩家决策 + 模拟动作（向后兼容）
+ *
+ * UI 状态已迁出本 store；为兼容老代码，selectRegion / setMapLayer
+ * 在 setState 的同时转发到 useUiStore。
+ */
 
 interface GameStore {
   state: GameState;
   decision: PlayerDecision;
-  selectedRegionId: RegionId | null;
-  mapLayer: MapLayer;
-  pendingEventId: string | null;
   startGame: (factionId: string, seed: number) => void;
   setDecision: (decision: Partial<PlayerDecision>) => void;
-  selectRegion: (regionId: RegionId | null) => void;
-  setMapLayer: (layer: MapLayer) => void;
   advanceOneMonth: () => void;
   resolveEvent: (optionId: string) => void;
   /** S6 遗留#2：主动外交动作 */
@@ -27,22 +36,34 @@ interface GameStore {
   requestPeace: (warId: string) => void;
 }
 
+/** 把权威 state 同步到 view store。 */
+function syncViewStore(state: GameState): void {
+  const view = useGameViewStore.getState();
+  view.setView({
+    currentDate: state.currentDate,
+    gameStatus: state.gameStatus,
+    playerFaction: derivePlayerFactionSummary(state),
+    reports: state.reports ?? []
+  });
+  view.setAlerts(state.alerts ?? []);
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   state: createMvpScenario(),
   decision: defaultPlayerDecision,
-  selectedRegionId: "beizhili",
-  mapLayer: "control",
-  pendingEventId: null,
-  startGame: (factionId, seed) =>
-    set({
-      state: createMvpScenario(factionId, seed),
-      decision: defaultPlayerDecision,
-      selectedRegionId: "beizhili",
-      pendingEventId: null
-    }),
+  startGame: (factionId, seed) => {
+    const newState = createMvpScenario(factionId, seed);
+    // 重置 UI 状态
+    useUiStore.getState().selectRegion("beizhili");
+    useUiStore.getState().setPendingEventId(null);
+    useUiStore.getState().setMapLayer("control");
+    set({ state: newState, decision: defaultPlayerDecision });
+    syncViewStore(newState);
+  },
   setDecision: (decision) => {
     const current = get();
     const newDecision = { ...current.decision, ...decision };
+    useGameViewStore.getState().setDecision(newDecision);
 
     // Apply clique reactions if domestic focus changed
     if (decision.domesticFocus && decision.domesticFocus !== current.decision.domesticFocus) {
@@ -58,14 +79,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const newState = structuredClone(current.state);
         newState.factions[current.state.playerFactionId].cliques = updatedCliques;
         set({ decision: newDecision, state: newState });
+        syncViewStore(newState);
         return;
       }
     }
 
     set({ decision: newDecision });
   },
-  selectRegion: (regionId) => set({ selectedRegionId: regionId }),
-  setMapLayer: (layer) => set({ mapLayer: layer }),
   advanceOneMonth: () => {
     const current = get();
     const result = simulateMonth({
@@ -73,25 +93,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
       playerDecision: current.decision,
       randomSeed: current.state.seed
     });
-    set({
-      state: result.nextState,
-      pendingEventId: result.triggeredEvents[0]?.eventId ?? null
-    });
+    // 同步到 view store
+    const triggeredId = result.triggeredEvents[0]?.eventId ?? null;
+    useUiStore.getState().setPendingEventId(triggeredId);
+    useUiStore.getState().setSimulationStatus("running");
+    set({ state: result.nextState });
+    syncViewStore(result.nextState);
+    if (result.nextState.gameStatus === "finished") {
+      useUiStore.getState().setSimulationStatus("idle");
+    } else {
+      useUiStore.getState().setSimulationStatus("idle");
+    }
   },
   resolveEvent: (optionId) => {
     const current = get();
-    const event = mvpEvents.find((item): item is GameEvent => item.id === current.pendingEventId);
+    const event = mvpEvents.find((item): item is GameEvent => item.id === useUiStore.getState().pendingEventId);
     if (!event) return;
-    set({
-      state: applyEventOption(current.state, event, optionId),
-      pendingEventId: null
-    });
+    const newState = applyEventOption(current.state, event, optionId);
+    useUiStore.getState().setPendingEventId(null);
+    set({ state: newState });
+    syncViewStore(newState);
   },
   proposeAlliance: (targetFactionId) => {
     const current = get();
     const newState = structuredClone(current.state);
     if (doProposeAlliance(newState, current.state.playerFactionId, targetFactionId)) {
       set({ state: newState });
+      syncViewStore(newState);
     }
   },
   requestPeace: (warId) => {
@@ -99,6 +127,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newState = structuredClone(current.state);
     if (doRequestPeace(newState, current.state.playerFactionId, warId)) {
       set({ state: newState });
+      syncViewStore(newState);
     }
   }
 }));
+
+/* —— 兼容层：让老代码继续用 useGameStore().selectedRegionId / mapLayer / pendingEventId —— */
+// 这些 getter/setter 桥接到 useUiStore，保持老组件不破。
+export const useGameStoreCompat = {
+  get selectedRegionId() {
+    return useUiStore.getState().selectedRegionId;
+  },
+  get mapLayer() {
+    return useUiStore.getState().mapLayer;
+  },
+  get pendingEventId() {
+    return useUiStore.getState().pendingEventId;
+  },
+  selectRegion: (regionId: string | null) => useUiStore.getState().selectRegion(regionId),
+  setMapLayer: (layer: import("../core/types").MapLayer) => useUiStore.getState().setMapLayer(layer)
+};

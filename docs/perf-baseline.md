@@ -104,11 +104,37 @@ npm run hash:state      # 6 节点状态哈希
 | Phase | commit | 单月 p95 | hash 漂移 | 备注 |
 |---|---|---|---|---|
 | 0 (v0.3.0 + Phase 1) | 4cd82db | 24.153 ms | baseline | 410 测试全绿 |
-| 2 (流水线拆分) | _TBD_ | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
-| 3 (store 拆分) | _TBD_ | _TBD_ | _TBD_ | — |
+| 2 (流水线拆分) | 5b94e35 | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
+| 3 (store 拆分) | _TBD_ | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
 | 4 (Service 抽象) | _TBD_ | _TBD_ | _TBD_ | — |
 | 5 (存档升级) | _TBD_ | _TBD_ | _TBD_ | — |
 | 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+
+### Phase 3 详情（Store 拆分）
+
+- 新增 `src/store/uiStore.ts`：`useUiStore`（UI 状态）
+  - `selectedRegionId` / `mapLayer` / `pendingEventId`
+  - `simulationStatus` / `simulationProgress`（连续推进用）
+  - `sidePanelOpen` / `activePanel`（侧边面板）
+- 新增 `src/store/gameViewStore.ts`：`useGameViewStore`（view 派生）
+  - `currentDate` / `gameStatus` / `playerFaction`（摘要）/ `reports` / `alerts`
+  - `decision`（玩家决策）
+  - `setView` / `appendReports` / `setPendingEvent` / `setAlerts` / `setDecision`
+  - `derivePlayerFactionSummary()` 工具函数
+- 改造 `src/store/gameStore.ts`（兼容层）：
+  - 移除 UI 字段（迁到 useUiStore）
+  - 保留 `state` + 玩家决策 + 模拟动作
+  - 每次 `state` 变更后通过 `syncViewStore` 同步到 view store
+- 改造 `src/app/App.tsx`：全部改用精确选择器
+  - `useGameStore((s) => s.state)` / `useGameStore((s) => s.advanceOneMonth)` 等
+  - `useUiStore((s) => s.mapLayer)` / `useUiStore((s) => s.selectRegion)` 等
+  - `useGameViewStore((s) => s.decision)` / `useGameViewStore((s) => s.reports)`
+- 新增 `src/tests/storeSplit.test.ts`：10 个 store 拆分测试
+- 测试数：417 → 427
+
+**关键不变量**：
+- 5 节点 hash 与 Phase 1/2 完全一致
+- 旧组件使用 `useGameStore.getState().state.startGame` / `advanceOneMonth` 仍能工作（兼容层）
 
 ### Phase 2 详情（流水线拆分）
 

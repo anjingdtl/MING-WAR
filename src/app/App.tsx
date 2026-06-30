@@ -11,6 +11,8 @@ import { LogPanel } from "../ui/panels/LogPanel";
 import { LensBar } from "../ui/lens/LensBar";
 import { LENS_BY_ID, type LensId } from "../ui/lens/lensDefinitions";
 import { useGameStore } from "../store/gameStore";
+import { useUiStore } from "../store/uiStore";
+import { useGameViewStore } from "../store/gameViewStore";
 import { useHotkeys } from "../ui/hooks/useHotkeys";
 
 const TUTORIAL_KEY = "mingwar:tutorial-seen";
@@ -18,8 +20,20 @@ const TUTORIAL_KEY = "mingwar:tutorial-seen";
 const LENS_ORDER: LensId[] = ["control", "economy", "military", "people", "court"];
 
 export function App() {
-  const store = useGameStore();
-  const pendingEvent = mvpEvents.find((event) => event.id === store.pendingEventId) ?? null;
+  // v0.6-stability §3.4 / §4.6：精确选择器订阅，避免整 store 触发重渲染
+  const startGame = useGameStore((s) => s.startGame);
+  const advanceOneMonth = useGameStore((s) => s.advanceOneMonth);
+  const resolveEvent = useGameStore((s) => s.resolveEvent);
+  const setDecision = useGameStore((s) => s.setDecision);
+  const state = useGameStore((s) => s.state);
+  const decision = useGameViewStore((s) => s.decision);
+  const reports = useGameViewStore((s) => s.reports);
+  const pendingEventId = useUiStore((s) => s.pendingEventId);
+  const mapLayer = useUiStore((s) => s.mapLayer);
+  const setMapLayer = useUiStore((s) => s.setMapLayer);
+  const selectedRegionId = useUiStore((s) => s.selectedRegionId);
+  const selectRegion = useUiStore((s) => s.selectRegion);
+  const pendingEvent = mvpEvents.find((event) => event.id === pendingEventId) ?? null;
 
   // Phase 5: Tutorial 状态
   const [tutorialOpen, setTutorialOpen] = useState(() => {
@@ -55,8 +69,8 @@ export function App() {
   // Lens 切换时同步 mapLayer
   useEffect(() => {
     const def = LENS_BY_ID[lens];
-    if (def.mapLayer && def.mapLayer !== store.mapLayer) {
-      store.setMapLayer(def.mapLayer);
+    if (def.mapLayer && def.mapLayer !== mapLayer) {
+      setMapLayer(def.mapLayer);
     }
     setActiveTab(def.defaultTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,46 +121,46 @@ export function App() {
   }, []);
   const handleRegionSelect = useCallback(
     (id: string) => {
-      store.selectRegion(id);
+      selectRegion(id);
       setActiveTab("region");
       setSidePanelOpen((v) => (v ? v : true));
     },
-    [store.selectRegion]
+    [selectRegion]
   );
 
   return (
     <main className="app-shell">
-      <StartDialog onStart={store.startGame} />
+      <StartDialog onStart={startGame} />
       <TopBar
-        state={store.state}
-        onAdvance={store.advanceOneMonth}
+        state={state}
+        onAdvance={advanceOneMonth}
         sidePanelOpen={sidePanelOpen}
         onToggleSidePanel={toggleSidePanel}
       />
       <div className="map-stage">
         <LensBar current={lens} onChange={setLens} />
         <GameMap
-          state={store.state}
-          layer={store.mapLayer}
-          onLayerChange={store.setMapLayer}
-          selectedRegionId={store.selectedRegionId}
+          state={state}
+          layer={mapLayer}
+          onLayerChange={setMapLayer}
+          selectedRegionId={selectedRegionId}
           onSelect={handleRegionSelect}
           lens={lens}
         />
-        <LogPanel reports={store.state.reports} />
+        <LogPanel reports={reports} />
         <SidePanel
-          state={store.state}
-          decision={store.decision}
-          onDecisionChange={store.setDecision}
-          selectedRegionId={store.selectedRegionId}
-          onSelectRegion={store.selectRegion}
+          state={state}
+          decision={decision}
+          onDecisionChange={setDecision}
+          selectedRegionId={selectedRegionId}
+          onSelectRegion={selectRegion}
           open={sidePanelOpen}
           onClose={closeSidePanel}
           initialTab={activeTab}
           onTabChange={setActiveTab}
         />
       </div>
-      <EventDialog event={pendingEvent} onResolve={store.resolveEvent} />
+      <EventDialog event={pendingEvent} onResolve={resolveEvent} />
       {tutorialOpen && (
         <TutorialDialog onComplete={completeTutorialCb} onSkip={completeTutorialCb} />
       )}
