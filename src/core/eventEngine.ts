@@ -15,7 +15,15 @@ export type EventCondition =
   | { type: "faction_war_exhaustion_above"; factionId: FactionId; value: number }
   | { type: "region_stability_below"; regionId: RegionId; value: number }
   | { type: "region_control_below"; regionId: RegionId; value: number }
-  | { type: "faction_controls_any"; factionId: FactionId; regionIds: RegionId[] };
+  | { type: "faction_controls_any"; factionId: FactionId; regionIds: RegionId[] }
+  /** Phase 3: faction armyTotal >= value. */
+  | { type: "faction_army_above"; factionId: FactionId; value: number }
+  /** Phase 3: faction administration > value. */
+  | { type: "faction_administration_above"; factionId: FactionId; value: number }
+  /** Phase 3: two factions are at war (exist in wars array). */
+  | { type: "at_war_with"; factionA: FactionId; factionB: FactionId }
+  /** Phase 3: faction controls at most maxCount regions. */
+  | { type: "faction_region_count_max"; factionId: FactionId; maxCount: number };
 
 export interface EventEffect {
   factionId?: FactionId;
@@ -37,6 +45,10 @@ export interface EventEffect {
   rebelPressure?: number;
   setFlag?: string;
   modifier?: Modifier;
+  /** Phase 3: 集团 support 增减（需配合 factionId 使用）。 */
+  cliqueSupport?: { cliqueId: string; delta: number };
+  /** Phase 3: 集团 approval 增减（需配合 factionId 使用）。 */
+  cliqueApproval?: { cliqueId: string; delta: number };
 }
 
 export interface EventOption {
@@ -54,6 +66,12 @@ export interface GameEvent {
   priority: number;
   conditions: EventCondition[];
   options: EventOption[];
+  /** Phase 3: 事件分流标注——iron（不可控事态）、steel（决策节点）、flexible（状态驱动）。 */
+  tier?: "iron" | "steel" | "flexible";
+  /** Phase 3: 史源引用（UI tooltip 展示）。 */
+  sourceRefs?: string[];
+  /** Phase 3: 连锁事件链 id，用于 UI 显示连锁标记。 */
+  chainId?: string;
 }
 
 export function eventConditionMet(state: GameState, condition: EventCondition): boolean {
@@ -86,6 +104,22 @@ export function eventConditionMet(state: GameState, condition: EventCondition): 
       return (state.regions[condition.regionId]?.control ?? 0) < condition.value;
     case "faction_controls_any":
       return condition.regionIds.some((id) => state.regions[id]?.controllerFactionId === condition.factionId);
+    case "faction_army_above":
+      return (state.factions[condition.factionId]?.armyTotal ?? 0) >= condition.value;
+    case "faction_administration_above":
+      return (state.factions[condition.factionId]?.administration ?? 0) > condition.value;
+    case "at_war_with":
+      return state.wars.some(
+        (w) =>
+          (w.attackerFactionId === condition.factionA && w.defenderFactionId === condition.factionB) ||
+          (w.attackerFactionId === condition.factionB && w.defenderFactionId === condition.factionA)
+      );
+    case "faction_region_count_max": {
+      const count = Object.values(state.regions).filter(
+        (r) => r.controllerFactionId === condition.factionId
+      ).length;
+      return count <= condition.maxCount;
+    }
   }
 }
 
@@ -138,6 +172,21 @@ export function applyEventOption(state: GameState, event: GameEvent, optionId: s
     }
     if (effect.modifier) {
       next.activeModifiers.push(effect.modifier);
+    }
+    // Phase 3: clique support/approval deltas
+    if (effect.factionId && effect.cliqueSupport) {
+      const faction = next.factions[effect.factionId];
+      const clique = faction?.cliques.find((c) => c.cliqueId === effect.cliqueSupport!.cliqueId);
+      if (clique) {
+        clique.support = clamp(clique.support + effect.cliqueSupport.delta);
+      }
+    }
+    if (effect.factionId && effect.cliqueApproval) {
+      const faction = next.factions[effect.factionId];
+      const clique = faction?.cliques.find((c) => c.cliqueId === effect.cliqueApproval!.cliqueId);
+      if (clique) {
+        clique.approval = clamp(clique.approval + effect.cliqueApproval.delta);
+      }
     }
   }
 

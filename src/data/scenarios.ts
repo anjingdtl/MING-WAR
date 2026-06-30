@@ -128,5 +128,52 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
     diplomacy: {}
   };
   initializeDiplomacy(state);
+
+  // Phase 3 §3.5: 开局 modifier（前史事件处理）
+  // 隆庆开海 (1567): 沿海区域 commerce +0.05, 福建/广东 stability +5
+  const coastalRegionIds = ["fujian", "guangdong", "zhejiang", "jiangxi", "nanzhili", "shandong"];
+  for (const rid of coastalRegionIds) {
+    const r = state.regions[rid];
+    if (r) r.commerce += 0.05;
+  }
+  if (state.regions.fujian) state.regions.fujian.stability = Math.min(100, state.regions.fujian.stability + 5);
+  if (state.regions.guangdong) state.regions.guangdong.stability = Math.min(100, state.regions.guangdong.stability + 5);
+  state.activeModifiers.push({
+    id: "maritime-trade-legalized",
+    label: "隆庆开海 (1567)",
+    scope: "global",
+    effects: { coastalCommerce: 0.05 },
+  });
+
+  // 俺答封贡 (1571): tumed aggression -10, tumed_steppe commerce +10
+  if (state.factions.tumed) {
+    state.factions.tumed.aiProfile.aggression = Math.max(0, state.factions.tumed.aiProfile.aggression - 10);
+  }
+  if (state.regions.tumed_steppe) {
+    state.regions.tumed_steppe.commerce += 10;
+  }
+  state.activeModifiers.push({
+    id: "border-trade-restored",
+    label: "俺答封贡 (1571)",
+    scope: "faction",
+    targetId: "tumed",
+    effects: { aggression: -10, borderRaids: -0.15 },
+  });
+
+  // 庚戌之变遗策 (1550): beizhili fortification +10, ming militaryOrganization +3
+  if (state.regions.beizhili) {
+    state.regions.beizhili.fortification = Math.min(100, state.regions.beizhili.fortification + 10);
+  }
+  if (state.factions.ming) {
+    state.factions.ming.militaryOrganization = Math.min(100, state.factions.ming.militaryOrganization + 3);
+  }
+  state.activeModifiers.push({
+    id: "gengxu-defense-lesson",
+    label: "庚戌之变遗策 (1550)",
+    scope: "region",
+    targetId: "beizhili",
+    effects: { fortification: 10, militaryOrganization: 3 },
+  });
+
   return state;
 }
