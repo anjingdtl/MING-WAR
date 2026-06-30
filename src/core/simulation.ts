@@ -315,6 +315,13 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
         severity: "warning"
       });
     }
+
+    // S6 遗留#1：中后期内部衰变——承平日久，官僚政权腐败自然累积（dynasty/
+    // local）。高腐败压低税收（economy corruptionLoss）→ 财政压力 → 军队维护
+    // 困难 → 叛乱压力上升，让晚期局势（陕西流民/南明）有触发空间。确定性。
+    if ((faction.type === "dynasty" || faction.type === "local") && faction.corruption < 80) {
+      faction.corruption = Math.min(80, faction.corruption + 0.1);
+    }
   }
 
   // S5: 外交月度演变（停战倒计时 / 威胁 / 关系）+ 条约财政后果（互市关税 /

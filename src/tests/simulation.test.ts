@@ -23,6 +23,13 @@ describe("monthly simulation", () => {
     expect(first.nextState).toEqual(second.nextState);
   });
 
+  it("S6 遗留#1：dynasty 腐败自然累积（中后期内部衰变）", () => {
+    const state = createMvpScenario("ming", 200);
+    const before = state.factions.ming.corruption;
+    const result = simulateMonth({ state, playerDecision: defaultPlayerDecision, randomSeed: state.seed });
+    expect(result.nextState.factions.ming.corruption).toBeGreaterThan(before);
+  });
+
   it("causes army desertion during grain crisis", () => {
     const state = createMvpScenario("ming", 123);
     state.factions.ming.grainReserve = 0;

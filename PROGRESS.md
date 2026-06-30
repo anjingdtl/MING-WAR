@@ -80,6 +80,7 @@
 - **结局效果接通系统**：outcome effect 写 S1 modifier（八旗 army-org-mult、张居正 tax-mult）或 mutate faction 字段（corruption/legitimacy/centralization/militaryOrganization）。
 - **完整周期**：endDate `1621-12` → `1662-12`（覆盖 1573–1662 主线）。
 - **平衡调参**：大明 armyTarget `0.01→0.006`、征募速率降、战线 attrition `0.015→0.022`、建州统一增强（+60k 军/+25 组织）、辽东危机基于建州威胁触发——避免大明无界膨胀，给中后期局势触发空间。
+- **中后期衰变**（遗留#1 处理）：dynasty/local 腐败每月自然累积（+0.1，封顶 80），承平日久吏治败坏 → 压低税收 → 财政/军事连锁衰变，让晚期局势（南明偏安）在脆弱 seed 触发。
 - **批量自动推演**：batch 改为 player faction 由 AI 控制（无玩家干预的历史推演），不同 seed 的 AI 选择产生多样结局。
 - **闭环达成**：孤立事件升级为系统驱动的长期叙事；survey 8 seed 长跑中 **4 种局势结局实际触发**（张居正 consolidated / 建州 unified / 壬辰 resolved / 辽东 liaodong-lost）。
 
@@ -116,7 +117,7 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 维多利亚3 五环闭环（后果 / 经济 / 社会政治 / 制度 / 外交战争）+ 内容收口（历史局势）全部接通。**360 测试全绿**，batch `errorRuns=0`，4 种局势结局在自动推演中实际触发。
 
 **后续工作（平衡迭代，非工程阻塞）**：
-- **晚期局势触发率**：陕西流民（rebellion-spreads）/ 南明（southern-ming）/ 张居正 stalled 需大明深度衰弱（失核心区 / 财政破产 / legitimacy 崩盘）。S5 修复军队归零后大明韧性高（存活 1.0），当前 batch 中晚期局势罕见。触发条件设计正确（`rebelPressure≥180` / `regions≤15` / `legitimacy<35`），待中后期压力机制（腐败累积 / 多线战争持续消耗）加强后自然出现。
+- **晚期局势触发（已改善）**：S6 后追加**腐败自然累积**机制（dynasty/local 每月 +0.1，封顶 80）——承平日久吏治败坏，压低税收→财政压力→军队维护困难→控制区衰减。survey 中大明控制区从 25 降到 17-19，**南明偏安（southern-ming）在脆弱 seed 触发**（regions≤15）。陕西流民（rebellion-spreads，需 rebelPressure≥180 / rebels≥100k）触发率仍低，待 corruption→rebelPressure 连锁进一步加强。
 - 同盟参战（多边战争）未实现，stretch。
 - 玩家手选法律 / 手动外交 UI 留待后续。
 
