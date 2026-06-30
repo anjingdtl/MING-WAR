@@ -6,17 +6,25 @@ on:
   pull_request:
     branches: [main]
 
+# 取消上一次进行中的同 workflow run（节省 CI 分钟）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  # 每次 PR：5 分钟内出 PR 结果
+  quick:
+    name: Quick checks (typecheck + test + build + map + hash + smoke)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -24,11 +32,29 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Run tests
+      - name: Unit tests
         run: npm test
 
       - name: Build
         run: npm run build
 
-      - name: Batch simulation smoke test
-        run: npm run batch -- 5 60
+      - name: Map validate
+        run: npm run map:validate
+
+      - name: Hash:state (determinism regression check)
+        run: npm run hash:state
+
+      - name: Perf smoke (single-month, 20 runs)
+        run: npm run perf:smoke
+
+      # CI 失败策略（与 SPEC §10.3 / PLAN §7.6 对齐）：
+      # 以下任一失败 → PR 不能合并
+      # - tsc --noEmit 错误
+      # - 单元测试失败
+      # - 状态不变量出现 error
+      # - 确定性哈希变化（需 DETERMINISM-CHANGE 注释 + PROGRESS.md 同步）
+      # - 地图引用校验失败
+      # - 存档迁移失败
+      # - 批量模拟 errorRuns > 0
+      # - perf:smoke 退化 > 20%
+      # - 1080 月跑完出现 NaN / Infinity / 非法负值

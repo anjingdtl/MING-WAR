@@ -1,0 +1,58 @@
+name: Perf Regression
+
+on:
+  # 每周日 02:00 UTC
+  schedule:
+    - cron: "0 2 * * 0"
+  # 手动触发
+  workflow_dispatch:
+  # 主分支 push 也跑（捕获性能退化）
+  push:
+    branches: [main]
+    paths:
+      - "src/core/**"
+      - "src/runtime/**"
+      - "src/scripts/**"
+      - "package.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    name: Long-running checks (batch + perf:fullgame + saves)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Batch (100×240, errorRuns=0)
+        run: npm run batch
+
+      - name: Full game perf (1080 月 × 3 种子)
+        run: npm run perf:fullgame
+
+      - name: Save tests (migration + validation + autosave)
+        run: npm run test:save
+
+      - name: Hash:state (cross-version regression)
+        run: npm run hash:state
+
+      - name: Determinism
+        run: npm run test:determinism
+
+      # 验收红线：
+      # - batch errorRuns = 0
+      # - perf:fullgame 1080 月 < 90s
+      # - save migration 100% 通过
+      # - hash:state 5 节点与基线一致

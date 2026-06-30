@@ -106,9 +106,30 @@ npm run hash:state      # 6 节点状态哈希
 | 0 (v0.3.0 + Phase 1) | 4cd82db | 24.153 ms | baseline | 410 测试全绿 |
 | 2 (流水线拆分) | 5b94e35 | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
 | 3 (store 拆分) | c89a843 | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
-| 4 (Service 抽象) | _TBD_ | 26.103 ms | **0 漂移** ✅ | 438 测试全绿 |
-| 5 (存档升级) | _TBD_ | 26.602 ms | **0 漂移** ✅ | 461 测试全绿 |
+| 4 (Service 抽象) | b59a829 | 26.103 ms | **0 漂移** ✅ | 438 测试全绿 |
+| 5 (存档升级) | 2c55aeb | 26.602 ms | **0 漂移** ✅ | 461 测试全绿 |
 | 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+
+### Phase 6 详情（CI 自动化）
+
+- 新增 `.github/workflows/ci.yml`：每次 PR / push 到 main
+  - typecheck + test + build + map:validate + hash:state + perf:smoke
+  - 5 分钟内出 PR 结果
+  - cache: npm，节省 CI 时间
+  - concurrency group：取消上一次进行中的 run
+- 新增 `.github/workflows/perf-regression.yml`：每周 + 手动 + 主分支 push 触发
+  - batch（100×240，errorRuns=0）
+  - perf:fullgame（1080 月 × 3 种子）
+  - test:save（迁移 + 校验 + autosave）
+  - hash:state + test:determinism
+- 测试数：461（不变）
+- 验证：本地跑 `npm run test:save` → 23/23，`npm run test:determinism` → 4/4，`npm run batch` → 100/100 runs 0 error
+
+**关键不变量**：
+- 5 节点 hash 与 Phase 1/2/3/4/5 完全一致
+- batch 100 runs 0 error（errorRuns=0 红线通过）
+- 地图校验 31 地区通过
+- 构建成功（dist/ 产出）
 
 ### Phase 5 详情（存档版本化 / 校验 / 迁移 / 自动存档）
 
