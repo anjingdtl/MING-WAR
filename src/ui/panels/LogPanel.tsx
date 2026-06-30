@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import type { MonthlyReport } from "../../core/types";
 import { StatBadge } from "../common/StatBadge";
 
@@ -27,11 +28,15 @@ const SEVERITY_LABEL: Record<MonthlyReport["severity"], string> = {
  *  - 二条:warning 级别
  *  - 短讯:info 级别
  */
-export function LogPanel({ reports }: LogPanelProps) {
-  // 排序:危险 > 警告 > 信息
-  const sorted = [...reports]
-    .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-    .slice(0, 12);
+export const LogPanel = memo(function LogPanel({ reports }: LogPanelProps) {
+  // Memoize: only re-sort when reports array reference changes
+  const sorted = useMemo(
+    () =>
+      [...reports]
+        .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+        .slice(0, 12),
+    [reports]
+  );
 
   const headline = sorted[0];
   const subhead = sorted.find((r) => r.severity === "warning");
@@ -91,4 +96,4 @@ export function LogPanel({ reports }: LogPanelProps) {
       )}
     </section>
   );
-}
+});

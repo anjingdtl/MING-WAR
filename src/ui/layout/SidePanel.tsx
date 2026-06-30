@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   ClipboardList,
   Landmark,
@@ -62,7 +62,7 @@ const TABS: TabDef[] = [
  *
  * 借鉴 V3 的"地图简洁 + 详情面板信息密集"路线。
  */
-export function SidePanel({
+export const SidePanel = memo(function SidePanel({
   state,
   decision,
   onDecisionChange,
@@ -147,7 +147,7 @@ export function SidePanel({
       </div>
     </aside>
   );
-}
+});
 
 /* ============================================================== */
 /* Tab 内容组件                                                    */

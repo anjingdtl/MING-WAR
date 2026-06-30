@@ -1,5 +1,5 @@
 import { AlertTriangle, PanelRight } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { formatChineseDate } from "../../core/calendar";
 import type { GameState } from "../../core/types";
 import { cliqueTemplates } from "../../data/cliques";
@@ -13,7 +13,7 @@ interface TopBarProps {
   onToggleSidePanel: () => void;
 }
 
-export function TopBar({ state, onAdvance, sidePanelOpen, onToggleSidePanel }: TopBarProps) {
+export const TopBar = memo(function TopBar({ state, onAdvance, sidePanelOpen, onToggleSidePanel }: TopBarProps) {
   const faction = state.factions[state.playerFactionId];
   const [showCliqueWarn, setShowCliqueWarn] = useState(false);
 
@@ -109,4 +109,4 @@ export function TopBar({ state, onAdvance, sidePanelOpen, onToggleSidePanel }: T
       </Button>
     </header>
   );
-}
+});

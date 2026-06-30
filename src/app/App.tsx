@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { mvpEvents } from "../data/events";
 import { TopBar } from "../ui/layout/TopBar";
 import { SidePanel, type SidePanelTab } from "../ui/layout/SidePanel";
@@ -29,15 +29,6 @@ export function App() {
       return true;
     }
   });
-
-  const completeTutorial = () => {
-    try {
-      localStorage.setItem(TUTORIAL_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    setTutorialOpen(false);
-  };
 
   // Phase 6: Help modal
   const [helpOpen, setHelpOpen] = useState(false);
@@ -106,6 +97,23 @@ export function App() {
 
   useHotkeys(tutorialOpen ? [] : hotkeys);
 
+  /* ---- stable callbacks for memoized children ---- */
+  const toggleSidePanel = useCallback(() => setSidePanelOpen((v) => !v), []);
+  const closeSidePanel = useCallback(() => setSidePanelOpen(false), []);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  const completeTutorialCb = useCallback(() => {
+    try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* ignore */ }
+    setTutorialOpen(false);
+  }, []);
+  const handleRegionSelect = useCallback(
+    (id: string) => {
+      store.selectRegion(id);
+      setActiveTab("region");
+      setSidePanelOpen((v) => (v ? v : true));
+    },
+    [store.selectRegion]
+  );
+
   return (
     <main className="app-shell">
       <StartDialog onStart={store.startGame} />
@@ -113,7 +121,7 @@ export function App() {
         state={store.state}
         onAdvance={store.advanceOneMonth}
         sidePanelOpen={sidePanelOpen}
-        onToggleSidePanel={() => setSidePanelOpen((v) => !v)}
+        onToggleSidePanel={toggleSidePanel}
       />
       <div className="map-stage">
         <LensBar current={lens} onChange={setLens} />
@@ -122,11 +130,7 @@ export function App() {
           layer={store.mapLayer}
           onLayerChange={store.setMapLayer}
           selectedRegionId={store.selectedRegionId}
-          onSelect={(id) => {
-            store.selectRegion(id);
-            setActiveTab("region");
-            if (!sidePanelOpen) setSidePanelOpen(true);
-          }}
+          onSelect={handleRegionSelect}
           lens={lens}
         />
         <LogPanel reports={store.state.reports} />
@@ -137,16 +141,16 @@ export function App() {
           selectedRegionId={store.selectedRegionId}
           onSelectRegion={store.selectRegion}
           open={sidePanelOpen}
-          onClose={() => setSidePanelOpen(false)}
+          onClose={closeSidePanel}
           initialTab={activeTab}
           onTabChange={setActiveTab}
         />
       </div>
       <EventDialog event={pendingEvent} onResolve={store.resolveEvent} />
       {tutorialOpen && (
-        <TutorialDialog onComplete={completeTutorial} onSkip={completeTutorial} />
+        <TutorialDialog onComplete={completeTutorialCb} onSkip={completeTutorialCb} />
       )}
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpModal open={helpOpen} onClose={closeHelp} />
     </main>
   );
 }

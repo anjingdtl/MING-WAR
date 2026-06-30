@@ -1,8 +1,15 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import type { GameState, MapLayer, RegionId } from "../../core/types";
+import { mapCanvas } from "../../map/mapCanvas";
 import { mapRegions } from "../../map/mapConfig";
-import { eastAsiaLandPaths, majorRiverPaths } from "../../map/physicalMap";
+import {
+  eastAsiaLandPaths,
+  majorLakePaths,
+  majorMountainPaths,
+  majorRiverPaths,
+  terrainRidgePaths
+} from "../../map/physicalMap";
 import { getRegionColor, getRegionOpacity } from "../lens/lensColorScales";
 import type { LensId } from "../lens/lensDefinitions";
 import { RegionHoverCard } from "../lens/RegionHoverCard";
@@ -16,6 +23,9 @@ const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.12;
 const DRAG_THRESHOLD_PX = 5;
 
+/** Pre-computed region shape lookup for route rendering (avoids O(n) find per connection). */
+const REGION_SHAPE_MAP = new Map(mapRegions.map((s) => [s.id, s]));
+
 interface DragState {
   active: boolean;
   moved: boolean;
@@ -28,6 +38,59 @@ interface DragState {
 function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
 }
+
+/** Static SVG layers that never change — memoized to skip re-render entirely. */
+const StaticPhysicalLayer = React.memo(function StaticPhysicalLayer() {
+  return (
+    <>
+      <svg className="physical-layer" viewBox={mapCanvas.viewBox} aria-hidden="true">
+        <defs>
+          <radialGradient id="terrain-light" cx="48%" cy="42%" r="72%">
+            <stop offset="0%" stopColor="#eadfb7" />
+            <stop offset="58%" stopColor="#c8ba8d" />
+            <stop offset="100%" stopColor="#9fb08e" />
+          </radialGradient>
+          <pattern id="paper-grain" width="7" height="7" patternUnits="userSpaceOnUse">
+            <path d="M0 1 H7 M2 0 V7" stroke="rgba(77, 66, 47, 0.13)" strokeWidth="0.45" />
+          </pattern>
+        </defs>
+        <rect className="map-sea" x="0" y="0" width={mapCanvas.width} height={mapCanvas.height} />
+        {eastAsiaLandPaths.map((path, idx) => (
+          <path key={`land-${idx}`} className="map-land" d={path} />
+        ))}
+        <rect className="map-paper-grain" x="0" y="0" width={mapCanvas.width} height={mapCanvas.height} />
+        {majorMountainPaths.map((d, idx) => (
+          <path key={`mountain-${idx}`} className="map-mountain" d={d} />
+        ))}
+        {terrainRidgePaths.map((d, idx) => (
+          <path key={`ridge-${idx}`} className="map-ridge" d={d} />
+        ))}
+        {majorLakePaths.map((d, idx) => (
+          <path key={`lake-${idx}`} className="map-lake" d={d} />
+        ))}
+      </svg>
+
+      <svg className="river-overlay-layer" viewBox={mapCanvas.viewBox} aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
+        {majorRiverPaths.map((d, idx) => (
+          <path key={`river-${idx}`} className="map-river" d={d} />
+        ))}
+      </svg>
+    </>
+  );
+});
+
+/** Static clip-path defs — memoized separately since it's inside the political layer SVG. */
+const StaticClipDefs = React.memo(function StaticClipDefs() {
+  return (
+    <defs>
+      <clipPath id="map-land-clip" clipPathUnits="userSpaceOnUse">
+        {eastAsiaLandPaths.map((path, idx) => (
+          <path key={`land-clip-${idx}`} d={path} />
+        ))}
+      </clipPath>
+    </defs>
+  );
+});
 
 interface GameMapProps {
   state: GameState;
@@ -50,7 +113,7 @@ interface GameMapProps {
  *  - Alt+点击区域 → 通知父级聚焦(由父级决定如何响应)
  *  - 移除原 6 图层按钮(由 LensBar 取代)
  */
-export function GameMap({
+function GameMapInner({
   state,
   layer,
   onLayerChange,
@@ -236,20 +299,15 @@ export function GameMap({
       onClick={handlePanelClick}
     >
       <div className="map-viewport" style={transformStyle}>
-        <svg className="physical-layer" viewBox="0 0 900 620" aria-hidden="true">
-          <rect className="map-sea" x="0" y="0" width="900" height="620" />
-          {eastAsiaLandPaths.map((path, idx) => (
-            <path key={`land-${idx}`} className="map-land" d={path} />
-          ))}
-        </svg>
+        <StaticPhysicalLayer />
 
-        <svg className="route-layer" viewBox="0 0 900 620" aria-hidden="true">
+        <svg className="route-layer" viewBox={mapCanvas.viewBox} aria-hidden="true">
           {mapRegions.flatMap((shape) => {
             const region = state.regions[shape.id];
             return region.connections
               .filter((cid) => shape.id < cid)
               .map((cid) => {
-                const target = mapRegions.find((s) => s.id === cid);
+                const target = REGION_SHAPE_MAP.get(cid);
                 if (!target) return null;
                 return (
                   <line
@@ -267,10 +325,11 @@ export function GameMap({
         <svg
           id="lens-content"
           className="political-layer"
-          viewBox="0 0 900 620"
+          viewBox={mapCanvas.viewBox}
           role="img"
           aria-label="万历朝动态势力区划图"
         >
+          <StaticClipDefs />
           {mapRegions.map((shape) => {
             const region = state.regions[shape.id];
             const faction = state.factions[region.controllerFactionId];
@@ -308,6 +367,7 @@ export function GameMap({
                     d={d}
                     fill={fill}
                     fillOpacity={opacity}
+                    clipPath="url(#map-land-clip)"
                   />
                 ))}
                 <foreignObject x={shape.labelX - lblW / 2} y={shape.labelY - 27} width={lblW} height="54">
@@ -319,12 +379,6 @@ export function GameMap({
               </g>
             );
           })}
-        </svg>
-
-        <svg className="river-overlay-layer" viewBox="0 0 900 620" aria-hidden="true">
-          {majorRiverPaths.map((d, idx) => (
-            <path key={`river-${idx}`} className="map-river" d={d} />
-          ))}
         </svg>
       </div>
 
@@ -355,6 +409,8 @@ export function GameMap({
     </section>
   );
 }
+
+export const GameMap = React.memo(GameMapInner);
 
 function layerLabel(region: GameState["regions"][string], layer: MapLayer): string {
   switch (layer) {
