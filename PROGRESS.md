@@ -37,6 +37,36 @@
 
 **已知遗留**（非本次引入，hash:state 证实）：`validateInvariants` 报 `treasury-extreme-negative` 警告——v0.3.0 baseline 同样存在，根因在大明长跑财政积累下的极端场景，与本次重构无关。修复待 v0.7 内容扩充阶段。
 
+## 0.2 v0.6.1-patch 遗留清理（2026-06-30 完成）
+
+> 10 项 v0.6-stability 遗留处理，11 个 commit。
+> 详情：`docs/MING-WAR_遗留问题修复_SPEC_v0.6.1-patch.md` + `docs/MING-WAR_v0.6.1-patch_PLAN.md` + `docs/perf-baseline.md` §6
+
+| # | 标题 | commit |
+|---|---|---|
+| B1 | `eliminateDefeatedFactions` 清 army/grain | `33a1695` |
+| B2 | `LocalSimulationService` 3 槽自动存档触发 | `2cce1c1` |
+| B3 | `runMarketPhase` 独立抽出 | `7b96526` |
+| B4 | 删 `useGameStoreCompat` 死代码 | `6a0f57a` |
+| B5 | `GAME_VERSION` 集中 + package.json 升 0.6.0 | `d543794` |
+| B6 | 修 `modifiers.ts` 文档注释 | `cc9f652` |
+| B7 | `fake-indexeddb` 真实 IDB 测试 + 修 saveManager keyPath bug | `58b693a` |
+| B8 | `PROGRESS.md` 升 v0.6.0 | `49cc3e8` |
+| B9 | treasury-extreme-negative 阈值升 -1M | `c26c4bb` |
+| B10 | 工作区未追踪目录加 gitignore | `d5c390f` |
+
+| 维度 | v0.6-stability | v0.6.1-patch |
+|---|---|---|
+| 测试数 | 461 | **470**（+9）|
+| hash:state m=0 | 不变 | 不变 ✅ |
+| hash:state m≥12 | 不变 | 漂移（B1 合法行为修正）|
+| batch errorRuns | 0 | **0**（100/100）|
+| 存档 IDB 路径 | **断裂**（keyPath bug） | **修复** ✅ |
+| 自动存档触发 | 3 槽 API 但未触发 | **真触发**（monthly/yearly/milestone）|
+| `simulation.ts` 行数 | 145 | 145（无变化）|
+
+**关键修复**：B7 发现 v0.6-stability 阶段 `saveManager.ts:60` 用了 `keyPath: "id"` 创建 store，但 `SerializedSave` 没有 `id` 字段——**整个 IDB save 路径从 v0.6 起就没工作过**。已通过去掉 keyPath 修复，与 `autoSave.ts` 的显式 key put(value, key) 模式对齐。
+
 ---
 
 ## 1. 当前状态（v0.6.0-stability）

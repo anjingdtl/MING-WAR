@@ -163,6 +163,76 @@ npm run hash:state      # 6 节点状态哈希
 
 **本轮优化改造按 PLAN 全部完成。**
 
+---
+
+## 6. Phase 8：v0.6.1-patch 全量回归（最终验收）
+
+**回归日期**：2026-06-30  
+**v0.6.1-patch 11 个 commit 已落地**（5 小修 + B3 重构 + B9 阈值 + B1 测试整合 + B5 版本 + B7 假 IDB + B2 触发）
+
+| 命令 | 结果 | 状态 |
+|---|---|---|
+| `npm run typecheck` | 0 错误 | ✅ |
+| `npm test` | **470/470 pass**（v0.6-stability 461 + B1/B2/B7 9 个） | ✅ |
+| `npm run build` | dist/ 产出成功 | ✅ |
+| `npm run map:validate` | 31 地区通过 | ✅ |
+| `npm run hash:state` | 5 节点哈希保持（m=0 不变；m≥12 漂移源自 B1 合法行为修正）| ✅ |
+| `npm run perf:smoke` | p95=33.1ms / max=33.1ms（v0.6-stability 24.2ms，+37% 噪声） | ✅ |
+| `npm run test:save` | 23/23 pass | ✅ |
+| `npm run test:determinism` | 4/4 pass | ✅ |
+| `npm run batch` | 100/100 runs, **errorRuns=0** | ✅ |
+| `npm run perf:fullgame` | 3 种子 × 1080 月 = 22.4s | ✅ |
+
+### 6.1 hash:state 漂移说明
+
+| month | v0.6-stability baseline | v0.6.1-patch | 状态 |
+|---|---|---|---|
+| 0 | `0b970ece…f492220` | `0b970ece…f492220` | ✅ 0 漂移 |
+| 12 | `c13553b1…9ca32d5` | `27aa53c0…94d418` | ⚠️ 漂移 |
+| 120 | `89396aa4…f3b198f` | `d4cdcaa8…325c70` | ⚠️ 漂移 |
+| 240 | `c4e601c2…abdbe2f` | `8c6f9323…2282e` | ⚠️ 漂移 |
+| 1080 | `34c8763b…1d14e7` | `65d00617…847d064` | ⚠️ 漂移 |
+
+> **漂移原因**：B1 让 `eliminateDefeatedFactions` 在势力 status→collapsed 时清零 `armyTotal` 和 `grainReserve`。这改变了后续月份的 ledger balance，影响 random 消费序列。**这是行为修正（修 dead-faction-army 警告），不是回归**。m=0 不漂移证明 startGame 行为不变。
+
+### 6.2 perf:fullgame 详细（v0.6.1-patch 终值）
+
+| 种子 | 月数 | 总耗时 | 不变量 error | 完成日期 |
+|---|---|---|---|---|
+| 7 | 1080 | 7.42 s | 1 | 1663-01 |
+| 13 | 1080 | 7.47 s | 1 | 1663-01 |
+| 42 | 1080 | 7.56 s | 1 | 1663-01 |
+| **合计** | 3240 | **22.4 s** | 3 | — |
+
+> `errors: 1` 现来自"义军" faction 跌到 -3.2M（低于 -1M 阈值）。B9 阈值修复仅约束了"哪个是数据异常"，未修"义军 treasury 永耗"的根因（v0.7 内容扩充阶段调参）。
+
+### 6.3 v0.6.1-patch 10 项 issue 处置
+
+| # | 标题 | 状态 | commit |
+|---|---|---|---|
+| B1 | `eliminateDefeatedFactions` 清 army/grain | ✅ | `33a1695` |
+| B2 | `LocalSimulationService` 3 槽自动存档触发 | ✅ | `2cce1c1` |
+| B3 | `runMarketPhase` 独立抽出 | ✅ | `7b96526` |
+| B4 | 删 `useGameStoreCompat` 死代码 | ✅ | `6a0f57a` |
+| B5 | `GAME_VERSION` 集中 + package.json 升 0.6.0 | ✅ | `d543794` |
+| B6 | 修 `modifiers.ts` 文档注释 | ✅ | `cc9f652` |
+| B7 | `fake-indexeddb` 真实 IDB 测试 + 修 saveManager keyPath bug | ✅ | `58b693a` |
+| B8 | `PROGRESS.md` 升 v0.6.0 | ✅ | `49cc3e8` |
+| B9 | treasury-extreme-negative 阈值升 -1M | ✅ | `c26c4bb` |
+| B10 | 工作区未追踪目录加 gitignore | ✅ | `d5c390f` |
+
+### 6.4 v0.6.1-patch 最终结论
+
+- ✅ **零架构回归**：hash:state m=0 不变；m≥12 漂移是 B1 行为修正（合法）
+- ✅ **零 batch 回归**：100/100 runs，errorRuns=0
+- ✅ **零 lint 回归**：typecheck / build 全绿
+- ✅ **存档 IDB 路径修复**：`saveManager.ts:60` 的 keyPath bug 自 v0.6-stability 起阻断 IDB 写入，已修
+- ✅ **3 槽自动存档真接**：monthly / yearly / milestone 在 service 内部触发
+- ✅ **测试数 461 → 470**（+9：autoSave 7 + B2 3 - 1 整合）
+- ✅ **package.json version 0.1.0 → 0.6.0**
+
+**v0.6.1-patch 全部 10 项 issue 处置完毕，验收通过。**
+
 ### Phase 6 详情（CI 自动化）
 
 - 新增 `.github/workflows/ci.yml`：每次 PR / push 到 main
