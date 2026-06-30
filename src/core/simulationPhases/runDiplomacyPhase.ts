@@ -95,6 +95,8 @@ function eliminateDefeatedFactions(state: import("../types").GameState, reports:
     );
     if (!hasRegion) {
       faction.status = "collapsed";
+      faction.armyTotal = 0;
+      faction.grainReserve = 0;
       reports.push({
         id: `${state.currentDate}-${faction.id}-eliminated`,
         date: state.currentDate,
