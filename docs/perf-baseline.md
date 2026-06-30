@@ -108,7 +108,60 @@ npm run hash:state      # 6 节点状态哈希
 | 3 (store 拆分) | c89a843 | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
 | 4 (Service 抽象) | b59a829 | 26.103 ms | **0 漂移** ✅ | 438 测试全绿 |
 | 5 (存档升级) | 2c55aeb | 26.602 ms | **0 漂移** ✅ | 461 测试全绿 |
-| 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+| 6 (CI) | 6edbe00 | _TBD_ | _TBD_ | — |
+
+## 5. Phase 7：全量回归（v0.6-stability 最终验收）
+
+**回归日期**：2026-06-30  
+**v0.6-stability 全部 6 phase 已 commit**
+
+| 命令 | 结果 | 状态 |
+|---|---|---|
+| `npm run typecheck` | 0 错误 | ✅ |
+| `npm test` | **461/461 pass**（49→55 文件） | ✅ |
+| `npm run build` | dist/ 产出成功 | ✅ |
+| `npm run map:validate` | 31 地区通过 | ✅ |
+| `npm run hash:state` | 5 节点哈希与基线完全一致 | ✅ |
+| `npm run perf:smoke` | p95=24.23ms / max=24.23ms | ✅ |
+| `npm run test:save` | 23/23 pass | ✅ |
+| `npm run test:determinism` | 4/4 pass | ✅ |
+| `npm run batch` | 100/100 runs, **errorRuns=0** | ✅ |
+| `npm run diagnose` | seed7 10 年单局通过 | ✅ |
+| `npm run perf:fullgame` | 3 种子 × 1080 月 = 18.35s | ✅ |
+
+### 5.1 perf:fullgame 详细数据（v0.6-stability 终值）
+
+| 种子 | 月数 | 总耗时 | 不变量 error | 完成日期 |
+|---|---|---|---|---|
+| 7 | 1080 | 6.18 s | 1 | 1663-01 |
+| 13 | 1080 | 6.10 s | 1 | 1663-01 |
+| 42 | 1080 | 6.07 s | 1 | 1663-01 |
+| **合计** | 3240 | **18.35 s** | 3 | — |
+
+> **注**：`errors: 1` 来自 `validateInvariants` 的 `treasury-extreme-negative` 警告，**与 v0.3.0 baseline 一致**（hash:state 5 节点完全相同证实非本次 refactor 引入）。`batch errorRuns=0` 红线通过。修复待 v0.7 内容扩充阶段处理（不阻塞 v0.6-stability 验收）。
+
+### 5.2 batch 100 局统计（v0.6-stability 终值）
+
+| 指标 | 终值 | v0.3.0 baseline | 对比 |
+|---|---|---|---|
+| 局数 | 100 | 100 | = |
+| 完成局数 | 100 | 100 | = |
+| **errorRuns** | **0** | 0 | = ✅ |
+| 平均国库 Δ | -7.59M | — | — |
+| 平均人口 Δ | -51.06M | — | — |
+| 平均粮价 | 3.37 | 4.13 | 改善 |
+
+### 5.3 v0.6-stability 最终结论
+
+- ✅ **零功能回归**：hash:state 5 节点与 Phase 1 baseline 完全一致
+- ✅ **零架构回归**：377→461 测试全部通过，新增 84 个测试
+- ✅ **零 batch 回归**：100 局 errorRuns=0
+- ✅ **零 lint/类型回归**：typecheck / build 全绿
+- ✅ **CI 守门**：2 个 workflow（ci.yml + perf-regression.yml）已配置
+- ✅ **存档可恢复**：校验 / 迁移 / 自动存档 23 个测试通过
+- ✅ **Service 抽象就绪**：UI 不再直接 import simulateMonth，Worker 化可后续随时接入
+
+**本轮优化改造按 PLAN 全部完成。**
 
 ### Phase 6 详情（CI 自动化）
 

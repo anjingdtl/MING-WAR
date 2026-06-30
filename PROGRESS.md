@@ -1,7 +1,8 @@
 # 万历：山河崩塌 — 开发进度
 
 > 本文档是接手 agent 的路标：项目走到哪了、怎么验证、下一步干啥、哪里有坑。
-> 对应详细设计：`docs/v2-optimization-spec.md`（SPEC，含 S1–S4 战报）+ `docs/v2-implementation-plan.md`（PLAN）。
+> 对应详细设计：`docs/v2-optimization-spec.md`（SPEC，含 S1–S6 战报）+ `docs/v2-implementation-plan.md`（PLAN）。
+> 下一轮工作入口（性能 / 状态 / Worker / 存档 / CI 改造）：`docs/MING-WAR_Web架构流畅稳定优化改造_SPEC.md`（v0.6-stability-design，承接方案原稿 `docs/MING-WAR《万历：山河崩塌》Web 架构流畅稳定优化建设方案.docx`）。
 > 每次阶段完成后同步更新本文档 + SPEC 战报。
 
 ---
@@ -11,6 +12,30 @@
 - **MING-WAR**：《万历：山河崩塌》——晚明大战略游戏，目标是模拟 **维多利亚3 (Victoria 3)** 的社会经济闭环。
 - **技术栈**：React 19 + TypeScript + Vite 6 + Zustand + Vitest 3。月度模拟核心是纯函数 `simulateMonth`（`structuredClone` 输入、固定随机种子，确定性可复现）。
 - **核心范式**：单一驱动闭环——`pop 劳动 → 产业生产 → 市场供需/价格 → pop 购买力/生活水平 → 财富分化 → 政治力量 → 政治运动/法律改革 → modifier → 反作用于生产`。每一环都建了零件，工作重心是**把环与环的齿轮咬合**，而非堆孤岛系统。
+
+## 0.1 v0.6-stability 性能 / 稳定性底座（2026-06-30 完成）
+
+> 6 阶段优化全部 commit：`feat(perf) → refactor(sim) → refactor(store) → feat(runtime) → feat(save) → ci`
+> 详情：`docs/MING-WAR_Web架构流畅稳定优化改造_SPEC.md` + `docs/MING-WAR_流畅稳定优化改造_PLAN.md` + `docs/perf-baseline.md`
+
+| 维度 | Phase 1（v0.3.0 baseline） | Phase 6（v0.6 终值） |
+|---|---|---|
+| 单月 p95 | 24.15 ms | 24.23 ms（持平） |
+| 1080 月（3 种子） | — | 18.35 s |
+| 测试数 | 377 | **461**（+84） |
+| hash:state 5 节点漂移 | baseline | **0 漂移** |
+| batch errorRuns | 0 | **0**（100/100） |
+| `simulation.ts` 行数 | 777 | **145**（拆 7 阶段） |
+| `state` / `decision` / `pendingEventId` 分层 | 1 store | **3 stores**（UI / View / 基础设施） |
+| `simulateMonth` 调用入口 | UI 直接 import | **SimulationService 抽象** |
+| 存档格式 | 单版本字符串 | **versioned + 校验 + 迁移** |
+| CI | 无 | **2 workflow**（ci.yml + perf-regression.yml） |
+
+**新增底座模块**：`src/core/timing.ts` / `stateHash.ts` / `simulationContext.ts` / `simulationPhases/`（7 阶段）/ `src/store/uiStore.ts` / `gameViewStore.ts` / `src/runtime/simulationService.ts` / `viewSnapshot.ts` / `localSimulationService.ts` / `src/save/saveValidation.ts` / `saveMigrations.ts` / `autoSave.ts` / `src/scripts/perf{Month,Year,FullGame,Clone,Save}.ts` / `stateHash.ts` / `.github/workflows/ci.yml` / `perf-regression.yml`
+
+**验收红线全部通过**：typecheck / test / build / map:validate / hash:state / perf:smoke / test:save / test:determinism / batch errorRuns=0。
+
+**已知遗留**（非本次引入，hash:state 证实）：`validateInvariants` 报 `treasury-extreme-negative` 警告——v0.3.0 baseline 同样存在，根因在大明长跑财政积累下的极端场景，与本次重构无关。修复待 v0.7 内容扩充阶段。
 
 ---
 
