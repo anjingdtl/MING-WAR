@@ -1,40 +1,41 @@
 import type { GameEvent } from "../../core/eventEngine";
-import { resolveEventVisual, type EventVisualType } from "../../data/eventVisuals";
-import disasterUrl from "../../assets/art/event-disaster.png";
-import diplomaticUrl from "../../assets/art/event-diplomatic.png";
-import economicUrl from "../../assets/art/event-economic.png";
-import frontierUrl from "../../assets/art/event-frontier.png";
-import intrigueUrl from "../../assets/art/event-intrigue.png";
-import militaryUrl from "../../assets/art/event-military.png";
-import politicalUrl from "../../assets/art/event-political.png";
-import popularUrl from "../../assets/art/event-popular.png";
+import { resolveEventVisual } from "../../data/eventVisuals";
+import { resolveEventCharacters, resolveEventScene } from "../../data/artCatalog";
 
 interface EventDialogProps {
   event: GameEvent | null;
   onResolve: (optionId: string) => void;
 }
 
-const eventIllustrations: Record<EventVisualType, string> = {
-  political: politicalUrl,
-  popular: popularUrl,
-  military: militaryUrl,
-  disaster: disasterUrl,
-  economic: economicUrl,
-  diplomatic: diplomaticUrl,
-  frontier: frontierUrl,
-  intrigue: intrigueUrl
-};
-
 export function EventDialog({ event, onResolve }: EventDialogProps) {
   if (!event) return null;
   const visual = resolveEventVisual(event);
+  const scene = resolveEventScene(event);
+  const characters = resolveEventCharacters(event);
 
   return (
     <div className="dialog-backdrop" role="dialog" aria-modal="true">
       <section className="event-dialog">
         <div className={`event-art event-art--${visual.type}`} data-visual-type={visual.type}>
-          <img src={eventIllustrations[visual.assetKey]} alt={visual.alt} />
+          <img src={scene.src} alt={scene.alt} />
         </div>
+        {characters.length > 0 ? (
+          <div className="event-characters" aria-label="事件人物">
+            {characters.map((character) => (
+              <figure key={character.id} className="event-character">
+                <img
+                  src={character.src}
+                  alt={character.alt}
+                  style={{ objectPosition: character.objectPosition }}
+                />
+                <figcaption>
+                  <strong>{character.label}</strong>
+                  <span>{character.role}</span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : null}
         <div className="event-copy">
           <span>{categoryLabel(event.category)}</span>
           <h2>{event.name}</h2>

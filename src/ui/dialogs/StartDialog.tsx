@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { factionTemplates } from "../../data/factions";
-import portraitSheetUrl from "../../assets/art/ming-character-portraits.png";
+import { resolveFactionLeaderPortrait } from "../../data/artCatalog";
 
 interface StartDialogProps {
   onStart: (factionId: string, seed: number) => void;
@@ -9,10 +9,15 @@ interface StartDialogProps {
 export function StartDialog({ onStart }: StartDialogProps) {
   const [factionId, setFactionId] = useState("ming");
   const [seed, setSeed] = useState("157301");
+  const leaderPortrait = resolveFactionLeaderPortrait(factionId);
   return (
     <section className="start-panel">
-      <div className={`start-portrait start-portrait--${portraitKey(factionId)}`}>
-        <img src={portraitSheetUrl} alt="" />
+      <div className="start-portrait">
+        <img
+          src={leaderPortrait.src}
+          alt={leaderPortrait.alt}
+          style={{ objectPosition: leaderPortrait.objectPosition }}
+        />
       </div>
       <div className="start-title">
         <h1>万历：山河崩塌</h1>
@@ -21,9 +26,9 @@ export function StartDialog({ onStart }: StartDialogProps) {
       <label>
         选择势力
         <select value={factionId} onChange={(event) => setFactionId(event.target.value)}>
-          {["ming", "tumed", "jianzhou"].map((id) => (
-            <option key={id} value={id}>
-              {factionTemplates[id].name}
+          {Object.values(factionTemplates).map((faction) => (
+            <option key={faction.id} value={faction.id}>
+              {faction.name}
             </option>
           ))}
         </select>
@@ -37,10 +42,4 @@ export function StartDialog({ onStart }: StartDialogProps) {
       </button>
     </section>
   );
-}
-
-function portraitKey(factionId: string): string {
-  if (factionId === "ming") return "emperor";
-  if (factionId === "jianzhou") return "khan";
-  return "general";
 }

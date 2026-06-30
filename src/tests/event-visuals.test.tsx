@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { factionTemplates } from "../data/factions";
 import { mvpEvents } from "../data/events";
 import { resolveEventVisual, visualFamilies } from "../data/eventVisuals";
+import {
+  resolveEventCharacters,
+  resolveEventScene,
+  resolveFactionLeaderPortrait
+} from "../data/artCatalog";
 import { EventDialog } from "../ui/dialogs/EventDialog";
 
 describe("event visuals", () => {
@@ -37,5 +43,44 @@ describe("event visuals", () => {
     const image = screen.getByRole("img", { name: /军事事件/ });
     expect(image).not.toBeNull();
     expect(image.getAttribute("src")).toContain("event-military");
+  });
+
+  it("resolves a scene image for every event", () => {
+    for (const event of mvpEvents) {
+      expect(resolveEventScene(event).src, event.id).toBeTruthy();
+    }
+  });
+
+  it("uses bespoke scenes for expanded historical events", () => {
+    const byId = Object.fromEntries(mvpEvents.map((event) => [event.id, event]));
+
+    expect(resolveEventScene(byId.jisi_incident).key).toBe("event-jisi-incident");
+    expect(resolveEventScene(byId.liaoxiang_surcharge).key).toBe("event-liaoxiang-surcharge");
+    expect(resolveEventScene(byId.jiashen_catastrophe).key).toBe("event-jiashen-catastrophe");
+    expect(resolveEventScene(byId.yuan_chonghuan_execution).key).toBe("event-yuan-chonghuan-execution");
+  });
+
+  it("maps named historical figures to event portrait metadata", () => {
+    const byId = Object.fromEntries(mvpEvents.map((event) => [event.id, event]));
+
+    expect(resolveEventCharacters(byId.zhang_reform_pressure).map((item) => item.id)).toContain("zhang_juzheng");
+    expect(resolveEventCharacters(byId.later_jin_founded).map((item) => item.id)).toContain("nurhaci");
+    expect(resolveEventCharacters(byId.wei_zhongxian_purge).map((item) => item.id)).toContain("wei_zhongxian");
+    expect(resolveEventCharacters(byId.yuan_chonghuan_execution).map((item) => item.id)).toContain("yuan_chonghuan");
+  });
+
+  it("covers every faction with a leader portrait", () => {
+    for (const factionId of Object.keys(factionTemplates)) {
+      expect(resolveFactionLeaderPortrait(factionId).src, factionId).toBeTruthy();
+    }
+  });
+
+  it("renders mapped historical characters in the event dialog", () => {
+    const event = mvpEvents.find((item) => item.id === "yuan_chonghuan_execution");
+    if (!event) throw new Error("Missing yuan_chonghuan_execution event");
+
+    render(<EventDialog event={event} onResolve={() => undefined} />);
+
+    expect(screen.getByRole("img", { name: /袁崇焕立绘/ })).not.toBeNull();
   });
 });

@@ -12,6 +12,16 @@ describe("dialogs", () => {
     expect(onStart).toHaveBeenCalledWith("ming", 157301);
   });
 
+  it("offers every current faction at game start", () => {
+    render(<StartDialog onStart={() => undefined} />);
+
+    expect(screen.getByRole("option", { name: "大明" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "建州女真" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "日本诸藩" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "播州杨氏" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: /大明君主立绘/ })).toBeTruthy();
+  });
+
   it("resolves event options", () => {
     const onResolve = vi.fn();
     render(<EventDialog event={mvpEvents[0]} onResolve={onResolve} />);
