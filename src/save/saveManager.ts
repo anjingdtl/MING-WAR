@@ -53,11 +53,13 @@ export function createSaveGame(name: string, state: GameState, decision: PlayerD
 
 export function openSaveDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 2);
+    const request = indexedDB.open(dbName, 3);
     request.onupgradeneeded = () => {
       const db = request.result;
+      // B7 fix: SerializedSave 没有 id 字段，所以 saves 槽不能用 keyPath（必须用显式 key）。
+      // LEGACY 槽保留 keyPath="id" 因为老 SaveGame 格式有 id 字段。
       if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: "id" });
+        db.createObjectStore(storeName);
       }
       if (!db.objectStoreNames.contains(LEGACY_STORE_NAME)) {
         db.createObjectStore(LEGACY_STORE_NAME, { keyPath: "id" });
