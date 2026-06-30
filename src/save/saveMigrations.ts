@@ -16,6 +16,7 @@ import type { GameState, PlayerDecision } from "../core/types";
 import type { SerializedSave, SaveMetadata } from "../runtime/viewSnapshot";
 import { CURRENT_SAVE_VERSION } from "./saveValidation";
 import { computeStateHash } from "../core/stateHash";
+import { GAME_VERSION } from "../core/version";
 
 export type SaveMigration = (save: SerializedSave) => SerializedSave;
 
@@ -83,7 +84,7 @@ export function migrateLegacyV030ToV1(legacy: LegacyV030Save): SerializedSave {
   const metadata: SaveMetadata = {
     currentDate: migratedState.currentDate,
     playerFaction: migratedState.playerFactionId,
-    gameVersion: "0.6.0",
+    gameVersion: GAME_VERSION,
     saveVersion: CURRENT_SAVE_VERSION,
     seed: migratedState.seed,
     status: faction?.status === "collapsed" ? "collapsed" : "active",
@@ -94,7 +95,7 @@ export function migrateLegacyV030ToV1(legacy: LegacyV030Save): SerializedSave {
   return {
     format: "ming-war-save",
     saveVersion: CURRENT_SAVE_VERSION,
-    gameVersion: "0.6.0",
+    gameVersion: GAME_VERSION,
     createdAt: legacy.savedAt,
     updatedAt: legacy.savedAt,
     checksum: computeStateHash(migratedState),

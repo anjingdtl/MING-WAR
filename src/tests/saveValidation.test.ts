@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { validateSaveFile, CURRENT_SAVE_VERSION } from "../save/saveValidation";
 import { LocalSimulationService } from "../runtime/localSimulationService";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
+import { GAME_VERSION } from "../core/version";
 
 async function buildValidSave() {
   const svc = new LocalSimulationService();
@@ -104,7 +105,7 @@ describe("validateSaveFile", () => {
     const minimal = {
       format: "ming-war-save" as const,
       saveVersion: 1,
-      gameVersion: "0.6.0",
+      gameVersion: GAME_VERSION,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       checksum: "x".repeat(40),

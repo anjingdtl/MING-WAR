@@ -15,7 +15,8 @@
 
 import { simulateMonth } from "../core/simulation";
 import { computeStateHash } from "../core/stateHash";
-import { isAfter, advanceMonth as advanceDate } from "../core/calendar";
+import { isAfter } from "../core/calendar";
+import { GAME_VERSION } from "../core/version";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import type { GameState, PlayerDecision } from "../core/types";
 import type {
@@ -136,14 +137,14 @@ export class LocalSimulationService implements SimulationService {
     return {
       format: SAVE_FORMAT,
       saveVersion: CURRENT_SAVE_VERSION,
-      gameVersion: "0.6.0",
+      gameVersion: GAME_VERSION,
       createdAt: updatedAt,
       updatedAt,
       checksum: computeStateHash(this.state),
       metadata: {
         currentDate: this.state.currentDate,
         playerFaction: this.state.playerFactionId,
-        gameVersion: "0.6.0",
+        gameVersion: GAME_VERSION,
         saveVersion: CURRENT_SAVE_VERSION,
         seed: this.state.seed,
         status: this.state.factions[this.state.playerFactionId]?.status === "collapsed" ? "collapsed" : "active",
@@ -240,6 +241,3 @@ function countControlledRegions(state: GameState, factionId: string): number {
   }
   return n;
 }
-
-// silence unused import for advanceDate; reserved for future
-void advanceDate;

@@ -12,6 +12,7 @@ import { isLegacyV030Save, migrateLegacyV030ToV1, migrateSave } from "../save/sa
 import { validateSaveFile, CURRENT_SAVE_VERSION } from "../save/saveValidation";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import { LocalSimulationService } from "../runtime/localSimulationService";
+import { GAME_VERSION } from "../core/version";
 
 describe("isLegacyV030Save", () => {
   it("detects old SaveGame format", () => {
@@ -99,14 +100,14 @@ describe("migrateSave chain", () => {
     expect(() => migrateSave({
       format: "ming-war-save",
       saveVersion: 0,
-      gameVersion: "0.6.0",
+      gameVersion: GAME_VERSION,
       createdAt: "x",
       updatedAt: "x",
       checksum: "x".repeat(40),
       metadata: {
         currentDate: "1573-01",
         playerFaction: "ming",
-        gameVersion: "0.6.0",
+        gameVersion: GAME_VERSION,
         saveVersion: 0,
         seed: 1,
         status: "active",
