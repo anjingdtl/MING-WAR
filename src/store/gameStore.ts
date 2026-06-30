@@ -131,19 +131,3 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   }
 }));
-
-/* —— 兼容层：让老代码继续用 useGameStore().selectedRegionId / mapLayer / pendingEventId —— */
-// 这些 getter/setter 桥接到 useUiStore，保持老组件不破。
-export const useGameStoreCompat = {
-  get selectedRegionId() {
-    return useUiStore.getState().selectedRegionId;
-  },
-  get mapLayer() {
-    return useUiStore.getState().mapLayer;
-  },
-  get pendingEventId() {
-    return useUiStore.getState().pendingEventId;
-  },
-  selectRegion: (regionId: string | null) => useUiStore.getState().selectRegion(regionId),
-  setMapLayer: (layer: import("../core/types").MapLayer) => useUiStore.getState().setMapLayer(layer)
-};
