@@ -3,8 +3,8 @@ import { resolve } from "node:path";
 import { regionTemplates } from "../data/regions";
 import type { RegionId } from "../core/types";
 import { mapCanvas } from "../map/mapCanvas";
-import type { MapRegionShape } from "../map/mapTypes";
-import { mapRegionSource } from "../map/source/mapRegionSource";
+import type { MapTileShape } from "../map/mapTypes";
+import { baseMapTiles } from "../map/source/baseMapTiles";
 
 export type MapValidationIssueCode =
   | "duplicate-region-id"
@@ -12,7 +12,8 @@ export type MapValidationIssueCode =
   | "orphan-map-region"
   | "label-out-of-bounds"
   | "empty-paths"
-  | "path-has-no-coordinates";
+  | "path-has-no-coordinates"
+  | "missing-default-controller-for-context";
 
 export interface MapValidationIssue {
   code: MapValidationIssueCode;
@@ -24,8 +25,13 @@ function numericValues(paths: string[]): number[] {
   return paths.flatMap((path) => [...path.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])));
 }
 
+/**
+ * 校验底层图块数据。
+ * - playable 图块必须与 GameState.regions（regionTemplates）双向同步。
+ * - context 图块（isPlayableRegion=false）不参与 orphan 检查，但必须有 defaultControllerFactionId。
+ */
 export function validateMapRegions(
-  regions: MapRegionShape[] = mapRegionSource,
+  regions: MapTileShape[] = baseMapTiles,
   expectedRegionIds: RegionId[] = Object.keys(regionTemplates)
 ): MapValidationIssue[] {
   const issues: MapValidationIssue[] = [];
@@ -67,6 +73,14 @@ export function validateMapRegions(
         message: `${region.id} does not contain enough path coordinates`
       });
     }
+
+    if (!region.isPlayableRegion && !region.defaultControllerFactionId) {
+      issues.push({
+        code: "missing-default-controller-for-context",
+        regionId: region.id,
+        message: `${region.id} is a context tile but has no defaultControllerFactionId`
+      });
+    }
   }
 
   for (const regionId of duplicateIds) {
@@ -77,24 +91,25 @@ export function validateMapRegions(
     });
   }
 
-  const mapIds = new Set(regions.map((region) => region.id));
+  const playableTileIds = new Set(regions.filter((region) => region.isPlayableRegion).map((region) => region.id));
+
   for (const regionId of expectedRegionIds) {
-    if (!mapIds.has(regionId)) {
+    if (!playableTileIds.has(regionId)) {
       issues.push({
         code: "missing-map-region",
         regionId,
-        message: `${regionId} exists in simulation data but not map source`
+        message: `${regionId} exists in simulation data but not playable map tiles`
       });
     }
   }
 
   const expectedIds = new Set(expectedRegionIds);
   for (const region of regions) {
-    if (!expectedIds.has(region.id)) {
+    if (region.isPlayableRegion && !expectedIds.has(region.id)) {
       issues.push({
         code: "orphan-map-region",
         regionId: region.id,
-        message: `${region.id} exists in map source but not simulation data`
+        message: `${region.id} is a playable tile but not in simulation data`
       });
     }
   }
@@ -115,6 +130,8 @@ if (isCliEntry()) {
     }
     process.exitCode = 1;
   } else {
-    console.log(`Validated ${mapRegionSource.length} map regions`);
+    const playable = baseMapTiles.filter((t) => t.isPlayableRegion).length;
+    const context = baseMapTiles.length - playable;
+    console.log(`Validated ${baseMapTiles.length} map tiles (${playable} playable, ${context} context)`);
   }
 }

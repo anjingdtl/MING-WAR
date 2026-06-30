@@ -1,6 +1,6 @@
-import type { MapRegionShape } from "../mapTypes";
+import type { MapTileShape } from "../mapTypes";
 
-export const mapRegions: MapRegionShape[] = [
+export const mapTiles: MapTileShape[] = [
   {
     "id": "beizhili",
     "paths": [
@@ -13,7 +13,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 624.3,
     "labelY": 248,
     "labelWidth": 92,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "北直隶",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "nanzhili",
@@ -29,7 +34,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 642.9,
     "labelY": 362.5,
     "labelWidth": 96,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "南直隶",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "shandong",
@@ -45,7 +55,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 648.6,
     "labelY": 297.3,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "山东",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "shanxi",
@@ -55,7 +70,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 564.3,
     "labelY": 273.4,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "山西",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "henan",
@@ -65,7 +85,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 580,
     "labelY": 337,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "河南",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "shaanxi",
@@ -77,7 +102,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 482.9,
     "labelY": 306.8,
     "labelWidth": 92,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "陕西",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "zhejiang",
@@ -103,7 +133,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 674.3,
     "labelY": 410.2,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "浙江",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "jiangxi",
@@ -113,7 +148,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 614.3,
     "labelY": 435.6,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "江西",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "huguang",
@@ -124,7 +164,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 567.1,
     "labelY": 403.8,
     "labelWidth": 92,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "湖广",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "sichuan",
@@ -135,7 +180,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 437.1,
     "labelY": 391.1,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "四川",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "fujian",
@@ -153,7 +203,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 650,
     "labelY": 464.2,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "福建",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "guangdong",
@@ -183,7 +238,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 577.1,
     "labelY": 511.9,
     "labelWidth": 92,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "广东",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "guangxi",
@@ -194,7 +254,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 505.7,
     "labelY": 496,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "广西",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "yunnan",
@@ -204,7 +269,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 411.4,
     "labelY": 483.3,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "云南",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "guizhou",
@@ -214,7 +284,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 481.4,
     "labelY": 449.9,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "贵州",
+    "kind": "core-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "liaodong",
@@ -230,7 +305,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 694.3,
     "labelY": 219.4,
     "labelWidth": 92,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "辽东",
+    "kind": "frontier-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ming",
+    "importance": 1
   },
   {
     "id": "haixi",
@@ -240,7 +320,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 782.9,
     "labelY": 124,
     "labelWidth": 90,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "海西",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "haixi",
+    "importance": 2
   },
   {
     "id": "jianzhou",
@@ -250,7 +335,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 762.9,
     "labelY": 179.6,
     "labelWidth": 96,
-    "source": "natural-earth-admin1"
+    "source": "natural-earth-admin1",
+    "displayName": "建州",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "jianzhou",
+    "importance": 2
   },
   {
     "id": "tumed_steppe",
@@ -260,7 +350,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 535,
     "labelY": 203,
     "labelWidth": 116,
-    "source": "historical-frontier-manual"
+    "source": "historical-frontier-manual",
+    "displayName": "土默特",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "tumed",
+    "importance": 2
   },
   {
     "id": "chahar_steppe",
@@ -270,7 +365,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelX": 610,
     "labelY": 176,
     "labelWidth": 112,
-    "source": "historical-frontier-manual"
+    "source": "historical-frontier-manual",
+    "displayName": "察哈尔",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "chahar",
+    "importance": 2
   },
   {
     "id": "korchin_steppe",
@@ -281,7 +381,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 185,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
-    "group": "mongolia"
+    "group": "mongolia",
+    "displayName": "科尔沁",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "korchin",
+    "importance": 2
   },
   {
     "id": "hulunbuir",
@@ -292,7 +397,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 113,
     "labelWidth": 116,
     "source": "historical-frontier-manual",
-    "group": "mongolia"
+    "group": "mongolia",
+    "displayName": "呼伦贝尔",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "korchin",
+    "importance": 2
   },
   {
     "id": "amur_basin",
@@ -303,7 +413,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 147,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
-    "group": "jurchen"
+    "group": "jurchen",
+    "displayName": "黑龙江",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "nurgan",
+    "importance": 2
   },
   {
     "id": "nurgan_coast",
@@ -314,7 +429,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 250,
     "labelWidth": 96,
     "source": "historical-frontier-manual",
-    "group": "jurchen"
+    "group": "jurchen",
+    "displayName": "奴儿干",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "nurgan",
+    "importance": 2
   },
   {
     "id": "sakhalin",
@@ -325,7 +445,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 283,
     "labelWidth": 86,
     "source": "historical-frontier-manual",
-    "group": "japan"
+    "group": "japan",
+    "displayName": "库页",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ainu",
+    "importance": 2
   },
   {
     "id": "joseon_north",
@@ -336,7 +461,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 296,
     "labelWidth": 84,
     "source": "historical-frontier-manual",
-    "group": "korea"
+    "group": "korea",
+    "displayName": "朝鲜北道",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "joseon",
+    "importance": 2
   },
   {
     "id": "joseon_south",
@@ -347,7 +477,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 357,
     "labelWidth": 84,
     "source": "historical-frontier-manual",
-    "group": "korea"
+    "group": "korea",
+    "displayName": "朝鲜三南",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "joseon",
+    "importance": 2
   },
   {
     "id": "japan_west",
@@ -364,7 +499,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 448,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
-    "group": "japan"
+    "group": "japan",
+    "displayName": "西日本",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "japan",
+    "importance": 2
   },
   {
     "id": "japan_east",
@@ -388,7 +528,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 361,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
-    "group": "japan"
+    "group": "japan",
+    "displayName": "东日本",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "japan",
+    "importance": 2
   },
   {
     "id": "ezo",
@@ -399,7 +544,12 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 341,
     "labelWidth": 86,
     "source": "historical-frontier-manual",
-    "group": "japan"
+    "group": "japan",
+    "displayName": "虾夷",
+    "kind": "neighbor-region",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "ainu",
+    "importance": 2
   },
   {
     "id": "bozhou",
@@ -410,6 +560,11 @@ export const mapRegions: MapRegionShape[] = [
     "labelY": 426.1,
     "labelWidth": 90,
     "source": "tusi-enclave",
-    "isEnclave": true
+    "isEnclave": true,
+    "displayName": "播州",
+    "kind": "frontier-province",
+    "isPlayableRegion": true,
+    "defaultControllerFactionId": "bozhou",
+    "importance": 1
   }
 ];
