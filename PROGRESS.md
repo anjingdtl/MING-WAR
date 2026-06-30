@@ -121,7 +121,7 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 - **#2 同盟参战 + 外交交互（已完成）**：`warfare.ts alliesJoinWar`——进攻方盟友同步对防守方开战；`diplomacy.ts proposeAlliance` / `peace.ts requestPeace` 玩家主动结盟（关系≥20）/ 求和（白和，不割地，停战 60 月）；`DiplomacyPanel` 交互按钮（缔结同盟 / 求和）。
 - **#3 玩家手选法律（已完成）**：`PlayerDecision.reformLawId?` 玩家手选改革法律（覆盖 domesticFocus 自动倾向，可强推阻力大的改革）；`DecisionPanel` 改革法律下拉。
 
-**仍待后续（非阻塞）**：陕西流民 `rebellion-spreads` 结局推进速度（依赖 rebels 强度累积）；外交"宣战"按钮（当前用军略目标 targetRegionId 替代）。
+**仍待后续**：无工程阻塞项。本轮已补齐 `rebellion-spreads` 结局推进（北方叛乱压力加速，6 种局势结局在长跑中全部达成、大明可 collapse）与 DiplomacyPanel「宣战」按钮。后续为内容扩充（更多事件/局势/法律）与平衡调参。
 
 **入口**（接手 agent）：`src/core/situation.ts`（引擎）+ `src/data/situations.ts`（6 局势）；`simulation.ts` 月度 `advanceSituations`；调参集中在 `simulation.ts` 征募段 / `warfare.ts` `baseAttrition` / `situations.ts` effect。
 
