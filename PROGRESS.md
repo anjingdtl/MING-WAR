@@ -29,7 +29,7 @@
 
 **维多利亚3 五环闭环全部接通（S1–S6）**。后续工作转入内容扩充与平衡迭代。
 
-最新提交：`feat(situation): S6 historical situations engine + main-line content`（历史局势收口）
+最新提交：`1f69b23` docs: clear remaining backlog（本轮大改造收尾，详见 §8）
 
 ---
 
@@ -64,7 +64,7 @@
   - modifier-effect keys（tax-mult/grain-output-mult/maintenance-mult/control-flat/army-org-mult）→ 永久 modifier
   - faction-instant（centralization-flat/legitimacy-flat/corruption-flat）→ 一次性施加到 faction 字段
   - region-instant（stability-flat）→ 遍历控制区一次性施加
-- 改革目前由 `domesticFocus` 自动驱动；"玩家手选某条法律"的 UI 留待后续。
+- 改革由 `domesticFocus` 自动驱动；**玩家手选**（`PlayerDecision.reformLawId`，DecisionPanel 下拉，遗留#3 已实现，可强推阻力大的改革）。
 
 ### S5　外交博弈与持续战争（外交战争环）
 - **外交关系层** `src/core/diplomacy.ts`：`DiplomaticRelation`（relation/trust/threat/rivalry/truceMonths/treaties/obligations）+ 5 类条约（alliance/tribute/trade/vassal/truce）。`GameState.diplomacy` 双边表，1573 开局初始化历史关系（朝鲜朝贡大明、土默特俺答封贡互市+停战 60 月、建州敌对、日本威胁朝鲜）。`advanceDiplomacy` 月度演变（停战倒计时/威胁重算/关系趋近）+ 条约财政后果走账本（互市关税 income-tariff、朝贡白银守恒转移），**确定性不消费 random**。
@@ -92,29 +92,30 @@
 
 ```bash
 npm run typecheck      # tsc --noEmit，必须零错误
-npm test               # vitest run，当前 323 测试
+npm test               # vitest run，当前 377 测试
 npm run build          # tsc -b && vite build
 npm run map:validate   # 校验地图，31 地区
 npm run batch          # 100×240 批量模拟，errorRuns 必须为 0
 npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 ```
 
-**当前基线指标（S4 完成时，供回归对比）**：
+**最终基线指标（本轮大改造完成时，供回归对比）**：
 
-| 指标 | S6 值 | S5 值 | 对比 |
+| 指标 | 本轮终值 | S4 起点 | 对比 |
 |---|---|---|---|
-| 测试数 | 360 | 351 | +9（situation 引擎 6 + 真实局势 3） |
+| 测试数 | 377 | 323 | +54（S5 +28 / S6 +9 / 遗留 +17） |
 | batch errorRuns | 0 | 0 | = |
-| batch 大明存活率 | 1.0 | 1.0 | =（AI 自动推演，大明韧性高）|
-| batch 平均控制区 | 25.33 | 25.08 | ≈ |
-| batch 粮价 | 3.42 | 3.42 | = |
-| 局势结局（survey 8 seed × 480 月）| **4 种触发** | — | 张居正 consolidated / 建州 unified / 壬辰 resolved / 辽东 liaodong-lost |
+| batch 大明存活率（240 月）| 1.0 | 0.82 | 回升（军队归零修复）|
+| batch 平均控制区 | 25.06 | 14.49 | 回升 |
+| batch 粮价 | 3.43 | 4.13 | 略降 |
+| diagnose seed7（10 年）| active，军队 508k | active，军队 11 | 军队归零修复 |
+| 局势结局（survey 600 月长跑）| **6 种全达成** | — | 张居正 / 建州 / 壬辰 / 辽东 / 陕西流民 / 南明，大明可 collapse |
 
 ---
 
 ## 4. 工程状态：S1–S6 全部完成
 
-维多利亚3 五环闭环（后果 / 经济 / 社会政治 / 制度 / 外交战争）+ 内容收口（历史局势）全部接通。**360 测试全绿**，batch `errorRuns=0`，4 种局势结局在自动推演中实际触发。
+维多利亚3 五环闭环（后果 / 经济 / 社会政治 / 制度 / 外交战争）+ 内容收口（历史局势）全部接通。**377 测试全绿**，batch `errorRuns=0`，6 种局势结局在长跑中全部达成、大明可 collapse。
 
 **遗留处理（本轮已完成的增强）**：
 - **#1 晚期局势触发（已完成）**：追加**腐败自然累积**（dynasty/local +0.1/月，封顶 80）+ **corruptionPressure**（腐败>50 直接加剧叛乱 risk）。survey 中大明控制区从 25 降到 17-19，**陕西流民 + 南明偏安在脆弱 seed 触发**（北方 rebelPressure 总和 180+）。6 种主线局势全部可激活。
@@ -182,12 +183,57 @@ docs/
 
 ---
 
-## 7. 提交历史（最近）
+## 7. 提交历史
 
-- `feat(situation): S6 historical situations engine + main-line content`（历史局势收口，本次）
-- `f89b3f7` feat(diplomacy): S5 diplomacy + front-line war + peace talks（外交战争环）
+**本轮大改造（2026-06-30，详见 §8）**：
+- `1f69b23` docs: clear remaining backlog
+- `623094a` feat: rebellion-spreads resolution + declare-war button
+- `480f851` docs: mark S6 leftovers fully resolved
+- `bf284b8` feat(diplomacy): player alliance & peace actions
+- `c66bdad` feat(rebellion): corruption drives rebellion
+- `8f4e075` docs: mark leftovers #1/#2/#3 resolved
+- `ab7ad2c` feat(ui): diplomacy info panel
+- `5acfdac` feat(ui): player-chosen reform law
+- `19a3f19` feat(warfare): ally join war
+- `8f5653e` feat(sim): corruption accumulation
+- `3dceed0` feat(situation): S6 historical situations engine + main-line content
+- `f89b3f7` feat(diplomacy): S5 diplomacy + front-line war + peace talks
+
+**早期阶段**：
 - `fa69b64` feat(reform): S4 law & reform system closing the institutional loop
 - `128ff48` feat(politics): S3 interest-group political power from pop wealth
 - `b803dfd` feat(economy): ledger-driven finance + unified market-pop loop (S1c+S2)
 - `05f0ba3` fix(sim): stabilize economy/pop and activate inert modifier system
 - `46f9c20` feat(batch): include P1 ledger entries, P2 pop metrics, P3 market metrics
+
+---
+
+## 8. 本轮大改造完整记录（2026-06-30）
+
+本轮（承接 S4）一次性交付 **S5 外交战争环 + S6 历史局势收口 + 5 项遗留处理**，维多利亚3 五环闭环全部接通，**无工程阻塞项剩余**。
+
+### 8.1 交付范围
+
+- **S5 外交战争环**：外交关系层（`diplomacy.ts`）+ 战线消耗模型（`warfare.ts` FrontState）+ **修军队归零**（征募分级 `0.012/0.006/0.003`）+ 和平谈判（`peace.ts`）+ 外交约束开战（`decisions.ts` 过滤停战/盟友）。
+- **S6 历史局势收口**：局势引擎（`situation.ts`）+ 6 条主线局势（`situations.ts`）+ endDate `1621→1662` + 平衡调参 + batch 改 AI 自动推演。
+- **遗留 #1 晚期局势**：腐败自然累积（`simulation.ts`）+ corruptionPressure（`rebellion.ts`）→ 陕西流民 / 南明偏安在长跑中触发。
+- **遗留 #2 同盟 + 外交交互**：`alliesJoinWar`（盟友同步参战）+ `proposeAlliance` / `requestPeace`（玩家结盟 / 求和）+ DiplomacyPanel 交互按钮。
+- **遗留 #3 玩家手选法律**：`PlayerDecision.reformLawId` + DecisionPanel 改革法律下拉。
+
+### 8.2 核心设计决策
+
+- **确定性闭环**：S5 全链路（`advanceDiplomacy` / `advanceWar` / `checkPeace` / `resolvePeace` / `alliesJoinWar`）+ S6 局势引擎均**不消费 random**；random 仅存于 `resolveBattle` 首月遭遇战。避免扰动确定性模拟的随机序列（§5.1）。
+- **财政走账本**：所有外交/战线/和谈/条约的财政后果（关税/朝贡/赔款/战地军费）一律 push ledger entry，保持 `Δtreasury === 账本净额`（SPEC §21.2）不破坏。
+- **数据驱动局势**：`SituationDef` 的 trigger/advance/outcome/effect 全是函数字段，新增局势只需加定义，不改引擎。
+- **玩家与 AI 同规则**：外交约束开战 / 改革 / 局势对玩家与 AI 一视同仁；玩家手选（`reformLawId` / 结盟 / 求和 / 宣战）是 AI 决策的手动覆盖，不写 player-only 系统分支。
+
+### 8.3 接手指引
+
+- **新增局势**：`src/data/situations.ts` 加一个 `SituationDef`（trigger/advance/outcomes/effect）。
+- **调平衡**：`simulation.ts` 征募段（armyTarget/recruitRate）/ `warfare.ts` `baseAttrition` / `rebellion.ts` `corruptionPressure` / `situations.ts` outcome effect。
+- **新增外交动作**：`diplomacy.ts` 或 `peace.ts` 加函数 → `gameStore.ts` 加 action → `DiplomacyPanel.tsx` 加按钮。
+- **验证**：`npm test`（377）+ `npm run batch`（errorRuns=0）+ `npm run diagnose`（seed7 单局）。
+
+### 8.4 后续开放方向（非阻塞）
+
+内容扩充（更多事件/局势/法律）、平衡调参（大明韧性曲线/结局分布权重）、UI（局势进度面板/modifier 调试面板 SPEC §18.3）、多边战争模型（当前双边累加近似）。
