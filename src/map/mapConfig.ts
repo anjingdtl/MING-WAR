@@ -11,8 +11,9 @@ export { mapFactionFallbackColors, NEUTRAL_CONTEXT_COLOR, resolveMapFactionColor
 
 import type { MapTileShape } from "./mapTypes";
 import { mapTiles } from "./generated/mapTiles";
+import { factionMapLabels } from "./generated/factionMapLabels";
 
-export { mapTiles };
+export { mapTiles, factionMapLabels };
 
 /** 可交互的 playable 图块（与 GameState.regions 1:1 对应） */
 export const playableMapRegions: MapTileShape[] = mapTiles.filter((tile) => tile.isPlayableRegion);

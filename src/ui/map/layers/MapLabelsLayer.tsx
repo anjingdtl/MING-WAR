@@ -1,8 +1,7 @@
 import React from "react";
 import type { GameState, MapLayer } from "../../../core/types";
-import { mapCanvas } from "../../../map/mapCanvas";
-import type { MapTileShape } from "../../../map/mapTypes";
-import { resolveMapFactionColor } from "../../../map/mapFactionColors";
+import { mapCanvas, LABEL_ZOOM_THRESHOLDS } from "../../../map/mapCanvas";
+import type { MapTileShape, FactionMapLabel } from "../../../map/mapTypes";
 import type { LensId } from "../../lens/lensDefinitions";
 
 interface MapLabelsLayerProps {
@@ -10,6 +9,8 @@ interface MapLabelsLayerProps {
   state: GameState;
   layer: MapLayer;
   lens: LensId;
+  zoom: number;
+  factionLabels: FactionMapLabel[];
 }
 
 function layerLabel(region: GameState["regions"][string], layer: MapLayer): string {
@@ -31,17 +32,26 @@ function layerLabel(region: GameState["regions"][string], layer: MapLayer): stri
   }
 }
 
+const { factionLabelMaxZoom } = LABEL_ZOOM_THRESHOLDS;
+
 /**
- * Layer 4 — 标签层：省区名 + Lens 字段。
- * playable 图块显示 region.name + 数据标签；context 图块显示 displayName + 势力归属。
- * Phase 4 将在此基础上叠加势力大字与 zoom 可见性。
+ * Layer 4 — 标签层：势力大字 + 省区名，基于 zoom 切换可读层级。
+ *
+ * 缩放语义（Victoria 3 式）：
+ *  - zoom < 0.85：显示势力大字（FactionLabel），隐藏 importance=3 的省区名，核心省区不显示数据字段
+ *  - zoom >= 0.85：显示全部省区名 + Lens 字段，隐藏势力大字
  */
 export const MapLabelsLayer = React.memo(function MapLabelsLayer({
   tiles,
   state,
   layer,
-  lens: _lens
+  lens: _lens,
+  zoom,
+  factionLabels
 }: MapLabelsLayerProps) {
+  const showFactionLabels = zoom < factionLabelMaxZoom;
+  const showProvinceDetails = zoom >= factionLabelMaxZoom;
+
   return (
     <svg
       className="map-labels-layer"
@@ -50,13 +60,30 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
       data-testid="map-labels-layer"
       style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
     >
+      {showFactionLabels &&
+        factionLabels.map((fl) => (
+          <foreignObject
+            key={`faction-label-${fl.factionId}`}
+            x={fl.x - 60}
+            y={fl.y - 18}
+            width={120}
+            height={36}
+          >
+            <div className={`faction-map-label importance-${fl.importance}`}>{fl.label}</div>
+          </foreignObject>
+        ))}
+
       {tiles.map((tile) => {
         const lblW = tile.labelWidth ?? 96;
         const region = tile.isPlayableRegion ? state.regions[tile.id] : undefined;
         const name = region?.name ?? tile.displayName;
-        const sub = region
-          ? layerLabel(region, layer)
-          : `${tile.defaultControllerFactionId ?? ""}`;
+        const sub = region ? layerLabel(region, layer) : `${tile.defaultControllerFactionId ?? ""}`;
+
+        const isMinor = tile.importance >= 3;
+        const hideDueToZoom = isMinor && !showProvinceDetails;
+        const hideDataField = !showProvinceDetails;
+
+        if (hideDueToZoom) return null;
 
         return (
           <foreignObject
@@ -68,7 +95,7 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
           >
             <div className={tile.isPlayableRegion ? "political-label" : "political-label context-label"}>
               <strong>{name}</strong>
-              <span>{sub}</span>
+              {!hideDataField && <span>{sub}</span>}
             </div>
           </foreignObject>
         );

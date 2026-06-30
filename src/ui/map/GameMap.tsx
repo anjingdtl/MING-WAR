@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from "react"
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import type { GameState, MapLayer, RegionId } from "../../core/types";
 import { mapCanvas, DEFAULT_VIEWPORT } from "../../map/mapCanvas";
-import { mapTiles, playableMapRegions } from "../../map/mapConfig";
+import { mapTiles, playableMapRegions, factionMapLabels } from "../../map/mapConfig";
 import type { MapTileShape } from "../../map/mapTypes";
 import type { LensId } from "../lens/lensDefinitions";
 import { RegionHoverCard } from "../lens/RegionHoverCard";
@@ -273,7 +273,7 @@ function GameMapInner({
           onTilePointerLeave={handleTilePointerLeave}
         />
 
-        <MapLabelsLayer tiles={mapTiles} state={state} layer={layer} lens={lens} />
+        <MapLabelsLayer tiles={mapTiles} state={state} layer={layer} lens={lens} zoom={view.zoom} factionLabels={factionMapLabels} />
       </div>
 
       <div className="zoom-controls" aria-label="地图缩放">

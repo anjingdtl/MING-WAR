@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { GameState, RegionId } from "../../../core/types";
 import { mapCanvas } from "../../../map/mapCanvas";
 import type { MapTileShape } from "../../../map/mapTypes";
@@ -11,13 +11,20 @@ interface PoliticalOverlayLayerProps {
   state: GameState;
   lens: LensId;
   selectedRegionId: RegionId | null;
-  hoveredRegionId: RegionId | null;
+  hoveredRegionId: string | null;
+}
+
+function tileFactionId(tile: MapTileShape, state: GameState): string | null {
+  if (tile.isPlayableRegion) {
+    return state.regions[tile.id]?.controllerFactionId ?? null;
+  }
+  return tile.defaultControllerFactionId ?? null;
 }
 
 /**
  * Layer 3 — 政治势力覆盖：按控制者着色，半透明叠加在省区图块之上。
  * playable 图块取 state.regions 的当前控制者；context 图块取 defaultControllerFactionId。
- * 纯视觉层，不承载交互（交互在 ProvinceTileLayer）。
+ * 政治 Lens 下 hover 省区时，同势力相邻覆盖区高亮。
  */
 export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
   tiles,
@@ -26,6 +33,14 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
   selectedRegionId,
   hoveredRegionId
 }: PoliticalOverlayLayerProps) {
+  const hoveredFaction = useMemo(() => {
+    if (!hoveredRegionId) return null;
+    const tile = tiles.find((t) => t.id === hoveredRegionId);
+    return tile ? tileFactionId(tile, state) : null;
+  }, [hoveredRegionId, tiles, state]);
+
+  const isPoliticalLens = lens === "control";
+
   return (
     <svg
       id="lens-content"
@@ -39,6 +54,8 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
       {tiles.map((tile) => {
         const { color, opacity } = getTileFillColor(tile, state, lens);
         const isContext = !tile.isPlayableRegion;
+        const faction = tileFactionId(tile, state);
+        const sameFaction = isPoliticalLens && hoveredFaction !== null && faction === hoveredFaction;
         return (
           <g
             key={`overlay-${tile.id}`}
@@ -48,7 +65,8 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
               "political-overlay-region",
               isContext ? "is-context" : "",
               selectedRegionId === tile.id ? "is-selected" : "",
-              hoveredRegionId === tile.id ? "is-hovered" : ""
+              hoveredRegionId === tile.id ? "is-hovered" : "",
+              sameFaction ? "same-faction" : ""
             ]
               .filter(Boolean)
               .join(" ")}
@@ -60,7 +78,7 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
                 className="political-region__area"
                 d={d}
                 fill={color}
-                fillOpacity={opacity}
+                fillOpacity={sameFaction ? Math.min(opacity + 0.18, 0.95) : opacity}
                 clipPath="url(#map-land-clip)"
               />
             ))}
