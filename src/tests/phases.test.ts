@@ -102,3 +102,20 @@ describe("finalizeMonth (S8)", () => {
     expect(ctx.state.history.length).toBeGreaterThan(0);
   });
 });
+
+describe("eliminateDefeatedFactions (B1 v0.6.1-patch)", () => {
+  it("zeros armyTotal and grainReserve when faction is eliminated", () => {
+    const ctx = setupContext(7);
+    // 模拟一个覆灭势力：所有地区都被 rebels 控制
+    for (const r of Object.values(ctx.state.regions)) {
+      r.controllerFactionId = "rebels";
+    }
+    const ming = ctx.state.factions.ming;
+    ming.armyTotal = 12345;
+    ming.grainReserve = 67890;
+    runDiplomacyPhase(ctx);
+    expect(ming.status).toBe("collapsed");
+    expect(ming.armyTotal).toBe(0);
+    expect(ming.grainReserve).toBe(0);
+  });
+});
