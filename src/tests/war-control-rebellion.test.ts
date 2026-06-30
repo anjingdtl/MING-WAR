@@ -37,4 +37,14 @@ describe("rebellion", () => {
     expect(calculateRebellionRisk(region, state.factions.ming)).toBeGreaterThan(50);
     expect(updateRebellion({ ...region, rebelPressure: 74 }, state.factions.ming).erupted).toBe(true);
   });
+
+  it("S6 遗留#1：腐败>50 时叛乱风险升高（corruptionPressure 连锁）", () => {
+    const state = createMvpScenario();
+    const region = state.regions.shaanxi;
+    state.factions.ming.corruption = 40;
+    const riskLow = calculateRebellionRisk(region, state.factions.ming);
+    state.factions.ming.corruption = 75;
+    const riskHigh = calculateRebellionRisk(region, state.factions.ming);
+    expect(riskHigh).toBeGreaterThan(riskLow);
+  });
 });
