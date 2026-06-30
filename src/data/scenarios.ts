@@ -107,7 +107,7 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
   for (const region of Object.values(regionsWithPops)) {
     region.popGroups = initializePopGroups(region.id, region.population);
     region.industries = initializeIndustries(region.id, region.terrain, region.agriculture, region.commerce);
-    region.market = initializeMarket(region.id);
+    region.market = initializeMarket(region.id, region.climate);
   }
 
   const state: GameState = {

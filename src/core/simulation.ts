@@ -2,6 +2,7 @@ import { chooseAllAiDecisions } from "./ai";
 import { advanceMonth, isAfter } from "./calendar";
 import { updateControl } from "./control";
 import { normalizePlayerDecision } from "./decisions";
+import { applyDisasterEffects, generateDisasters } from "./disaster";
 import { calculateFactionMaintenance, calculateRegionEconomy } from "./economy";
 import { findTriggeredEvents } from "./eventEngine";
 import { calculatePopulation } from "./population";
@@ -51,6 +52,9 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   // P0-3: expire modifiers at month start (decrement remaining, drop expired)
   state.activeModifiers = expireModifiers(state.activeModifiers);
 
+  // Phase 2: generate disasters before economy step (climate-based probability)
+  generateDisasters(state.regions, random, state.currentDate);
+
   // Build per-faction decisions lookup so each faction's regions use that faction's own focus
   const decisionsLookup: Record<string, PlayerDecision> = {
     [state.playerFactionId]: playerDecision,
@@ -63,6 +67,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     const focus = factionDecision.domesticFocus;
     const population = calculatePopulation(region, focus);
     let nextRegion = { ...region, population: population.nextPopulation };
+    // Phase 2: apply disaster effects (stability/garrison/population loss)
+    nextRegion = applyDisasterEffects(nextRegion);
     const economy = calculateRegionEconomy(nextRegion, controller, focus, state.activeModifiers);
     nextRegion = economy.region;
     nextRegion = updateControl(nextRegion, controller, state.activeModifiers);
@@ -531,7 +537,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     industriesByRegion[region.id] = region.industries ?? [];
   }
   runTrade(state, marketsByRegion);
-  updateMarketPrices(marketsByRegion);
+  updateMarketPrices(marketsByRegion, state.regions);
   autoInvest(marketsByRegion, industriesByRegion);
 
   // P0-5: validate state invariants and append violations as system reports

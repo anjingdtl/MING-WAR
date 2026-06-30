@@ -1,4 +1,4 @@
-import type { GameState, GoodId, IndustryState, IndustryType, PopGroup, PopType, RegionId } from "./types";
+import type { ClimateType, DisasterState, GameState, GoodId, IndustryState, IndustryType, PopGroup, PopType, RegionId, RegionState } from "./types";
 
 /**
  * Default base prices for goods (silver units per unit).
@@ -16,6 +16,17 @@ export const BASE_PRICES: Record<GoodId, number> = {
   tea: 8.0,
   porcelain: 30.0,
   shipMaterial: 15.0
+};
+
+/**
+ * Regional grain base price multiplier by climate zone.
+ * humid (Jiangnan rice belt) is cheapest, cold (frontier) most expensive.
+ */
+export const REGIONAL_GRAIN_BASE: Record<ClimateType, number> = {
+  temperate: 0.9,
+  humid: 0.6,
+  cold: 1.1,
+  dry: 0.85,
 };
 
 /**
@@ -129,8 +140,9 @@ export interface MarketState {
 
 /**
  * Initialize market state for a region with default prices.
+ * When climate is provided, grain price is set to the regional base.
  */
-export function initializeMarket(regionId: RegionId): MarketState {
+export function initializeMarket(regionId: RegionId, climate?: ClimateType): MarketState {
   const prices: Record<string, number> = {};
   const supply: Record<string, number> = {};
   const demand: Record<string, number> = {};
@@ -142,6 +154,10 @@ export function initializeMarket(regionId: RegionId): MarketState {
     demand[good] = 0;
     imports[good] = 0;
     exports[good] = 0;
+  }
+  // Set regional grain base price by climate
+  if (climate) {
+    prices.grain = BASE_PRICES.grain * (REGIONAL_GRAIN_BASE[climate] ?? 1);
   }
   return {
     regionId,
@@ -158,22 +174,25 @@ export function initializeMarket(regionId: RegionId): MarketState {
  * Compute new price based on supply/demand ratio.
  * - If supply > demand: price drops (excess supply)
  * - If supply < demand: price rises (scarcity)
+ * - regionalBasePrice: when provided, used as the effective base for floor/ceiling
+ *   (enables regional grain pricing without changing global BASE_PRICES).
  */
 export function adjustPrice(
   currentPrice: number,
   supply: number,
   demand: number,
-  basePrice: number
+  basePrice: number,
+  regionalBasePrice?: number
 ): number {
   if (demand === 0) return currentPrice;
   const ratio = supply / demand; // 1.0 = balanced
   // Cap adjustments to ±50% per month for stability
   const adjustment = Math.max(0.5, Math.min(1.5, ratio));
   const newPrice = currentPrice * (2 - adjustment); // inverted: oversupply → lower price
-  // Bound price to [10%, 500%] of base. Without a ceiling, a persistent
-  // scarcity compounded the price *1.5 every month (grain hit 4e17 in batch).
-  // The previous floor also hard-coded grain's base for every good.
-  return Math.max(basePrice * 0.1, Math.min(basePrice * 5, newPrice));
+  // Bound price to [30%, 400%] of effective base. Prevents geometric blow-up
+  // (previously grain hit 4e17 in batch with no ceiling).
+  const effectiveBase = regionalBasePrice ?? basePrice;
+  return Math.max(effectiveBase * 0.3, Math.min(effectiveBase * 4, newPrice));
 }
 
 /**
@@ -190,7 +209,7 @@ export function produceGoods(
   industries: IndustryState[],
   market: MarketState,
   region: { population: number; stability: number; agriculture: number; control: number },
-  activeDisasters: string[]
+  activeDisasters: DisasterState[]
 ): { produced: Record<GoodId, number>; consumed: Record<GoodId, number>; results: ProductionResult[] } {
   const produced: Record<string, number> = {};
   const consumed: Record<string, number> = {};
@@ -218,8 +237,14 @@ export function produceGoods(
       }
     }
 
-    // Disaster penalty
-    const disasterPenalty = activeDisasters.length > 0 ? 0.5 : 1;
+    // Disaster penalty: nuanced by type (drought -40%, flood -25%, others -50%)
+    let disasterPenalty = 1;
+    for (const d of activeDisasters) {
+      if (d.type === "drought") disasterPenalty *= 0.6;
+      else if (d.type === "flood") disasterPenalty *= 0.75;
+      else if (d.type === "locust" || d.type === "famine") disasterPenalty *= 0.5;
+      // plague affects population, not production directly
+    }
     // Stability & control modifiers
     const stabilityFactor = region.stability / 100;
     const controlFactor = region.control / 100;
@@ -304,12 +329,19 @@ export function runTrade(
 
 /**
  * Update market prices based on supply/demand after production and trade.
+ * When regions are provided, uses climate-based regional grain base prices.
  */
-export function updateMarketPrices(markets: Record<RegionId, MarketState>): void {
+export function updateMarketPrices(
+  markets: Record<RegionId, MarketState>,
+  regions?: Record<RegionId, RegionState>
+): void {
   for (const market of Object.values(markets)) {
+    const region = regions?.[market.regionId];
+    const grainRegionalBase = region ? BASE_PRICES.grain * (REGIONAL_GRAIN_BASE[region.climate] ?? 1) : undefined;
     for (const good of Object.keys(BASE_PRICES) as GoodId[]) {
       const oldPrice = market.prices[good];
-      const newPrice = adjustPrice(oldPrice, market.supply[good], market.demand[good], BASE_PRICES[good]);
+      const regionalBase = good === "grain" ? grainRegionalBase : undefined;
+      const newPrice = adjustPrice(oldPrice, market.supply[good], market.demand[good], BASE_PRICES[good], regionalBase);
       market.prices[good] = newPrice;
     }
   }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_PRICES,
   INDUSTRY_TEMPLATES,
+  REGIONAL_GRAIN_BASE,
   adjustPrice,
   autoInvest,
   consumePopNeeds,
@@ -48,6 +49,25 @@ describe("initializeMarket", () => {
     }
     expect(market.silverStock).toBe(1000);
   });
+
+  it("sets regional grain base price by climate", () => {
+    const humidMarket = initializeMarket("r1", "humid");
+    expect(humidMarket.prices.grain).toBe(BASE_PRICES.grain * REGIONAL_GRAIN_BASE.humid);
+    const coldMarket = initializeMarket("r2", "cold");
+    expect(coldMarket.prices.grain).toBe(BASE_PRICES.grain * REGIONAL_GRAIN_BASE.cold);
+    // Non-grain prices unaffected
+    expect(humidMarket.prices.cloth).toBe(BASE_PRICES.cloth);
+  });
+
+  it("adjustPrice uses regionalBasePrice for floor/ceiling", () => {
+    // With regionalBasePrice=0.6 (humid grain), ceiling is 0.6*4=2.4
+    let price = 0.6;
+    for (let i = 0; i < 60; i++) {
+      price = adjustPrice(price, 1, 1000, 1.0, 0.6);
+    }
+    expect(price).toBeLessThanOrEqual(2.4);
+    expect(price).toBeGreaterThanOrEqual(0.18); // 0.6 * 0.3
+  });
 });
 
 describe("initializeIndustries", () => {
@@ -92,19 +112,19 @@ describe("adjustPrice", () => {
     expect(newPrice).toBeCloseTo(10);
   });
 
-  it("floors price at 10% of base under massive oversupply", () => {
+  it("floors price at 30% of base under massive oversupply", () => {
     const newPrice = adjustPrice(0.1, 1000000, 1, 1);
-    expect(newPrice).toBeGreaterThanOrEqual(0.1);
+    expect(newPrice).toBeGreaterThanOrEqual(0.3);
   });
 
-  it("caps price at 500% of base to prevent geometric blow-up", () => {
+  it("caps price at 400% of base to prevent geometric blow-up", () => {
     // Sustained scarcity must not compound *1.5 every month forever —
     // this is the regression that sent grain to 4e17 in batch simulation.
     let price = 1;
     for (let i = 0; i < 60; i++) {
       price = adjustPrice(price, 1, 1000, 1);
     }
-    expect(price).toBeLessThanOrEqual(5);
+    expect(price).toBeLessThanOrEqual(4);
   });
 });
 
@@ -121,10 +141,12 @@ describe("produceGoods", () => {
     const market = initializeMarket("r1");
     const industries = initializeIndustries("r1", "plain", 80, 50);
     const region = { population: 1000000, stability: 100, agriculture: 80, control: 100 };
-    // With disasters, output is halved
+    // With disasters, output is reduced
     const resultNormal = produceGoods(JSON.parse(JSON.stringify(industries)), market, region, []);
     market.supply = { ...market.supply, grain: 0 };
-    const resultDisaster = produceGoods(JSON.parse(JSON.stringify(industries)), market, region, ["flood"]);
+    const resultDisaster = produceGoods(JSON.parse(JSON.stringify(industries)), market, region, [
+      { id: "d1", type: "flood", severity: 0.5, remainingMonths: 3 }
+    ]);
     expect(resultDisaster.produced.grain ?? 0).toBeLessThan(resultNormal.produced.grain ?? 0);
   });
 });

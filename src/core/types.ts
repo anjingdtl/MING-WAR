@@ -130,6 +130,15 @@ export interface AiProfile {
   warEndurance: number;
 }
 
+export type DisasterType = "drought" | "flood" | "famine" | "plague" | "locust";
+
+export interface DisasterState {
+  id: string;
+  type: DisasterType;
+  severity: number; // 0-1, affects intensity of effects
+  remainingMonths: number;
+}
+
 export interface RegionState {
   id: RegionId;
   name: string;
@@ -149,7 +158,7 @@ export interface RegionState {
   garrison: number;
   coreFactionIds: FactionId[];
   connections: RegionId[];
-  activeDisasters: string[];
+  activeDisasters: DisasterState[];
   rebelPressure: number;
   popGroups?: PopGroup[];
   industries?: IndustryState[];
