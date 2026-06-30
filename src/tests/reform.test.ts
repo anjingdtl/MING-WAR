@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FactionCliqueState, GameState } from "../core/types";
 import {
   advanceReforms,
+  autoProposeReforms,
   computeReformMomentum,
   computeReformSupport,
   enactLaw,
@@ -172,5 +173,37 @@ describe("S4d: end-to-end reform via simulateMonth", () => {
     expect(cats.has("maritime")).toBe(true);
     expect(cats.has("governance")).toBe(true);
     expect(cats.has("fiscal")).toBe(true);
+  });
+});
+
+describe("S6 遗留#3：玩家手选改革法律", () => {
+  it("reformLawId 覆盖 domesticFocus 自动倾向", () => {
+    const state = createMvpScenario("ming", 1);
+    const decisions = {
+      ming: {
+        targetRegionId: null,
+        posture: "balanced" as const,
+        domesticFocus: "military" as const,
+        reformLawId: "low-tax",
+      },
+    };
+    // focus=military 倾向 military-funding，但手选 low-tax 应覆盖
+    const proposed = autoProposeReforms(state, decisions);
+    expect(proposed.some((r) => r.factionId === "ming" && r.lawId === "low-tax")).toBe(true);
+  });
+
+  it("手选强推阻力大的改革（不经 momentum 预检）", () => {
+    const state = createMvpScenario("ming", 1);
+    // land-survey 遭 donglin+gentry 双反对，momentum 常为负自动不提；手选应强推
+    const decisions = {
+      ming: {
+        targetRegionId: null,
+        posture: "balanced" as const,
+        domesticFocus: "recovery" as const,
+        reformLawId: "land-survey",
+      },
+    };
+    const proposed = autoProposeReforms(state, decisions);
+    expect(proposed.some((r) => r.lawId === "land-survey")).toBe(true);
   });
 });

@@ -178,6 +178,8 @@ export interface PlayerDecision {
   targetRegionId: RegionId | null;
   posture: MilitaryPosture;
   domesticFocus: DomesticFocus;
+  /** S6 遗留#3：玩家手选改革法律（覆盖 domesticFocus 自动倾向）。undefined=自动。 */
+  reformLawId?: LawId;
 }
 
 /** S5: 战线状态 —— 让战争成为兵力/组织/补给的持续消耗，而非单月决胜。 */

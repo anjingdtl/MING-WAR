@@ -7,6 +7,7 @@ import type {
   RegionId
 } from "../../core/types";
 import { getValidMilitaryTargets } from "../../core/decisions";
+import { isLawEnacted, lawLibrary } from "../../data/laws";
 import { Button } from "../common/Button";
 import { DecisionPrediction } from "./DecisionPrediction";
 
@@ -132,6 +133,30 @@ export function DecisionPanel({
           ))}
         </div>
       </div>
+
+      <label>
+        <strong className="side-panel-label">改革法律（手选覆盖内政自动）</strong>
+        <select
+          value={decision.reformLawId ?? ""}
+          onChange={(event) =>
+            onChange({ reformLawId: (event.target.value || undefined) as PlayerDecision["reformLawId"] })
+          }
+        >
+          <option value="">— 内政自动 —</option>
+          {Object.values(lawLibrary).map((law) => {
+            const enacted = isLawEnacted(state.activeModifiers, state.playerFactionId, law.id);
+            const active = (state.activeReforms ?? []).some(
+              (r) => r.factionId === state.playerFactionId && r.lawId === law.id,
+            );
+            return (
+              <option key={law.id} value={law.id} disabled={enacted}>
+                {law.name}
+                {enacted ? "（已落实）" : active ? "（推进中）" : ""}
+              </option>
+            );
+          })}
+        </select>
+      </label>
 
       {onSelectRegion && selectedRegionId && (
         <Button

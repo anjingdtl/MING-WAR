@@ -312,7 +312,16 @@ export function autoProposeReforms(
     ).length;
     if (activeCount >= MAX_CONCURRENT_REFORMS) continue;
 
-    const focus = decisionsLookup[faction.id]?.domesticFocus ?? "recovery";
+    const decision = decisionsLookup[faction.id];
+    // S6 遗留#3：玩家手选改革法律（decision.reformLawId）优先，且不经 momentum
+    // 预检——玩家可强推阻力大的改革（仍受 proposeReform 的上限/去重约束）。
+    // AI 决策不设 reformLawId，仍走 focus 自动倾向。
+    if (decision?.reformLawId) {
+      const r = proposeReform(state, faction.id, decision.reformLawId);
+      if (r) proposed.push(r);
+      continue;
+    }
+    const focus = decision?.domesticFocus ?? "recovery";
     const candidates = FOCUS_REFORM_AFFINITY[focus] ?? [];
     for (const lawId of candidates) {
       // momentum 预检：阻力压倒支持的改革不主动提（玩家仍可手动 proposeReform 强推）
