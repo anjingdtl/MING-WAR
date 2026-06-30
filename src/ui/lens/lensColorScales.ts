@@ -10,8 +10,8 @@ import type { MapTileShape } from "../../map/mapTypes";
 import { resolveMapFactionColor } from "../../map/mapFactionColors";
 import type { LensId } from "./lensDefinitions";
 
-/** context 图块的固定覆盖透明度：需要压住底层地理色，避免出现未归属的透明底块。 */
-export const CONTEXT_TILE_OPACITY = 0.72;
+/** context 图块的固定覆盖透明度：需要压住底层地理色，与 playable 视觉接近以避免"两层地图"错觉。 */
+export const CONTEXT_TILE_OPACITY = 0.84;
 
 /* 通用工具:把一个数值映射到 [0, 1] */
 function clamp01(v: number): number {
