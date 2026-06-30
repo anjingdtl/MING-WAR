@@ -117,11 +117,11 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 维多利亚3 五环闭环（后果 / 经济 / 社会政治 / 制度 / 外交战争）+ 内容收口（历史局势）全部接通。**360 测试全绿**，batch `errorRuns=0`，4 种局势结局在自动推演中实际触发。
 
 **遗留处理（本轮已完成的增强）**：
-- **#1 晚期局势触发（已改善）**：追加**腐败自然累积**机制（dynasty/local 每月 +0.1，封顶 80）——承平日久吏治败坏，压低税收→财政压力→军队维护困难→控制区衰减。survey 中大明控制区从 25 降到 17-19，**南明偏安（southern-ming）在脆弱 seed 触发**（regions≤15）。陕西流民（rebellion-spreads）触发率仍低，待 corruption→rebelPressure 连锁进一步加强。
-- **#2 同盟参战（已实现）**：`warfare.ts alliesJoinWar`——A 攻 B 时，A 的盟友（alliance + 与 B 相邻 + 非 B 盟友/无停战）同步对 B 开战（双边 war 累加）。让"拉盟友"真实改变战局。
-- **#3 玩家手选法律 + 外交面板（已实现）**：`PlayerDecision.reformLawId?` 玩家手选改革法律（覆盖 domesticFocus 自动倾向，可强推阻力大的改革）；`DecisionPanel` 改革法律下拉；`DiplomacyPanel` 显示外交关系/条约/战争。
+- **#1 晚期局势触发（已完成）**：追加**腐败自然累积**（dynasty/local +0.1/月，封顶 80）+ **corruptionPressure**（腐败>50 直接加剧叛乱 risk）。survey 中大明控制区从 25 降到 17-19，**陕西流民 + 南明偏安在脆弱 seed 触发**（北方 rebelPressure 总和 180+）。6 种主线局势全部可激活。
+- **#2 同盟参战 + 外交交互（已完成）**：`warfare.ts alliesJoinWar`——进攻方盟友同步对防守方开战；`diplomacy.ts proposeAlliance` / `peace.ts requestPeace` 玩家主动结盟（关系≥20）/ 求和（白和，不割地，停战 60 月）；`DiplomacyPanel` 交互按钮（缔结同盟 / 求和）。
+- **#3 玩家手选法律（已完成）**：`PlayerDecision.reformLawId?` 玩家手选改革法律（覆盖 domesticFocus 自动倾向，可强推阻力大的改革）；`DecisionPanel` 改革法律下拉。
 
-**仍待后续**：陕西流民触发率（corruption→rebelPressure 连锁）；外交交互动作（结盟/求和/宣战按钮，当前 DiplomacyPanel 为只读）。
+**仍待后续（非阻塞）**：陕西流民 `rebellion-spreads` 结局推进速度（依赖 rebels 强度累积）；外交"宣战"按钮（当前用军略目标 targetRegionId 替代）。
 
 **入口**（接手 agent）：`src/core/situation.ts`（引擎）+ `src/data/situations.ts`（6 局势）；`simulation.ts` 月度 `advanceSituations`；调参集中在 `simulation.ts` 征募段 / `warfare.ts` `baseAttrition` / `situations.ts` effect。
 
