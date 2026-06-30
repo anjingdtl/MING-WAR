@@ -21,6 +21,14 @@ describe("GameMap", () => {
     expect(screen.getByTestId("region-area-beizhili").getAttribute("fill")).toBe(factionColor);
   });
 
+  it("clips political regions to the physical land mask", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId="beizhili" onSelect={vi.fn()} />);
+    expect(document.querySelector("#map-land-clip")).toBeTruthy();
+    expect(screen.getByTestId("region-area-beizhili").getAttribute("clip-path")).toBe("url(#map-land-clip)");
+    expect(screen.getByTestId("region-area-joseon_north").getAttribute("clip-path")).toBe("url(#map-land-clip)");
+    expect(screen.getByTestId("region-area-nurgan_coast").getAttribute("clip-path")).toBe("url(#map-land-clip)");
+  });
+
   it("zooms in and out and resets view", () => {
     render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId="beizhili" onSelect={vi.fn()} />);
     expect(screen.getByText("100%")).toBeTruthy();

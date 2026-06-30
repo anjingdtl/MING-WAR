@@ -18,7 +18,7 @@ describe("map region validator", () => {
   });
 
   it("detects label coordinates outside the viewBox", () => {
-    const invalid: MapRegionShape[] = [{ ...mapRegionSource[0], labelX: 901 }];
+    const invalid: MapRegionShape[] = [{ ...mapRegionSource[0], labelX: 1001 }];
 
     expect(validateMapRegions(invalid)).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "label-out-of-bounds", regionId: mapRegionSource[0].id })])

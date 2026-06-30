@@ -1,4 +1,31 @@
 import type { MapRegionShape } from "../mapTypes";
+import { eastAsiaLandPaths } from "../physicalMap";
+
+const physicalLand = {
+  sakhalin: eastAsiaLandPaths[2],
+  hokkaido: eastAsiaLandPaths[3],
+  northernHonshu: eastAsiaLandPaths[4],
+  westKyushuA: eastAsiaLandPaths[23],
+  westKyushuB: eastAsiaLandPaths[24],
+  westKyushuC: eastAsiaLandPaths[25],
+  kyushu: eastAsiaLandPaths[26],
+  shikokuA: eastAsiaLandPaths[27],
+  shikokuB: eastAsiaLandPaths[28],
+  shikokuC: eastAsiaLandPaths[29],
+  honshuEastA: eastAsiaLandPaths[30],
+  honshuEastB: eastAsiaLandPaths[31],
+  honshuEastC: eastAsiaLandPaths[32],
+  honshuEastD: eastAsiaLandPaths[33],
+  honshuEastE: eastAsiaLandPaths[34],
+  honshuEastF: eastAsiaLandPaths[38],
+  honshuEastG: eastAsiaLandPaths[39],
+  honshuEastH: eastAsiaLandPaths[40],
+  honshuEastI: eastAsiaLandPaths[41],
+  honshuEastJ: eastAsiaLandPaths[42],
+  honshuEastK: eastAsiaLandPaths[43],
+  honshuEastL: eastAsiaLandPaths[44],
+  honshuEastM: eastAsiaLandPaths[78]
+} as const;
 
 export const mapRegionSource: MapRegionShape[] = [
   {
@@ -255,30 +282,30 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "tumed_steppe",
     "paths": [
-      "M542.9 223.4 L570 218.6 L568.6 207.5 L540 209.1 L525.7 217 Z"
+      "M492 198 L532 183 L576 190 L575 215 L540 222 L503 216 Z"
     ],
-    "labelX": 550,
-    "labelY": 217,
+    "labelX": 535,
+    "labelY": 203,
     "labelWidth": 116,
     "source": "historical-frontier-manual"
   },
   {
     "id": "chahar_steppe",
     "paths": [
-      "M582.9 193.2 L650 185.2 L648.6 169.3 L588.6 172.5 L570 185.2 Z"
+      "M560 165 L628 150 L650 164 L646 190 L596 196 L548 186 Z"
     ],
-    "labelX": 612.9,
-    "labelY": 182,
+    "labelX": 610,
+    "labelY": 176,
     "labelWidth": 112,
     "source": "historical-frontier-manual"
   },
   {
     "id": "korchin_steppe",
     "paths": [
-      "M648.6 169.3 L705 158 L724 183.4 L714 221 L650 225 L633 198 Z"
+      "M652 154 L719 138 L776 166 L762 218 L698 228 L649 200 Z"
     ],
-    "labelX": 676,
-    "labelY": 191,
+    "labelX": 704,
+    "labelY": 185,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -286,10 +313,10 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "hulunbuir",
     "paths": [
-      "M700 112 L771 104 L812 136 L779 168 L724 183.4 L705 158 Z"
+      "M646 76 L719 61 L792 91 L801 137 L762 166 L719 138 L652 154 Z"
     ],
-    "labelX": 755,
-    "labelY": 137,
+    "labelX": 718,
+    "labelY": 113,
     "labelWidth": 116,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -297,10 +324,10 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "amur_basin",
     "paths": [
-      "M771 104 L872 116 L888 163 L832.2 183.3 L779 168 L812 136 Z"
+      "M792 91 L882 102 L943 149 L918 208 L833 184 L801 137 Z"
     ],
-    "labelX": 835,
-    "labelY": 146,
+    "labelX": 865,
+    "labelY": 147,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
     "group": "jurchen"
@@ -308,21 +335,21 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "nurgan_coast",
     "paths": [
-      "M832.2 183.3 L888 163 L898 234 L866 274 L806 244 L780 204 Z"
+      "M833 184 L918 208 L958 275 L929 340 L856 304 L806 244 L780 204 Z"
     ],
-    "labelX": 846,
-    "labelY": 221,
-    "labelWidth": 104,
+    "labelX": 852,
+    "labelY": 250,
+    "labelWidth": 96,
     "source": "historical-frontier-manual",
     "group": "jurchen"
   },
   {
     "id": "sakhalin",
     "paths": [
-      "M866 274 L892 246 L899 322 L878 346 L854 307 Z"
+      physicalLand.sakhalin
     ],
-    "labelX": 878,
-    "labelY": 303,
+    "labelX": 953,
+    "labelY": 283,
     "labelWidth": 86,
     "source": "historical-frontier-manual",
     "group": "japan"
@@ -330,32 +357,38 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "joseon_north",
     "paths": [
-      "M724 260 L781 254 L812 318 L789 351 L741 318 Z"
+      "M752 260 L786 268 L818 312 L803 353 L769 333 L745 292 Z"
     ],
-    "labelX": 769,
-    "labelY": 303,
-    "labelWidth": 118,
+    "labelX": 781,
+    "labelY": 296,
+    "labelWidth": 84,
     "source": "historical-frontier-manual",
     "group": "korea"
   },
   {
     "id": "joseon_south",
     "paths": [
-      "M789 351 L812 318 L842 382 L812 435 L767 403 L741 318 Z"
+      "M803 353 L818 312 L846 379 L827 429 L790 409 L769 333 Z"
     ],
-    "labelX": 801,
-    "labelY": 383,
-    "labelWidth": 118,
+    "labelX": 824,
+    "labelY": 357,
+    "labelWidth": 84,
     "source": "historical-frontier-manual",
     "group": "korea"
   },
   {
     "id": "japan_west",
     "paths": [
-      "M801 456 L852 431 L884 454 L853 508 L804 517 L780 493 Z"
+      physicalLand.westKyushuA,
+      physicalLand.westKyushuB,
+      physicalLand.westKyushuC,
+      physicalLand.kyushu,
+      physicalLand.shikokuA,
+      physicalLand.shikokuB,
+      physicalLand.shikokuC
     ],
-    "labelX": 830,
-    "labelY": 477,
+    "labelX": 786,
+    "labelY": 448,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
     "group": "japan"
@@ -363,10 +396,23 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "japan_east",
     "paths": [
-      "M852 431 L900 386 L900 452 L884 454 Z"
+      physicalLand.northernHonshu,
+      physicalLand.honshuEastA,
+      physicalLand.honshuEastB,
+      physicalLand.honshuEastC,
+      physicalLand.honshuEastD,
+      physicalLand.honshuEastE,
+      physicalLand.honshuEastF,
+      physicalLand.honshuEastG,
+      physicalLand.honshuEastH,
+      physicalLand.honshuEastI,
+      physicalLand.honshuEastJ,
+      physicalLand.honshuEastK,
+      physicalLand.honshuEastL,
+      physicalLand.honshuEastM
     ],
-    "labelX": 880,
-    "labelY": 426,
+    "labelX": 825,
+    "labelY": 361,
     "labelWidth": 104,
     "source": "historical-frontier-manual",
     "group": "japan"
@@ -374,10 +420,10 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "ezo",
     "paths": [
-      "M823 328 L878 304 L900 333 L900 386 L852 431 L817 381 Z"
+      physicalLand.hokkaido
     ],
-    "labelX": 864,
-    "labelY": 360,
+    "labelX": 862,
+    "labelY": 341,
     "labelWidth": 86,
     "source": "historical-frontier-manual",
     "group": "japan"

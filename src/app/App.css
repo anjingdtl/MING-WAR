@@ -170,16 +170,50 @@ a:hover {
 }
 
 .map-land {
-  fill: #d6c79e;
+  fill: url("#terrain-light");
   stroke: rgba(71, 63, 48, 0.54);
-  stroke-width: 0.9;
+  stroke-width: 0.72;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-paper-grain {
+  fill: url("#paper-grain");
+  mix-blend-mode: multiply;
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.map-mountain {
+  fill: none;
+  stroke: rgba(102, 83, 52, 0.34);
+  stroke-width: 15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 0 rgba(255, 248, 225, 0.32));
+}
+
+.map-ridge {
+  fill: none;
+  stroke: rgba(77, 61, 39, 0.46);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.66;
+}
+
+.map-lake {
+  fill: rgba(76, 128, 142, 0.82);
+  stroke: rgba(242, 232, 203, 0.56);
+  stroke-width: 1.8;
   vector-effect: non-scaling-stroke;
 }
 
 .map-river {
   fill: none;
   stroke: #2f8fb8;
-  stroke-width: 2.5;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;

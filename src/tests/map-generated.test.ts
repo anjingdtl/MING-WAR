@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { regionTemplates } from "../data/regions";
 import { mapRegions as generatedMapRegions } from "../map/generated/mapRegions";
+import { mapCanvas } from "../map/mapCanvas";
 import { mapRegions } from "../map/mapConfig";
 
 function numericValues(paths: string[]): number[] {
@@ -18,12 +19,12 @@ describe("generated map facade", () => {
     expect(mapIds).toEqual(dataIds);
   });
 
-  it("keeps every label inside the 900x620 viewBox", () => {
+  it("keeps every label inside the map viewBox", () => {
     for (const region of mapRegions) {
       expect(region.labelX, `${region.id} labelX`).toBeGreaterThanOrEqual(0);
-      expect(region.labelX, `${region.id} labelX`).toBeLessThanOrEqual(900);
+      expect(region.labelX, `${region.id} labelX`).toBeLessThanOrEqual(mapCanvas.width);
       expect(region.labelY, `${region.id} labelY`).toBeGreaterThanOrEqual(0);
-      expect(region.labelY, `${region.id} labelY`).toBeLessThanOrEqual(620);
+      expect(region.labelY, `${region.id} labelY`).toBeLessThanOrEqual(mapCanvas.height);
     }
   });
 

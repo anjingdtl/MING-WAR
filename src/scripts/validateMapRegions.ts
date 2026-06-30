@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { regionTemplates } from "../data/regions";
 import type { RegionId } from "../core/types";
+import { mapCanvas } from "../map/mapCanvas";
 import type { MapRegionShape } from "../map/mapTypes";
 import { mapRegionSource } from "../map/source/mapRegionSource";
 
@@ -18,11 +19,6 @@ export interface MapValidationIssue {
   message: string;
   regionId?: RegionId;
 }
-
-const viewBox = {
-  width: 900,
-  height: 620
-};
 
 function numericValues(paths: string[]): number[] {
   return paths.flatMap((path) => [...path.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])));
@@ -42,11 +38,16 @@ export function validateMapRegions(
     }
     seen.add(region.id);
 
-    if (region.labelX < 0 || region.labelX > viewBox.width || region.labelY < 0 || region.labelY > viewBox.height) {
+    if (
+      region.labelX < 0 ||
+      region.labelX > mapCanvas.width ||
+      region.labelY < 0 ||
+      region.labelY > mapCanvas.height
+    ) {
       issues.push({
         code: "label-out-of-bounds",
         regionId: region.id,
-        message: `${region.id} label is outside the ${viewBox.width}x${viewBox.height} viewBox`
+        message: `${region.id} label is outside the ${mapCanvas.width}x${mapCanvas.height} viewBox`
       });
     }
 
