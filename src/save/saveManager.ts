@@ -72,10 +72,11 @@ export function migrateGameState(state: GameState): GameState {
   for (const faction of Object.values(migrated.factions)) {
     if (!faction.cliques || faction.cliques.length === 0) {
       faction.cliques = [
+        { cliqueId: "imperial", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "reform", support: 50, strength: 0, activeModifier: 0, approval: 50 },
         { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "eunuch", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "frontier", support: 50, strength: 0, activeModifier: 0, approval: 50 },
       ];
     }
     // S3b: backfill approval on cliques from older saves (pre-S3 had no field)

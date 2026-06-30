@@ -1,11 +1,49 @@
 import type { CliqueDef, FactionCliqueId } from "../core/types";
 
 export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
+  imperial: {
+    id: "imperial",
+    name: "皇权网络",
+    shortName: "皇权",
+    description: "以皇帝为核心的内廷决策通道，核心资源是诏令与礼制解释权。",
+    primaryTrait: "皇权集中",
+    policyAffinities: {
+      agriculture: -2,
+      finance: -2,
+      military: 2,
+      administration: 6,
+      recovery: -4,
+      frontier: 4,
+    },
+    preferredLaws: ["centralization", "imperial-authority", "court-control"],
+    opposedLaws: ["local-autonomy", "civilian-control", "austerity"],
+    institutionalPowerSource: "centralization 高 → 力量高，legitimacy 高 → support 高",
+    uniqueMechanic: "imperial-decree",
+  },
+  reform: {
+    id: "reform",
+    name: "首辅改革网络",
+    shortName: "改革",
+    description: "以首辅为核心的改革官僚群体，核心资源是考成法与督抚执行网络。",
+    primaryTrait: "行政改革",
+    policyAffinities: {
+      agriculture: -2,
+      finance: 6,
+      military: -2,
+      administration: 8,
+      recovery: -4,
+      frontier: 2,
+    },
+    preferredLaws: ["land-survey", "commercial-tax", "treasury-centralization", "kaocheng-law"],
+    opposedLaws: ["low-tax", "local-autonomy", "austerity"],
+    institutionalPowerSource: "administration 高 → 力量加成",
+    uniqueMechanic: "kaocheng-effect",
+  },
   donglin: {
     id: "donglin",
-    name: "东林党",
+    name: "东林言路网络",
     shortName: "东林",
-    description: "以江南士大夫为主体的政治派系，主张澄清吏治、减税惠民、反对矿税。",
+    description: "言路—清议—士绅舆论网络，核心资源是弹章与清议。",
     primaryTrait: "澄清吏治",
     policyAffinities: {
       agriculture: 2,
@@ -15,17 +53,17 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: 6,
       frontier: -2,
     },
-    // S3/S4: 东林代表士绅+城市工商业资本，主张低税、清流、反对皇权敛财。
     preferredLaws: ["low-tax", "clean-admin", "relief-priority"],
     opposedLaws: ["mining-tax", "commercial-tax", "land-survey"],
+    institutionalPowerSource: "江南商业区财富",
+    uniqueMechanic: "impeachment",
   },
-  eunuchs: {
-    id: "eunuchs",
-    name: "内廷宦党",
-    shortName: "宦党",
-    description:
-      "以司礼监、矿监税使为核心的宦官政治势力，依附皇权，主张开征商税矿税。",
-    primaryTrait: "整顿财政",
+  eunuch: {
+    id: "eunuch",
+    name: "阉党网络",
+    shortName: "阉党",
+    description: "内廷—厂卫—阉党联盟，核心资源是近侍通道、厂卫、诏狱。",
+    primaryTrait: "扩张财源",
     policyAffinities: {
       agriculture: -2,
       finance: 8,
@@ -34,45 +72,28 @@ export const cliqueTemplates: Record<FactionCliqueId, CliqueDef> = {
       recovery: -2,
       frontier: 0,
     },
-    // S3/S4: 宦党依附皇权，主张扩张财源（矿税商税）、中央集敛。
     preferredLaws: ["mining-tax", "commercial-tax", "treasury-centralization"],
-    opposedLaws: ["low-tax", "local-autonomy"],
+    opposedLaws: ["low-tax", "clean-admin", "local-autonomy", "land-survey"],
+    institutionalPowerSource: "tax-mult modifier 越高（加税越多），eunuch 越强",
+    uniqueMechanic: "purge-prison",
   },
-  gentry: {
-    id: "gentry",
-    name: "地方缙绅",
-    shortName: "缙绅",
-    description:
-      "各地拥有土地的在乡士绅，反对清丈田亩，主张维持地方自治和低税率。",
-    primaryTrait: "劝课农桑",
-    policyAffinities: {
-      agriculture: 6,
-      finance: -4,
-      military: 0,
-      administration: -4,
-      recovery: 4,
-      frontier: -4,
-    },
-    // S3/S4: 缙绅代表在乡地主+小农共同体，反对清丈、主张地方自治与低税。
-    preferredLaws: ["low-tax", "local-autonomy", "land-protection"],
-    opposedLaws: ["land-survey", "commercial-tax"],
-  },
-  generals: {
-    id: "generals",
-    name: "军功勋贵",
-    shortName: "勋贵",
-    description: "世袭武勋和边疆将门，追求军费倾斜、边功封赏和军事自主权。",
+  frontier: {
+    id: "frontier",
+    name: "边镇军政网络",
+    shortName: "边镇",
+    description: "边疆军事集团，核心资源是战功、军纪、边贸。",
     primaryTrait: "整军备战",
     policyAffinities: {
       agriculture: -2,
-      finance: 0,
+      finance: -2,
       military: 8,
       administration: 0,
       recovery: -4,
-      frontier: 6,
+      frontier: 8,
     },
-    // S3/S4: 勋贵追求军费倾斜与边疆军事自主，反对文官节制与财政紧缩。
     preferredLaws: ["military-funding", "frontier-autonomy"],
     opposedLaws: ["civilian-control", "austerity"],
+    institutionalPowerSource: "控制区中 fortification > 60 的区域数量",
+    uniqueMechanic: "border-pressure",
   },
 };

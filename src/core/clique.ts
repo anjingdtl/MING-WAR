@@ -18,23 +18,26 @@ interface CliqueWeight {
 
 /**
  * Compute clique weights for a single region based on its economic/social attributes.
- * Rules:
+ * Rules (5-network model):
+ *   control > 70 → imperial weight
+ *   taxCapacity > 60 → reform weight
  *   commerce > 70 → donglin weight
- *   taxCapacity > 70 → eunuchs weight
- *   agriculture > 70 → gentry weight
- *   fortification > 60 → generals weight
+ *   taxCapacity > 70 → eunuch weight
+ *   fortification > 60 → frontier weight
  */
 export function computeRegionCliqueWeights(region: RegionState): CliqueWeight[] {
+  const imperialWeight = region.control > 70 ? Math.min((region.control - 70) * 1.5 + 5, 15) : 0;
+  const reformWeight = region.taxCapacity > 60 ? Math.min((region.taxCapacity - 60) * 1.5 + 4, 14) : 0;
   const donglinWeight = region.commerce > 70 ? Math.min((region.commerce - 70) * 2 + 8, 20) : 0;
-  const eunuchsWeight = region.taxCapacity > 70 ? Math.min((region.taxCapacity - 70) * 1.5 + 5, 15) : 0;
-  const gentryWeight = region.agriculture > 70 ? Math.min((region.agriculture - 70) * 2 + 6, 18) : 0;
-  const generalsWeight = region.fortification > 60 ? Math.min((region.fortification - 60) * 1 + 4, 12) : 0;
+  const eunuchWeight = region.taxCapacity > 70 ? Math.min((region.taxCapacity - 70) * 1.5 + 5, 15) : 0;
+  const frontierWeight = region.fortification > 60 ? Math.min((region.fortification - 60) * 1 + 4, 12) : 0;
 
   return [
+    { cliqueId: "imperial", weight: Math.round(imperialWeight) },
+    { cliqueId: "reform", weight: Math.round(reformWeight) },
     { cliqueId: "donglin", weight: Math.round(donglinWeight) },
-    { cliqueId: "eunuchs", weight: Math.round(eunuchsWeight) },
-    { cliqueId: "gentry", weight: Math.round(gentryWeight) },
-    { cliqueId: "generals", weight: Math.round(generalsWeight) },
+    { cliqueId: "eunuch", weight: Math.round(eunuchWeight) },
+    { cliqueId: "frontier", weight: Math.round(frontierWeight) },
   ];
 }
 
@@ -168,10 +171,11 @@ export function applyNaturalDecay(cliques: FactionCliqueState[]): FactionCliqueS
  * migrant（流民）无政治组织，不归属任何集团。
  */
 export const CLIQUE_POP_AFFINITY: Record<FactionCliqueId, Partial<Record<PopType, number>>> = {
-  donglin: { gentry: 1.0, merchant: 0.8, artisan: 0.6, official: 0.5 },
-  eunuchs: { official: 0.5 },
-  gentry: { peasant: 1.0, tenant: 0.9 },
-  generals: { soldier: 1.0 },
+  imperial: {},  // no pop base - power from institutional bonuses
+  reform: { official: 0.7, gentry: 0.5 },
+  donglin: { gentry: 1.0, merchant: 0.8, artisan: 0.6, official: 0.4 },
+  eunuch: { official: 0.4 },
+  frontier: { soldier: 1.0 },
 };
 
 /**
@@ -286,4 +290,63 @@ function focusLabel(focus: DomesticFocus): string {
     frontier: "经略边疆",
   };
   return labels[focus];
+}
+
+/**
+ * 5-network unique mechanics applied monthly.
+ * Returns modifiers to apply to faction stats.
+ */
+export interface CliqueMechanicEffects {
+  centralizationDelta?: number;
+  administrationDelta?: number;
+  corruptionDelta?: number;
+  cliqueSupportDeltas?: Record<string, number>;
+}
+
+export function applyCliqueUniqueMechanics(
+  cliques: FactionCliqueState[],
+  faction: { centralization: number; legitimacy: number; administration: number; corruption: number; warExhaustion: number; armyTotal: number },
+  defs: Record<FactionCliqueId, CliqueDef>,
+): CliqueMechanicEffects {
+  const effects: CliqueMechanicEffects = {};
+  const cliqueMap = new Map(cliques.map(c => [c.cliqueId, c]));
+
+  // imperial-decree: when imperial strength > 50, centralization +0.3/month
+  const imperial = cliqueMap.get("imperial");
+  if (imperial && imperial.strength > 50) {
+    effects.centralizationDelta = (effects.centralizationDelta ?? 0) + 0.3;
+  }
+
+  // kaocheng-effect: when reform strength > 40 AND reform support > 55, admin +2
+  const reform = cliqueMap.get("reform");
+  if (reform && reform.strength > 40 && reform.support > 55) {
+    effects.administrationDelta = (effects.administrationDelta ?? 0) + 2;
+  }
+
+  // impeachment: when donglin approval < 25 AND donglin strength > 35,
+  // reform or eunuch support -1/month (whichever is stronger)
+  const donglin = cliqueMap.get("donglin");
+  if (donglin && donglin.approval < 25 && donglin.strength > 35) {
+    const eunuch = cliqueMap.get("eunuch");
+    const reformC = cliqueMap.get("reform");
+    const target = (eunuch && reformC && eunuch.strength > reformC.strength) ? "eunuch" : "reform";
+    effects.cliqueSupportDeltas = { ...effects.cliqueSupportDeltas, [target]: -1 };
+  }
+
+  // purge-prison: when eunuch strength > 60 AND imperial strength > 50,
+  // corruption +0.3/month, donglin support -1/month
+  const eunuchC = cliqueMap.get("eunuch");
+  if (eunuchC && eunuchC.strength > 60 && (imperial?.strength ?? 0) > 50) {
+    effects.corruptionDelta = (effects.corruptionDelta ?? 0) + 0.3;
+    effects.cliqueSupportDeltas = {
+      ...effects.cliqueSupportDeltas,
+      donglin: (effects.cliqueSupportDeltas?.donglin ?? 0) - 1,
+    };
+  }
+
+  // border-pressure: when frontier strength > 40 AND (warExhaustion > 60),
+  // army-pay movement threshold lowered (tracked via return value, applied in politics.ts)
+  // This is informational - the actual threshold adjustment happens in politics.ts
+
+  return effects;
 }

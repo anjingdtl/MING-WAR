@@ -95,6 +95,10 @@ export interface CliqueDef {
   /** S3/S4: 语义化法律标签（减税/开海/清丈…），S4 法律系统对接具体 LawId。 */
   preferredLaws: string[];
   opposedLaws: string[];
+  /** 非 pop 力量来源描述（UI tooltip），如"centralization 高 → 力量高"。 */
+  institutionalPowerSource?: string;
+  /** 独有机制 id（如 "imperial-decree"、"kaocheng-effect"）。 */
+  uniqueMechanic?: string;
 }
 
 export interface FactionCliqueState {
@@ -272,9 +276,9 @@ export interface HistoricalRecord {
 }
 
 /** S3c: 政治运动诉求类型。 */
-export type MovementDemand = "reduce-tax" | "open-sea" | "army-pay" | "autonomy";
+export type MovementDemand = "reduce-tax" | "kaocheng" | "mining-tax" | "army-pay";
 
-/** S3c: 一场由利益集团发起的政治运动（减税/开海/索饷/自治）。 */
+/** S3c: 一场由利益集团发起的政治运动（减税/考成/矿税/索饷）。 */
 export interface PoliticalMovement {
   id: string;
   factionId: FactionId;

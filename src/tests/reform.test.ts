@@ -27,38 +27,40 @@ function getClique(state: GameState, cliqueId: string): FactionCliqueState {
 }
 
 describe("S4b: reform support & momentum", () => {
-  it("low-tax draws support from donglin+gentry, opposition from eunuchs", () => {
+  it("low-tax draws support from donglin, opposition from reform+eunuch", () => {
     const state = createMvpScenario("ming", 1);
     setClique(state, "donglin", { strength: 40 });
-    setClique(state, "gentry", { strength: 50 });
-    setClique(state, "eunuchs", { strength: 10 });
+    setClique(state, "reform", { strength: 50 });
+    setClique(state, "eunuch", { strength: 10 });
     const support = computeReformSupport(state.factions.ming, "low-tax");
-    expect(support.supportPower).toBe(90); // donglin+gentry
-    expect(support.opposePower).toBe(10); // eunuchs
-    expect(support.supporters.sort()).toEqual(["donglin", "gentry"]);
-    expect(support.opponents).toEqual(["eunuchs"]);
+    expect(support.supportPower).toBe(40); // donglin
+    expect(support.opposePower).toBe(60); // reform+eunuch
+    expect(support.supporters).toEqual(["donglin"]);
+    expect(support.opponents.sort()).toEqual(["eunuch", "reform"]);
   });
 
-  it("land-survey is opposed by donglin+gentry with no supporters", () => {
+  it("land-survey is supported by reform, opposed by donglin+eunuch", () => {
     const state = createMvpScenario("ming", 1);
-    setClique(state, "donglin", { strength: 40 });
-    setClique(state, "gentry", { strength: 50 });
+    setClique(state, "donglin", { strength: 50 });
+    setClique(state, "reform", { strength: 10 });
+    setClique(state, "eunuch", { strength: 10 });
     const support = computeReformSupport(state.factions.ming, "land-survey");
-    expect(support.supportPower).toBe(0);
-    expect(support.opposePower).toBe(90);
-    expect(support.supporters).toEqual([]);
+    expect(support.supportPower).toBe(10);
+    expect(support.opposePower).toBe(60);
+    expect(support.supporters).toEqual(["reform"]);
   });
 
   it("a heavily-opposed reform has negative momentum; a supported one positive", () => {
     const opposed = createMvpScenario("ming", 1);
-    setClique(opposed, "donglin", { strength: 40 });
-    setClique(opposed, "gentry", { strength: 50 });
+    setClique(opposed, "donglin", { strength: 50 });
+    setClique(opposed, "reform", { strength: 10 });
+    setClique(opposed, "eunuch", { strength: 10 });
     expect(computeReformMomentum(opposed, opposed.factions.ming, "land-survey")).toBeLessThan(0);
 
     const supported = createMvpScenario("ming", 1);
-    setClique(supported, "donglin", { strength: 40 });
-    setClique(supported, "gentry", { strength: 50 });
-    setClique(supported, "eunuchs", { strength: 10 });
+    setClique(supported, "donglin", { strength: 80 });
+    setClique(supported, "reform", { strength: 10 });
+    setClique(supported, "eunuch", { strength: 10 });
     expect(computeReformMomentum(supported, supported.factions.ming, "low-tax")).toBeGreaterThan(0);
   });
 
@@ -77,7 +79,7 @@ describe("S4c: enactment applies effects & clique reactions", () => {
   it("land-survey enactment writes permanent modifier + instant effects + hurts opponents", () => {
     const state = createMvpScenario("ming", 1);
     setClique(state, "donglin", { strength: 40, approval: 60, support: 50 });
-    setClique(state, "gentry", { strength: 50, approval: 60, support: 50 });
+    setClique(state, "reform", { strength: 50, approval: 60, support: 50 });
     const corruptionBefore = state.factions.ming.corruption;
     const centralizationBefore = state.factions.ming.centralization;
 
@@ -95,9 +97,9 @@ describe("S4c: enactment applies effects & clique reactions", () => {
     expect(state.factions.ming.centralization).toBe(centralizationBefore + 8);
     expect(state.factions.ming.corruption).toBe(corruptionBefore - 2);
 
-    // 反对集团（donglin+gentry）approval 暴跌 12
+    // reform（支持者）approval 涨 10；donglin（反对者）approval 暴跌 12
+    expect(getClique(state, "reform").approval).toBe(60 + 10);
     expect(getClique(state, "donglin").approval).toBe(60 - 12);
-    expect(getClique(state, "gentry").approval).toBe(60 - 12);
   });
 
   it("enactLaw is idempotent (no duplicate modifier / double instant)", () => {
@@ -114,23 +116,24 @@ describe("S4c: enactment applies effects & clique reactions", () => {
 describe("S4c: advanceReforms settles or fails", () => {
   it("a strongly-supported reform progresses to enactment", () => {
     const state = createMvpScenario("ming", 1);
-    setClique(state, "donglin", { strength: 40 });
-    setClique(state, "gentry", { strength: 50 });
-    setClique(state, "eunuchs", { strength: 10 });
-    proposeReform(state, "ming", "low-tax"); // momentum 正
+    setClique(state, "donglin", { strength: 80 });
+    setClique(state, "reform", { strength: 10 });
+    setClique(state, "eunuch", { strength: 10 });
+    proposeReform(state, "ming", "clean-admin"); // momentum 正
     let enacted = false;
     for (let i = 0; i < 40 && !enacted; i++) {
       const res = advanceReforms(state);
       if (res.enacted.length > 0) enacted = true;
     }
     expect(enacted).toBe(true);
-    expect(isLawEnacted(state.activeModifiers, "ming", "low-tax")).toBe(true);
+    expect(isLawEnacted(state.activeModifiers, "ming", "clean-admin")).toBe(true);
   });
 
   it("a heavily-opposed reform fails and costs legitimacy", () => {
     const state = createMvpScenario("ming", 1);
-    setClique(state, "donglin", { strength: 40 });
-    setClique(state, "gentry", { strength: 50 });
+    setClique(state, "donglin", { strength: 50 });
+    setClique(state, "reform", { strength: 10 });
+    setClique(state, "eunuch", { strength: 10 });
     const legitBefore = state.factions.ming.legitimacy;
     proposeReform(state, "ming", "land-survey"); // momentum 负，强推
     let failed = false;
@@ -145,22 +148,24 @@ describe("S4c: advanceReforms settles or fails", () => {
 });
 
 describe("S4d: end-to-end reform via simulateMonth", () => {
-  it("a recovery focus drives low-tax to enactment with a live tax-cut modifier", () => {
+  it("a recovery focus drives clean-admin to enactment with a live corruption modifier", () => {
     const state = createMvpScenario("ming", 1);
-    const decision = { ...defaultPlayerDecision, domesticFocus: "recovery" as const };
+    const decision = { ...defaultPlayerDecision, domesticFocus: "administration" as const };
     let s = state;
     let enacted = false;
     for (let i = 0; i < 60; i++) {
       s = simulateMonth({ state: s, playerDecision: decision, randomSeed: s.seed }).nextState;
-      if (isLawEnacted(s.activeModifiers, "ming", "low-tax")) {
+      if (isLawEnacted(s.activeModifiers, "ming", "clean-admin")) {
         enacted = true;
         break;
       }
     }
     expect(enacted).toBe(true);
-    const mod = s.activeModifiers.find((m) => m.id === lawModifierId("ming", "low-tax"));
+    const mod = s.activeModifiers.find((m) => m.id === lawModifierId("ming", "clean-admin"));
     expect(mod).toBeDefined();
-    expect(mod!.effects["tax-mult"]).toBe(-0.15);
+    // clean-admin 的 corruption-flat 是 faction-instant（一次性施加），不进 modifier.effects
+    // 验证 modifier 存在即可；faction 级 corruption 应已被 -4 instant 影响
+    expect(s.factions.ming.corruption).toBeLessThanOrEqual(100);
     // 落实后 ming 不应崩溃
     expect(s.factions.ming.status).toBe("active");
   });

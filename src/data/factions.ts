@@ -2,7 +2,7 @@ import type { FactionState, FactionCliqueState } from "../core/types";
 
 function defaultCliques(overrides: Partial<Record<string, number>> = {}): FactionCliqueState[] {
   const merged = Object.assign(
-    { donglin: 50, eunuchs: 50, gentry: 50, generals: 50 },
+    { imperial: 50, reform: 50, donglin: 50, eunuch: 50, frontier: 50 },
     overrides,
   );
   return Object.entries(merged).map(([cliqueId, support]) => ({
@@ -41,7 +41,7 @@ export const factionTemplates: Record<string, FactionState> = {
       warEndurance: 45
     },
     status: "active",
-    cliques: defaultCliques({ donglin: 55, eunuchs: 47 }),
+    cliques: defaultCliques({ reform: 55, donglin: 55, eunuch: 47 }),
     administrationBase: 72,
   },
   tumed: {
@@ -99,7 +99,7 @@ export const factionTemplates: Record<string, FactionState> = {
       warEndurance: 70
     },
     status: "active",
-    cliques: defaultCliques({ generals: 58, gentry: 45 }),
+    cliques: defaultCliques({ frontier: 58, reform: 45 }),
     administrationBase: 32,
   },
   chahar: {
@@ -244,7 +244,7 @@ export const factionTemplates: Record<string, FactionState> = {
       warEndurance: 42
     },
     status: "active",
-    cliques: defaultCliques({ gentry: 58, generals: 44 }),
+    cliques: defaultCliques({ reform: 58, frontier: 44 }),
     administrationBase: 58,
   },
   japan: {
@@ -273,7 +273,7 @@ export const factionTemplates: Record<string, FactionState> = {
       warEndurance: 62
     },
     status: "active",
-    cliques: defaultCliques({ generals: 64, gentry: 42 }),
+    cliques: defaultCliques({ frontier: 64, reform: 42 }),
     administrationBase: 44,
   },
   ainu: {
@@ -331,7 +331,7 @@ export const factionTemplates: Record<string, FactionState> = {
       warEndurance: 50
     },
     status: "active",
-    cliques: defaultCliques({ gentry: 55 }),
+    cliques: defaultCliques({ reform: 55 }),
     administrationBase: 34,
   }
 };

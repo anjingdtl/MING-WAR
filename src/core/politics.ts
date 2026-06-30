@@ -1,15 +1,15 @@
 import type { FactionCliqueId, FactionId, GameState, Modifier } from "./types";
 
+/** S3c: 政治运动诉求类型。 */
+export type MovementDemand = "reduce-tax" | "kaocheng" | "mining-tax" | "army-pay";
+
 /** S3c: 政治运动诉求的中文标签。 */
 export const DEMAND_LABEL: Record<MovementDemand, string> = {
   "reduce-tax": "减税",
-  "open-sea": "开海",
+  "kaocheng": "考成推行",
+  "mining-tax": "矿税扩张",
   "army-pay": "索饷",
-  autonomy: "地方自治",
 };
-
-/** S3c: 政治运动诉求类型。 */
-export type MovementDemand = "reduce-tax" | "open-sea" | "army-pay" | "autonomy";
 
 /** S3c: 一场由利益集团发起的政治运动。 */
 export interface PoliticalMovement {
@@ -22,17 +22,19 @@ export interface PoliticalMovement {
 }
 
 /**
- * 集团 → 诉求映射（由其政治偏好派生，见 CliqueDef.preferredLaws）。
+ * 网络 → 诉求映射（由其政治偏好派生，见 CliqueDef.preferredLaws）。
+ *   imperial → null        （皇权网络不发起政治运动）
+ *   reform   → kaocheng    （改革派推行考成法）
  *   donglin  → reduce-tax  （东林主张减税惠民）
- *   eunuchs  → open-sea    （宦党主张扩张财源：矿税/开海）
- *   gentry   → autonomy    （缙绅主张地方自治）
- *   generals → army-pay    （勋贵诉求军饷）
+ *   eunuch   → mining-tax  （阉党主张矿税扩张）
+ *   frontier → army-pay    （边防网络诉求军饷）
  */
-export const CLIQUE_DEMAND: Record<FactionCliqueId, MovementDemand> = {
+export const CLIQUE_DEMAND: Record<FactionCliqueId, MovementDemand | null> = {
+  imperial: null,
+  reform: "kaocheng",
   donglin: "reduce-tax",
-  eunuchs: "open-sea",
-  gentry: "autonomy",
-  generals: "army-pay",
+  eunuch: "mining-tax",
+  frontier: "army-pay",
 };
 
 /** 触发阈值：力量足够强（控制的社会财富份额）且足够不满。 */
@@ -55,9 +57,9 @@ const DEMAND_EFFECT: Record<
   // 必须小到无危机时几乎无感（如 seed 1 零运动大明健康扩张），有危机时
   // 才温和显现。叠加 12 月 cooldown 防累积。
   "reduce-tax": { label: "减税让步", effects: { "tax-mult": -0.05 } },
-  "open-sea": { label: "开海让步", effects: { "stability-flat": 1 } },
+  "kaocheng": { label: "考成推行", effects: { "admin-efficiency": 0.03 } },
+  "mining-tax": { label: "矿税扩张", effects: { "tax-mult": 0.05 } },
   "army-pay": { label: "加饷让步", effects: { "maintenance-mult": 0.03 } },
-  autonomy: { label: "自治让步", effects: { "control-flat": -1 } },
 };
 
 /**
@@ -83,7 +85,12 @@ export function advancePoliticalMovements(state: GameState): PoliticalMovement[]
       const demand = CLIQUE_DEMAND[cs.cliqueId];
       if (!demand) continue;
 
-      const strong = cs.strength >= MOVEMENT_STRENGTH_THRESHOLD;
+      // border-pressure: frontier network lowers army-pay threshold by 10
+      const effectiveStrengthThreshold =
+        cs.cliqueId === "frontier" && cs.strength > 40
+          ? MOVEMENT_STRENGTH_THRESHOLD - 10
+          : MOVEMENT_STRENGTH_THRESHOLD;
+      const strong = cs.strength >= effectiveStrengthThreshold;
       const displeased = cs.approval <= MOVEMENT_APPROVAL_THRESHOLD;
       const existing = movements.find(
         (m) => m.factionId === faction.id && m.cliqueId === cs.cliqueId && m.demand === demand,

@@ -45,7 +45,7 @@ describe("MVP scenario", () => {
     const state = createMvpScenario();
     for (const faction of Object.values(state.factions)) {
       expect(faction.cliques, `${faction.id} cliques`).toBeDefined();
-      expect(faction.cliques.length, `${faction.id} clique count`).toBe(4);
+      expect(faction.cliques.length, `${faction.id} clique count`).toBe(5);
       expect(faction.administrationBase, `${faction.id} adminBase`).toBeGreaterThan(0);
     }
     expect(state.version).toBe("0.3.0");

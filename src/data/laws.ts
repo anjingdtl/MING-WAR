@@ -13,9 +13,9 @@ import type { LawDef, LawId } from "../core/types";
  *
  * 博弈图景（支持/反对集团，由 tags 与 clique 标签求交得出）：
  *   donglin : preferred[low-tax,clean-admin,relief-priority] opposed[mining-tax,commercial-tax,land-survey]
- *   eunuchs : preferred[mining-tax,commercial-tax,treasury-centralization] opposed[low-tax,local-autonomy]
- *   gentry  : preferred[low-tax,local-autonomy,land-protection] opposed[land-survey,commercial-tax]
- *   generals: preferred[military-funding,frontier-autonomy] opposed[civilian-control,austerity]
+ *   eunuch  : preferred[mining-tax,commercial-tax,treasury-centralization] opposed[low-tax,local-autonomy]
+ *   reform  : preferred[land-survey,commercial-tax,treasury-centralization] opposed[low-tax,local-autonomy]
+ *   frontier: preferred[military-funding,frontier-autonomy] opposed[civilian-control,austerity]
  */
 export const lawLibrary: Record<LawId, LawDef> = {
   // ── 税制 ──────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ export const lawLibrary: Record<LawId, LawDef> = {
     description:
       "重新丈量全国田亩、清查隐田，税基扩张、中央集权强化，但遭隐田士绅死命抵制。",
     tags: ["land-survey"],
-    // 张居正清丈：阻力极大（donglin+gentry 双反对），符合 SPEC 验收"可能停滞"。
+    // 张居正清丈：donglin 反对、reform 支持（首辅改革推动清丈）。
     effects: { "tax-mult": 0.15, "centralization-flat": 8, "corruption-flat": -2 },
   },
 

@@ -68,7 +68,7 @@ describe("monthly simulation", () => {
     const ming = result.nextState.factions.ming;
 
     // cliques should have updated strength based on controlled regions
-    expect(ming.cliques.length).toBe(4);
+    expect(ming.cliques.length).toBe(5);
     expect(ming.cliques.some((c) => c.strength > 0)).toBe(true);
 
     // administrationBase should be saved

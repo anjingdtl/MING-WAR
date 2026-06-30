@@ -38,10 +38,11 @@ const rebelFaction: FactionState = {
   },
   status: "active",
   cliques: [
+    { cliqueId: "imperial", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "reform", support: 30, strength: 0, activeModifier: 0, approval: 50 },
     { cliqueId: "donglin", support: 30, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "eunuchs", support: 30, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "gentry", support: 30, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "generals", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "eunuch", support: 30, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "frontier", support: 30, strength: 0, activeModifier: 0, approval: 50 },
   ],
   administrationBase: 20,
 };

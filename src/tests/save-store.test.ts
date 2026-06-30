@@ -26,7 +26,7 @@ describe("save manager", () => {
     expect(migrated.version).toBe("0.3.0");
     for (const faction of Object.values(migrated.factions)) {
       expect(faction.cliques).toBeDefined();
-      expect(faction.cliques.length).toBe(4);
+      expect(faction.cliques.length).toBe(5);
       expect(faction.administrationBase).toBeGreaterThan(0);
     }
   });

@@ -49,10 +49,11 @@ function makeCliques(
   overrides: Partial<Record<string, Partial<FactionCliqueState>>> = {},
 ): FactionCliqueState[] {
   const defaults: FactionCliqueState[] = [
+    { cliqueId: "imperial", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "reform", support: 50, strength: 0, activeModifier: 0, approval: 50 },
     { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-    { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "eunuch", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+    { cliqueId: "frontier", support: 50, strength: 0, activeModifier: 0, approval: 50 },
   ];
   return defaults.map((c) => ({ ...c, ...(overrides[c.cliqueId] ?? {}) }));
 }
@@ -62,25 +63,28 @@ describe("clique weight computation", () => {
     const region = makeRegion({ commerce: 80, agriculture: 80, taxCapacity: 80, fortification: 70 });
     const weights = computeRegionCliqueWeights(region);
 
+    const imperial = weights.find((w) => w.cliqueId === "imperial")!;
+    const reform = weights.find((w) => w.cliqueId === "reform")!;
     const donglin = weights.find((w) => w.cliqueId === "donglin")!;
-    const eunuchs = weights.find((w) => w.cliqueId === "eunuchs")!;
-    const gentry = weights.find((w) => w.cliqueId === "gentry")!;
-    const generals = weights.find((w) => w.cliqueId === "generals")!;
+    const eunuch = weights.find((w) => w.cliqueId === "eunuch")!;
+    const frontier = weights.find((w) => w.cliqueId === "frontier")!;
 
+    expect(imperial.weight).toBeGreaterThan(0);
+    expect(reform.weight).toBeGreaterThan(0);
     expect(donglin.weight).toBeGreaterThan(0);
-    expect(eunuchs.weight).toBeGreaterThan(0);
-    expect(gentry.weight).toBeGreaterThan(0);
-    expect(generals.weight).toBeGreaterThan(0);
+    expect(eunuch.weight).toBeGreaterThan(0);
+    expect(frontier.weight).toBeGreaterThan(0);
   });
 
   it("returns zero weight when region attribute is below threshold", () => {
-    const region = makeRegion({ commerce: 30, agriculture: 30, taxCapacity: 30, fortification: 20 });
+    const region = makeRegion({ commerce: 30, agriculture: 30, taxCapacity: 30, fortification: 20, control: 30 });
     const weights = computeRegionCliqueWeights(region);
 
+    expect(weights.find((w) => w.cliqueId === "imperial")!.weight).toBe(0);
+    expect(weights.find((w) => w.cliqueId === "reform")!.weight).toBe(0);
     expect(weights.find((w) => w.cliqueId === "donglin")!.weight).toBe(0);
-    expect(weights.find((w) => w.cliqueId === "eunuchs")!.weight).toBe(0);
-    expect(weights.find((w) => w.cliqueId === "gentry")!.weight).toBe(0);
-    expect(weights.find((w) => w.cliqueId === "generals")!.weight).toBe(0);
+    expect(weights.find((w) => w.cliqueId === "eunuch")!.weight).toBe(0);
+    expect(weights.find((w) => w.cliqueId === "frontier")!.weight).toBe(0);
   });
 
   it("high commerce boosts donglin weight", () => {
@@ -91,11 +95,11 @@ describe("clique weight computation", () => {
     expect(highW).toBeGreaterThan(lowW);
   });
 
-  it("high agriculture boosts gentry weight", () => {
-    const low = makeRegion({ agriculture: 40 });
-    const high = makeRegion({ agriculture: 90 });
-    const lowW = computeRegionCliqueWeights(low).find((w) => w.cliqueId === "gentry")!.weight;
-    const highW = computeRegionCliqueWeights(high).find((w) => w.cliqueId === "gentry")!.weight;
+  it("high taxCapacity boosts reform weight", () => {
+    const low = makeRegion({ taxCapacity: 40 });
+    const high = makeRegion({ taxCapacity: 90 });
+    const lowW = computeRegionCliqueWeights(low).find((w) => w.cliqueId === "reform")!.weight;
+    const highW = computeRegionCliqueWeights(high).find((w) => w.cliqueId === "reform")!.weight;
     expect(highW).toBeGreaterThan(lowW);
   });
 });
@@ -104,18 +108,18 @@ describe("faction clique strength aggregation", () => {
   it("aggregates strength from controlled regions weighted by population", () => {
     const cliques = makeCliques();
     const regions = [
-      makeRegion({ id: "r1", population: 800000, commerce: 90 }),
+      makeRegion({ id: "r1", population: 800000, commerce: 90, taxCapacity: 70 }),
       makeRegion({ id: "r2", population: 200000, agriculture: 90 }),
     ];
     const result = computeFactionCliqueStrength(cliques, regions);
 
     const donglin = result.find((c) => c.cliqueId === "donglin")!;
-    const gentry = result.find((c) => c.cliqueId === "gentry")!;
+    const reformC = result.find((c) => c.cliqueId === "reform")!;
 
     // donglin should be stronger because the high-commerce region has more population
     expect(donglin.strength).toBeGreaterThan(0);
-    expect(gentry.strength).toBeGreaterThan(0);
-    expect(donglin.strength).toBeGreaterThan(gentry.strength);
+    expect(reformC.strength).toBeGreaterThan(0);
+    expect(donglin.strength).toBeGreaterThan(reformC.strength);
   });
 
   it("returns zero strength when faction has no regions", () => {
@@ -193,15 +197,16 @@ describe("apply clique reactions", () => {
     const cliques = makeCliques({ donglin: { support: 95 } });
     const reactions = [
       { cliqueId: "donglin", delta: 8, reason: "test" },
-      { cliqueId: "eunuchs", delta: -3, reason: "test" },
-      { cliqueId: "gentry", delta: 0, reason: "test" },
-      { cliqueId: "generals", delta: 0, reason: "test" },
+      { cliqueId: "eunuch", delta: -3, reason: "test" },
+      { cliqueId: "reform", delta: 0, reason: "test" },
+      { cliqueId: "frontier", delta: 0, reason: "test" },
+      { cliqueId: "imperial", delta: 0, reason: "test" },
     ];
     const result = applyCliqueReactions(cliques, reactions);
     const donglin = result.find((c) => c.cliqueId === "donglin")!;
     expect(donglin.support).toBe(100); // 95 + 8 = 103 → clamped to 100
-    const eunuchs = result.find((c) => c.cliqueId === "eunuchs")!;
-    expect(eunuchs.support).toBe(47); // 50 - 3
+    const eunuch = result.find((c) => c.cliqueId === "eunuch")!;
+    expect(eunuch.support).toBe(47); // 50 - 3
   });
 });
 
@@ -209,7 +214,7 @@ describe("administration modifier computation", () => {
   it("returns positive modifier when cliques have high support", () => {
     const cliques = makeCliques({
       donglin: { support: 75, strength: 50 },
-      gentry: { support: 70, strength: 40 },
+      reform: { support: 70, strength: 40 },
     });
     const modifier = computeAdministrationModifier(cliques);
     expect(modifier).toBeGreaterThan(0);
@@ -218,7 +223,7 @@ describe("administration modifier computation", () => {
   it("returns negative modifier when cliques have low support", () => {
     const cliques = makeCliques({
       donglin: { support: 20, strength: 50 },
-      eunuchs: { support: 15, strength: 40 },
+      eunuch: { support: 15, strength: 40 },
     });
     const modifier = computeAdministrationModifier(cliques);
     expect(modifier).toBeLessThan(0);
@@ -227,9 +232,10 @@ describe("administration modifier computation", () => {
   it("clamps modifier to [-10, +10] range", () => {
     const cliques = makeCliques({
       donglin: { support: 100, strength: 100 },
-      eunuchs: { support: 100, strength: 100 },
-      gentry: { support: 100, strength: 100 },
-      generals: { support: 100, strength: 100 },
+      eunuch: { support: 100, strength: 100 },
+      reform: { support: 100, strength: 100 },
+      frontier: { support: 100, strength: 100 },
+      imperial: { support: 100, strength: 100 },
     });
     const modifier = computeAdministrationModifier(cliques);
     expect(modifier).toBeLessThanOrEqual(10);
@@ -247,15 +253,15 @@ describe("natural support decay", () => {
   it("decays support toward 50 each month", () => {
     const cliques = makeCliques({
       donglin: { support: 80 },
-      eunuchs: { support: 20 },
+      eunuch: { support: 20 },
     });
     const result = applyNaturalDecay(cliques);
     const donglin = result.find((c) => c.cliqueId === "donglin")!;
-    const eunuchs = result.find((c) => c.cliqueId === "eunuchs")!;
+    const eunuch = result.find((c) => c.cliqueId === "eunuch")!;
     expect(donglin.support).toBeLessThan(80);
     expect(donglin.support).toBeGreaterThanOrEqual(79);
-    expect(eunuchs.support).toBeGreaterThan(20);
-    expect(eunuchs.support).toBeLessThanOrEqual(21);
+    expect(eunuch.support).toBeGreaterThan(20);
+    expect(eunuch.support).toBeLessThanOrEqual(21);
   });
 
   it("does not change support that is exactly 50", () => {
@@ -355,11 +361,12 @@ describe("S3a: clique strength from pop wealth", () => {
     });
     const result = computeFactionCliqueStrengthFromPops(cliques, [region]);
     const donglin = result.find((c) => c.cliqueId === "donglin")!;
-    const gentry = result.find((c) => c.cliqueId === "gentry")!;
-    // gentry pops feed donglin; peasant pops feed the gentry clique — both > 0,
+    const reformC = result.find((c) => c.cliqueId === "reform")!;
+    // gentry pops feed donglin (affinity 1.0) and reform (affinity 0.5);
+    // peasant pops feed no clique — both > 0,
     // proving strength now derives from pop wealth rather than attribute mapping.
     expect(donglin.strength).toBeGreaterThan(0);
-    expect(gentry.strength).toBeGreaterThan(0);
+    expect(reformC.strength).toBeGreaterThan(0);
   });
 
   it("a wealthier gentry class shifts strength toward donglin (its representative)", () => {
@@ -373,16 +380,22 @@ describe("S3a: clique strength from pop wealth", () => {
         popGroups: [
           makePopGroup({ id: "p", type: "peasant", size: 90000, wealth: 50 }),
           makePopGroup({ id: "g", type: "gentry", size: 5000, wealth: gentryWealth }),
+          // Merchant baseline (feeds only donglin at 0.8, not reform/eunuch).
+          // With gentry-dependent cliques (donglin 1.0, reform 0.5, eunuch 0.4)
+          // sharing gentry wealth, donglin's normalized share depends on how
+          // much the merchant-only base dominates the total.
+          makePopGroup({ id: "m", type: "merchant", size: 3000, wealth: 500 }),
         ],
       });
     const poorGentry = computeFactionCliqueStrengthFromPops(makeCliques(), [scenario(100)]);
-    const richGentry = computeFactionCliqueStrengthFromPops(makeCliques(), [scenario(2000)]);
+    const richGentry = computeFactionCliqueStrengthFromPops(makeCliques(), [scenario(1000)]);
     const donglinPoor = poorGentry.find((c) => c.cliqueId === "donglin")!.strength;
     const donglinRich = richGentry.find((c) => c.cliqueId === "donglin")!.strength;
-    // As gentry grow richer, they capture a larger share of social-political
-    // wealth, so donglin (which represents gentry) gains strength. This is the
-    // S2c→S3 link: wealth concentration → political power.
-    expect(donglinRich).toBeGreaterThan(donglinPoor);
+    // When gentry are poor, the merchant base (exclusive to donglin) dominates,
+    // concentrating political power in donglin's hands. As gentry grow richer,
+    // reform and eunuch gain proportionally (sharing the gentry wealth), diluting
+    // donglin's dominance — the S2c→S3 link: wealth distribution → political power.
+    expect(donglinPoor).toBeGreaterThan(donglinRich);
   });
 
   it("falls back to region-attribute mapping when regions lack popGroups", () => {
@@ -406,7 +419,7 @@ describe("S3a: clique strength from pop wealth", () => {
         makePopGroup({ id: "s", type: "soldier", size: 2000, wealth: 60 }),
       ],
     });
-    // Frontier garrison: soldier-heavy → generals dominate.
+    // Frontier garrison: soldier-heavy → frontier dominates.
     const frontier = makeRegion({
       id: "frontier",
       commerce: 0,
@@ -421,9 +434,9 @@ describe("S3a: clique strength from pop wealth", () => {
     const mingC = computeFactionCliqueStrengthFromPops(makeCliques(), [ming]);
     const frontC = computeFactionCliqueStrengthFromPops(makeCliques(), [frontier]);
     expect(mingC.find((c) => c.cliqueId === "donglin")!.strength).toBeGreaterThan(
-      mingC.find((c) => c.cliqueId === "generals")!.strength,
+      mingC.find((c) => c.cliqueId === "frontier")!.strength,
     );
-    expect(frontC.find((c) => c.cliqueId === "generals")!.strength).toBeGreaterThan(
+    expect(frontC.find((c) => c.cliqueId === "frontier")!.strength).toBeGreaterThan(
       frontC.find((c) => c.cliqueId === "donglin")!.strength,
     );
   });

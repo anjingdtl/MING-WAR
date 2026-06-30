@@ -30,10 +30,11 @@ describe("domain types", () => {
       },
       status: "active",
       cliques: [
+        { cliqueId: "imperial", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "reform", support: 50, strength: 0, activeModifier: 0, approval: 50 },
         { cliqueId: "donglin", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "eunuchs", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "gentry", support: 50, strength: 0, activeModifier: 0, approval: 50 },
-        { cliqueId: "generals", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "eunuch", support: 50, strength: 0, activeModifier: 0, approval: 50 },
+        { cliqueId: "frontier", support: 50, strength: 0, activeModifier: 0, approval: 50 },
       ],
       administrationBase: 72,
     };
