@@ -28,8 +28,8 @@ describe("useUiStore", () => {
   });
 
   it("setMapLayer updates only mapLayer", () => {
-    useUiStore.getState().setMapLayer("economy");
-    expect(useUiStore.getState().mapLayer).toBe("economy");
+    useUiStore.getState().setMapLayer("population");
+    expect(useUiStore.getState().mapLayer).toBe("population");
   });
 
   it("setPendingEventId updates only pendingEventId", () => {

@@ -105,10 +105,33 @@ npm run hash:state      # 6 节点状态哈希
 |---|---|---|---|---|
 | 0 (v0.3.0 + Phase 1) | 4cd82db | 24.153 ms | baseline | 410 测试全绿 |
 | 2 (流水线拆分) | 5b94e35 | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
-| 3 (store 拆分) | _TBD_ | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
-| 4 (Service 抽象) | _TBD_ | _TBD_ | _TBD_ | — |
+| 3 (store 拆分) | c89a843 | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
+| 4 (Service 抽象) | _TBD_ | 26.103 ms | **0 漂移** ✅ | 438 测试全绿 |
 | 5 (存档升级) | _TBD_ | _TBD_ | _TBD_ | — |
 | 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+
+### Phase 4 详情（SimulationService 抽象）
+
+- 新增 `src/runtime/simulationService.ts`：`SimulationService` 接口（11 方法）
+- 新增 `src/runtime/viewSnapshot.ts`：
+  - `GameViewSnapshot` / `MonthResult` / `AdvanceResult` / `SerializedSave`
+  - `DecisionProvider` / `SimulationProgress` / `StartGameOptions`
+  - `PlayerFactionView` / `RegionView` / `PendingEventView`
+- 新增 `src/runtime/localSimulationService.ts`：主线程实现
+  - 调用 `simulateMonth`（背后是 Phase 2 的 7 阶段）
+  - `startGame` / `advanceMonth` / `advanceMonths` / `saveGame` / `loadGame`
+  - `pause` / `resume` / `isPaused` / `onProgress` / `getFullStateForDebug`
+  - 自动终止：玩家覆灭 / endDate 到达 / 事件触发
+  - 连续推进用 `requestAnimationFrame` 让出主线程
+- 新增 `src/tests/simulationService.test.ts`：11 个 service 测试
+  - 包含 10 月确定性测试（双 service 同 hash）
+- 修复 `src/tests/storeSplit.test.ts`：`mapLayer` 值与类型对齐
+- 测试数：427 → 438
+
+**关键不变量**：
+- 5 节点 hash 与 Phase 1/2/3 完全一致
+- `LocalSimulationService.advanceMonth` 与直接 `simulateMonth` 同 hash
+- service 内不消费 random 顺序、不改写 phase 内部逻辑
 
 ### Phase 3 详情（Store 拆分）
 
