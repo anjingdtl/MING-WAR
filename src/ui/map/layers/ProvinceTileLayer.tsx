@@ -33,7 +33,6 @@ export const ProvinceTileLayer = React.memo(function ProvinceTileLayer({
       viewBox={mapCanvas.viewBox}
       aria-hidden="true"
       data-testid="province-tile-layer"
-      style={{ position: "absolute", top: 0, left: 0 }}
     >
       {tiles.map((tile) => {
         const isContext = !tile.isPlayableRegion;

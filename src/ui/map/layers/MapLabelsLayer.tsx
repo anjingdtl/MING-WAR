@@ -58,7 +58,6 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
       viewBox={mapCanvas.viewBox}
       aria-hidden="true"
       data-testid="map-labels-layer"
-      style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
     >
       {showFactionLabels &&
         factionLabels.map((fl) => (

@@ -226,11 +226,11 @@ a:hover {
   content: "";
   position: absolute;
   inset: 0;
+  /* v0.7.2 — 暗角（vignette）原本在 panel 上，缩放时不动，导致地图内容与暗角脱节。
+     移除暗色渐变，保留轻微的纸张纹理和中心高光作底纹。 */
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 5px),
-    radial-gradient(circle at 48% 44%, rgba(255, 249, 226, 0.10), transparent 42%),
-    linear-gradient(90deg, rgba(24, 19, 15, 0.42), transparent 21%, transparent 70%, rgba(24, 19, 15, 0.38)),
-    linear-gradient(180deg, rgba(24, 19, 15, 0.24), transparent 24%, rgba(24, 19, 15, 0.36));
+    radial-gradient(circle at 48% 44%, rgba(255, 249, 226, 0.10), transparent 42%);
   pointer-events: none;
   z-index: -2;
 }
@@ -385,6 +385,10 @@ a:hover {
 
 /* Layer 2: 省区交互命中层 */
 .province-tile-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: 3;
 }
 
@@ -444,6 +448,11 @@ a:hover {
 
 /* Layer 4: 标签层 */
 .map-labels-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   z-index: 4;
 }
 
