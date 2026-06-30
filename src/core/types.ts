@@ -431,4 +431,6 @@ export interface SimulationResult {
   reports: MonthlyReport[];
   triggeredEvents: TriggeredEvent[];
   alerts: GameAlert[];
+  /** v0.6-stability: 阶段计时（仅 dev 模式 / 显式 MINGWAR_TIMING=1 时有值）。 */
+  timings?: import("./timing").SimulationTiming;
 }

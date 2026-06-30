@@ -39,10 +39,21 @@ import {
 } from "./market";
 import { mvpEvents } from "../data/events";
 import { cliqueTemplates } from "../data/cliques";
+import {
+  freshTiming,
+  isTimingEnabled,
+  recordPhase,
+  recordTotal,
+  type SimulationTiming
+} from "./timing";
 import type { FactionState, GameState, GoodId, MonthlyReport, PlayerDecision, RegionState, SimulationInput, SimulationResult, WarState } from "./types";
 
 export function simulateMonth(input: SimulationInput): SimulationResult {
+  const totalStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
+  const timings: SimulationTiming = freshTiming();
+  const cloneStart = totalStart;
   const state = structuredClone(input.state);
+  recordPhase(timings, "clone", cloneStart);
   const random = createRandom(input.randomSeed);
   const reports: MonthlyReport[] = [];
   const ledgerEntries: LedgerEntry[] = [];
@@ -61,6 +72,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
     ...aiDecisions
   };
 
+  const regionStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   for (const region of Object.values(state.regions)) {
     const controller = state.factions[region.controllerFactionId];
     const factionDecision = decisionsLookup[region.controllerFactionId] ?? playerDecision;
@@ -256,7 +268,12 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       });
     }
   }
+  recordPhase(timings, "regions", regionStart);
+  // market 阶段计时嵌在 region 内部（runTrade/updateMarketPrices 在 finalize 末尾）
+  // 这里先记 0，留给 finalize 内的 recordPhase。
+  recordPhase(timings, "market", isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0);
 
+  const factionStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   for (const faction of Object.values(state.factions)) {
     if (faction.status !== "active") continue;
     const maintenance = calculateFactionMaintenance(faction, state.activeModifiers);
@@ -329,27 +346,25 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       faction.corruption = Math.min(80, faction.corruption + 0.1);
     }
   }
+  recordPhase(timings, "faction", factionStart);
 
   // S5: 外交月度演变（停战倒计时 / 威胁 / 关系）+ 条约财政后果（互市关税 /
   // 朝贡白银）走账本，保持 Δtreasury === 账本净额。本模块确定性，不消费
   // random，故插在 applyResourceCrises 之前不扰动确定性随机序列。
+  const diplomacyStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const diploEntries = advanceDiplomacy(state);
   applyLedgerToState(state, diploEntries);
   ledgerEntries.push(...diploEntries);
-
   applyResourceCrises(state, reports, random);
-
-  // A faction that has lost every region is eliminated (rebels excepted — they
-  // stand ready to receive new uprisings). Previously Ming could "survive"
-  // indefinitely at 0 controlled regions.
   eliminateDefeatedFactions(state, reports);
-
   updateFactionCliques(state, decisionsLookup);
+  recordPhase(timings, "diplomacy", diplomacyStart);
 
   // S4: 法律改革。按 domesticFocus 自动提出（玩家与 AI 同规则），再推进已有
   // 改革。落实写永久 modifier（接通 S1 后果环）+ 受益集团 approval 升、受损
   // 集团 approval 暴跌——后者会在下面的 advancePoliticalMovements 里触发政治
   // 运动，完成"改革→既得利益反弹→政治运动"闭环。
+  const politicsStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   autoProposeReforms(state, decisionsLookup);
   const reformResult = advanceReforms(state);
   for (const r of reformResult.enacted) {
@@ -392,9 +407,11 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       severity: "warning",
     });
   }
+  recordPhase(timings, "politics", politicsStart);
 
   // S6: 历史局势推进（系统驱动的长期叙事）。trigger/advance 由 S1–S5 系统状态
   // 推动，outcomes 施加效果（mutate 字段 / 写 modifier，确定性，不走 ledger）。
+  const situationStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const sitEvents = advanceSituations(state, situationLibrary);
   for (const ev of sitEvents) {
     reports.push({
@@ -406,7 +423,9 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       severity: ev.type === "outcome" ? "warning" : "info",
     });
   }
+  recordPhase(timings, "situation", situationStart);
 
+  const warStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const decisions: Record<string, PlayerDecision> = {
     [state.playerFactionId]: playerDecision,
     ...aiDecisions
@@ -506,6 +525,10 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       severity: "info",
     });
   }
+  recordPhase(timings, "warfare", warStart);
+
+  // finalizeMonth: 月末推进（日期、报告、ledger 历史、迁移、贸易/价格、不变量、history、alerts、gameStatus）。
+  const finalizeStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const nextDate = advanceMonth(state.currentDate);
   state.currentDate = nextDate;
   state.seed = random.seed;
@@ -529,6 +552,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   // and pop consumption now run inside the region loop above (S2a unified
   // flow); here we only propagate goods between connected regions and settle
   // prices from the supply/demand snapshots each region already filled.
+  const marketStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const marketsByRegion: Record<string, import("./market").MarketState> = {};
   const industriesByRegion: Record<string, import("./types").IndustryState[]> = {};
   for (const region of Object.values(state.regions)) {
@@ -539,8 +563,12 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   runTrade(state, marketsByRegion);
   updateMarketPrices(marketsByRegion, state.regions);
   autoInvest(marketsByRegion, industriesByRegion);
+  // market 阶段总耗时覆盖 region 末尾的 0 占位。
+  const marketEnd = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
+  timings.market = timings.market === 0 ? (marketEnd - marketStart) : timings.market + (marketEnd - marketStart);
 
   // P0-5: validate state invariants and append violations as system reports
+  const validationStart = isTimingEnabled() ? (typeof performance !== "undefined" ? performance.now() : Date.now()) : 0;
   const violations = validateInvariants(state);
   for (const v of violations) {
     if (v.severity === "error") {
@@ -554,6 +582,7 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
       });
     }
   }
+  recordPhase(timings, "validation", validationStart);
 
   state.history.push({
     date: nextDate,
@@ -575,12 +604,15 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
         ? "paused"
         : "playing";
   state.lastDomesticFocus = playerDecision.domesticFocus;
+  recordPhase(timings, "finalize", finalizeStart);
+  recordTotal(timings, totalStart);
 
   return {
     nextState: state,
     reports,
     triggeredEvents: triggered.map((event) => ({ eventId: event.id, optionRequired: true })),
-    alerts: state.alerts
+    alerts: state.alerts,
+    timings: isTimingEnabled() ? timings : undefined
   };
 }
 

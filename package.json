@@ -10,10 +10,20 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:save": "vitest run src/tests/saveMigration.test.ts src/tests/saveValidation.test.ts src/tests/autoSave.test.ts src/tests/saveStore.test.ts",
+    "test:determinism": "vitest run src/tests/determinism.test.ts",
     "batch": "tsx src/scripts/runBatchSimulation.ts",
     "diagnose": "tsx src/scripts/diagnoseSimulation.ts",
     "map:generate": "tsx src/scripts/generateMapRegions.ts",
-    "map:validate": "tsx src/scripts/validateMapRegions.ts"
+    "map:validate": "tsx src/scripts/validateMapRegions.ts",
+    "perf:month": "tsx src/scripts/perfMonth.ts",
+    "perf:year": "tsx src/scripts/perfYear.ts",
+    "perf:fullgame": "tsx src/scripts/perfFullGame.ts",
+    "perf:clone": "tsx src/scripts/perfClone.ts",
+    "perf:save": "tsx src/scripts/perfSave.ts",
+    "perf:smoke": "tsx src/scripts/perfMonth.ts",
+    "perf:report": "tsx src/scripts/perfFullGame.ts",
+    "hash:state": "tsx src/scripts/stateHash.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
