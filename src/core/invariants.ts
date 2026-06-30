@@ -6,7 +6,8 @@ export interface InvariantViolation {
   severity: "warning" | "error";
 }
 
-const TREASURY_FLOOR = -1_000_000; // Allow limited debt but flag extreme negatives
+/** 1080 月长跑下 treasury 可达 -10⁷ 量级，破产 ≠ 数据异常。-1M 以下才报。 */
+const TREASURY_EXTREME_FLOOR = -1_000_000;
 const GRAIN_FLOOR = -100_000; // Allow some deficit but flag catastrophic
 const POPULATION_EXPLOSION_MULTIPLIER = 5; // Population > 5x capacity suggests runaway growth
 
@@ -26,7 +27,7 @@ export function validateInvariants(state: GameState): InvariantViolation[] {
     if (Number.isNaN(faction.treasury)) {
       violations.push({ id: "nan-treasury", message: `${faction.name} 国库为 NaN`, severity: "error" });
     }
-    if (faction.treasury < TREASURY_FLOOR) {
+    if (faction.treasury < TREASURY_EXTREME_FLOOR) {
       violations.push({
         id: "treasury-extreme-negative",
         message: `${faction.name} 国库 ${faction.treasury} 极度负值`,

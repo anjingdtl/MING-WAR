@@ -75,6 +75,20 @@ describe("validateInvariants", () => {
     const violations = validateInvariants(state);
     expect(violations.some((v) => v.id === "treasury-extreme-negative")).toBe(false);
   });
+
+  it("treasury at -500K is OK (above extreme floor)", () => {
+    const state = createMvpScenario("ming", 1);
+    state.factions.ming.treasury = -500_000;
+    const v = validateInvariants(state);
+    expect(v.some((x) => x.id === "treasury-extreme-negative")).toBe(false);
+  });
+
+  it("treasury at -2M triggers extreme-negative violation", () => {
+    const state = createMvpScenario("ming", 1);
+    state.factions.ming.treasury = -2_000_000;
+    const v = validateInvariants(state);
+    expect(v.some((x) => x.id === "treasury-extreme-negative")).toBe(true);
+  });
 });
 
 describe("summarizeViolations", () => {
