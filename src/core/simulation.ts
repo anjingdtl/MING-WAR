@@ -12,7 +12,8 @@
  *   S5. runPoliticsPhase（改革 + 政治运动）
  *   S6. runSituationPhase（历史局势）
  *   S7. runWarPhase（战斗 + 战线 + 和谈）—— 第三个 random 消费点
- *   S8. finalizeMonth（日期 + ledger + trade + 不变量 + history + alerts）
+ *   S8a. runMarketPhase（跨地区贸易 + 价格更新 + 自动投资）
+ *   S8b. finalizeMonth（日期 + reports + ledger + 不变量 + history + alerts）
  *
  * 任何阶段顺序的修改都会扰动 random 序列——禁止调整。
  */
@@ -33,6 +34,7 @@ import { runDiplomacyPhase } from "./simulationPhases/runDiplomacyPhase";
 import { runPoliticsPhase } from "./simulationPhases/runPoliticsPhase";
 import { runSituationPhase } from "./simulationPhases/runSituationPhase";
 import { runWarPhase } from "./simulationPhases/runWarPhase";
+import { runMarketPhase } from "./simulationPhases/runMarketPhase";
 import { finalizeMonth } from "./simulationPhases/finalizeMonth";
 import type { GameState, MonthlyReport, SimulationInput, SimulationResult } from "./types";
 
@@ -99,7 +101,12 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   runWarPhase(ctx);
   recordPhase(timings, "warfare", warStart);
 
-  // S8: 月末收口（内部已记录 timings.market 和 timings.validation）
+  // S8a: market (跨地区贸易 + 价格更新 + 自动投资)
+  const marketStart = isTimingEnabled() ? nowMs() : 0;
+  runMarketPhase(ctx);
+  recordPhase(timings, "market", marketStart);
+
+  // S8b: finalize (日期 + reports + ledger + 不变量 + history + alerts)
   const finalizeStart = isTimingEnabled() ? nowMs() : 0;
   finalizeMonth(ctx);
   recordPhase(timings, "finalize", finalizeStart);

@@ -8,11 +8,6 @@
 
 import { advanceMonth, isAfter } from "../calendar";
 import { migrateMigrants } from "../populationGroups";
-import {
-  autoInvest,
-  runTrade,
-  updateMarketPrices
-} from "../market";
 import { validateInvariants } from "../invariants";
 import { mvpEvents } from "../../data/events";
 import { isTimingEnabled, recordPhase } from "../timing";
@@ -49,20 +44,6 @@ export const finalizeMonth: PhaseFn = (ctx) => {
       migrateMigrants(ctx.state, region.id);
     }
   }
-
-  // 跨地区贸易 / 价格更新 / 自动投资（market 阶段计时）
-  const marketStart = isTimingEnabled() ? nowMs() : 0;
-  const marketsByRegion: Record<string, import("../market").MarketState> = {};
-  const industriesByRegion: Record<string, import("../types").IndustryState[]> = {};
-  for (const region of Object.values(ctx.state.regions)) {
-    if (!region.market) continue;
-    marketsByRegion[region.id] = region.market;
-    industriesByRegion[region.id] = region.industries ?? [];
-  }
-  runTrade(ctx.state, marketsByRegion);
-  updateMarketPrices(marketsByRegion, ctx.state.regions);
-  autoInvest(marketsByRegion, industriesByRegion);
-  recordPhase(ctx.timings, "market", marketStart);
 
   // 不变量校验
   const validationStart = isTimingEnabled() ? nowMs() : 0;
