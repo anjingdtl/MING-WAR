@@ -10,6 +10,7 @@ import { getValidMilitaryTargets } from "../../core/decisions";
 import { isLawEnacted, lawLibrary } from "../../data/laws";
 import { Button } from "../common/Button";
 import { DecisionPrediction } from "./DecisionPrediction";
+import { DiplomacyPanel } from "./DiplomacyPanel";
 
 interface DecisionPanelProps {
   state: GameState;
@@ -169,6 +170,7 @@ export function DecisionPanel({
       )}
 
       <DecisionPrediction state={state} decision={decision} />
+      <DiplomacyPanel state={state} />
     </section>
   );
 }
