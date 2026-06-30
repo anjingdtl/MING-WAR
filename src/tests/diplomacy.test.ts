@@ -8,6 +8,7 @@ import {
   getRelation,
   hasTruce,
   isAlly,
+  proposeAlliance,
   relationKey,
   removeTreaty,
 } from "../core/diplomacy";
@@ -182,5 +183,21 @@ describe("S5d: 外交约束开战（getValidMilitaryTargets）", () => {
     s.regions[neighborId].controllerFactionId = "rebels";
     // 无停战、非盟友 → 可攻击
     expect(getValidMilitaryTargets(s, "ming")).toContain(neighborId);
+  });
+});
+
+describe("S6 遗留#2：玩家主动结盟", () => {
+  it("关系≥20 且非停战/盟友 → 结盟成功", () => {
+    const s = makeState();
+    // 朝鲜-大明 relation 60（朝贡基础），可结盟
+    expect(proposeAlliance(s, "ming", "joseon")).toBe(true);
+    expect(isAlly(s, "ming", "joseon")).toBe(true);
+  });
+
+  it("关系<20（敌对）→ 结盟失败", () => {
+    const s = makeState();
+    // 建州-大明 relation -30（敌对），不可结盟
+    expect(proposeAlliance(s, "ming", "jianzhou")).toBe(false);
+    expect(isAlly(s, "ming", "jianzhou")).toBe(false);
   });
 });

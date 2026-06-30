@@ -196,3 +196,35 @@ export function resolvePeace(state: GameState, peace: PeaceResult): LedgerEntry[
 
   return entries;
 }
+
+/**
+ * S6 遗留#2：玩家主动求和（白和）。
+ *
+ * 玩家参与的战争可主动结束：不割地/不赔款/不纳贡，仅停战 60 月 + 战后关系
+ * 恶化 + 双方战疲缓和。让玩家能脱身无法取胜或不愿持续的长期战争。占领/
+ * 赔款仍由 S5c 自动和谈（checkPeace）按战场态势决定，此函数只提供"体面退出"。
+ */
+export function requestPeace(
+  state: GameState,
+  factionId: FactionId,
+  warId: string,
+): PeaceResult | null {
+  const war = state.wars.find((w) => w.id === warId);
+  if (!war) return null;
+  if (war.attackerFactionId !== factionId && war.defenderFactionId !== factionId) return null;
+  const opponentId =
+    war.attackerFactionId === factionId ? war.defenderFactionId : war.attackerFactionId;
+  const peace: PeaceResult = {
+    warId: war.id,
+    winnerId: factionId,
+    loserId: opponentId,
+    reason: "exhaustion",
+    cedeRegions: [],
+    indemnity: 0,
+    tribute: false,
+    truceMonths: 60,
+  };
+  resolvePeace(state, peace);
+  state.wars = state.wars.filter((w) => w.id !== warId);
+  return peace;
+}

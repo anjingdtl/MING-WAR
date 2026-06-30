@@ -7,6 +7,8 @@ import type { GameEvent } from "../core/eventEngine";
 import type { GameState, MapLayer, PlayerDecision, RegionId } from "../core/types";
 import { mvpEvents } from "../data/events";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
+import { proposeAlliance as doProposeAlliance } from "../core/diplomacy";
+import { requestPeace as doRequestPeace } from "../core/peace";
 
 interface GameStore {
   state: GameState;
@@ -20,6 +22,9 @@ interface GameStore {
   setMapLayer: (layer: MapLayer) => void;
   advanceOneMonth: () => void;
   resolveEvent: (optionId: string) => void;
+  /** S6 遗留#2：主动外交动作 */
+  proposeAlliance: (targetFactionId: string) => void;
+  requestPeace: (warId: string) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -81,5 +86,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: applyEventOption(current.state, event, optionId),
       pendingEventId: null
     });
+  },
+  proposeAlliance: (targetFactionId) => {
+    const current = get();
+    const newState = structuredClone(current.state);
+    if (doProposeAlliance(newState, current.state.playerFactionId, targetFactionId)) {
+      set({ state: newState });
+    }
+  },
+  requestPeace: (warId) => {
+    const current = get();
+    const newState = structuredClone(current.state);
+    if (doRequestPeace(newState, current.state.playerFactionId, warId)) {
+      set({ state: newState });
+    }
   }
 }));

@@ -198,3 +198,20 @@ export function advanceDiplomacy(state: GameState): LedgerEntry[] {
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
+
+/**
+ * S6 遗留#2：玩家主动结盟。
+ * 条件：非停战期、非已盟友、关系≥20（需友好基础——敌对国不可轻易结盟）。
+ * 成功则加 alliance 条约、关系/互信回升。确定性。
+ */
+export function proposeAlliance(state: GameState, a: FactionId, b: FactionId): boolean {
+  if (a === b) return false;
+  const rel = ensureRelation(state, a, b);
+  if (rel.truceMonths > 0) return false;
+  if (rel.treaties.includes("alliance")) return false;
+  if (rel.relation < 20) return false;
+  addTreaty(state, a, b, "alliance");
+  rel.relation = Math.min(100, rel.relation + 20);
+  rel.trust = Math.min(100, rel.trust + 15);
+  return true;
+}

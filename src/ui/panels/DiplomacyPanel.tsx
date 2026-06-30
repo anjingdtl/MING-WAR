@@ -1,11 +1,13 @@
 import type { GameState, TreatyType } from "../../core/types";
 import { getRelation } from "../../core/diplomacy";
+import { Button } from "../common/Button";
+import { useGameStore } from "../../store/gameStore";
 
 /**
- * S6 遗留#3：外交信息面板（只读）。
+ * S6 遗留#3/#2：外交面板（可交互）。
  *
- * 显示玩家势力与其他 active 势力的关系、条约、停战剩余月，以及进行中的
- * 战争（角色/进度/战争支持度）。让玩家看清外交全局与战局态势。
+ * 显示玩家势力与其他 active 势力的关系、条约、停战剩余月，以及进行中的战争。
+ * 玩家可主动「缔结同盟」（关系≥20 且非停战/盟友）与「求和」（白和结束战争）。
  */
 const TREATY_LABEL: Record<TreatyType, string> = {
   alliance: "同盟",
@@ -24,6 +26,8 @@ function relationLabel(relation: number): string {
 }
 
 export function DiplomacyPanel({ state }: { state: GameState }) {
+  const proposeAlliance = useGameStore((s) => s.proposeAlliance);
+  const requestPeace = useGameStore((s) => s.requestPeace);
   const playerId = state.playerFactionId;
   const others = Object.values(state.factions).filter(
     (f) => f.id !== playerId && f.status === "active",
@@ -35,7 +39,7 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
   return (
     <section className="side-panel">
       <h2>外交与战局</h2>
-      <p className="muted">与他国的关系、条约及进行中的战争。</p>
+      <p className="muted">与他国的关系、条约及进行中的战争。可主动结盟或求和。</p>
       <ul className="diplomacy-list">
         {others.map((f) => {
           const rel = getRelation(state, playerId, f.id);
@@ -43,6 +47,11 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
           const treaties = rel?.treaties ?? [];
           const truce = rel?.truceMonths ?? 0;
           const label = relationLabel(relation);
+          const canAlly =
+            !!rel &&
+            rel.truceMonths === 0 &&
+            !rel.treaties.includes("alliance") &&
+            rel.relation >= 20;
           return (
             <li key={f.id} className="diplomacy-item">
               <header>
@@ -56,6 +65,11 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
                 {treaties.length > 0 && ` · ${treaties.map((t) => TREATY_LABEL[t]).join("、")}`}
                 {truce > 0 && ` · 停战 ${truce} 月`}
               </p>
+              {canAlly && (
+                <Button size="sm" variant="tertiary" onClick={() => proposeAlliance(f.id)}>
+                  缔结同盟
+                </Button>
+              )}
             </li>
           );
         })}
@@ -76,11 +90,16 @@ export function DiplomacyPanel({ state }: { state: GameState }) {
                   : w.front?.defenderWarSupport;
               return (
                 <li key={w.id} className="diplomacy-war">
-                  <span>{role}战 · {opponent?.name ?? opponentId}</span>
-                  <span className="muted">
-                    进度 {Math.round(w.progress)}%
-                    {support !== undefined ? ` · 支持 ${Math.round(support)}` : ""}
-                  </span>
+                  <div>
+                    <span>{role}战 · {opponent?.name ?? opponentId}</span>
+                    <span className="muted">
+                      进度 {Math.round(w.progress)}%
+                      {support !== undefined ? ` · 支持 ${Math.round(support)}` : ""}
+                    </span>
+                  </div>
+                  <Button size="sm" variant="tertiary" onClick={() => requestPeace(w.id)}>
+                    求和
+                  </Button>
                 </li>
               );
             })}

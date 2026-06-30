@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkPeace, computeWarSupport, resolvePeace } from "../core/peace";
+import { checkPeace, computeWarSupport, requestPeace, resolvePeace } from "../core/peace";
 import { applyLedgerToState } from "../core/ledger";
 import { getRelation, hasTruce } from "../core/diplomacy";
 import { createMvpScenario } from "../data/scenarios";
@@ -145,5 +145,45 @@ describe("resolvePeace", () => {
     }
     // 胜方战疲缓和
     expect(s.factions.jianzhou.warExhaustion).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("S6 遗留#2：玩家主动求和（requestPeace）", () => {
+  it("参与方可求和 → 战争结束 + 停战（白和，不割地）", () => {
+    const s = makeState();
+    s.wars = [
+      {
+        id: "w1",
+        attackerFactionId: "jianzhou",
+        defenderFactionId: "ming",
+        targetRegionId: "liaodong",
+        progress: 50,
+        monthsActive: 5,
+        front: { attackerWarSupport: 60, defenderWarSupport: 50, attackerSupply: 100, defenderSupply: 100 },
+      },
+    ];
+    const mingRegionsBefore = Object.values(s.regions).filter((r) => r.controllerFactionId === "ming").length;
+    const peace = requestPeace(s, "ming", "w1");
+    expect(peace).not.toBeNull();
+    expect(s.wars.some((w) => w.id === "w1")).toBe(false); // 战争移除
+    expect(hasTruce(s, "ming", "jianzhou")).toBe(true); // 停战
+    // 白和不割地
+    const mingRegionsAfter = Object.values(s.regions).filter((r) => r.controllerFactionId === "ming").length;
+    expect(mingRegionsAfter).toBe(mingRegionsBefore);
+  });
+
+  it("非参与方不能求和", () => {
+    const s = makeState();
+    s.wars = [
+      {
+        id: "w1",
+        attackerFactionId: "jianzhou",
+        defenderFactionId: "ming",
+        targetRegionId: "liaodong",
+        progress: 50,
+        monthsActive: 5,
+      },
+    ];
+    expect(requestPeace(s, "tumed", "w1")).toBeNull();
   });
 });
