@@ -347,6 +347,141 @@ a:hover {
   font-weight: 700;
 }
 
+/* === 三层地图架构（Victoria 3 式） ============================= */
+
+/* Layer 3: 政治势力覆盖层 */
+.political-overlay-region {
+  pointer-events: none;
+}
+
+.political-overlay-region.is-context .political-region__area {
+  stroke: rgba(120, 110, 95, 0.4);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 3;
+}
+
+.political-overlay-region.is-hovered .political-region__area {
+  fill-opacity: 0.92;
+  stroke: var(--color-gold-line);
+  stroke-width: 3.4;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.32));
+}
+
+.political-overlay-region.is-selected .political-region__area {
+  stroke: var(--color-ink);
+  stroke-width: 4.2;
+}
+
+.political-overlay-region.same-faction .political-region__area {
+  stroke: rgba(255, 248, 225, 0.9);
+  stroke-width: 2.8;
+}
+
+.political-overlay-region.is-context.is-selected .political-region__area {
+  stroke-dasharray: none;
+}
+
+/* Layer 2: 省区交互命中层 */
+.province-tile-layer {
+  z-index: 3;
+}
+
+.province-tile {
+  cursor: pointer;
+  outline: none;
+}
+
+.province-tile.is-context-tile {
+  cursor: default;
+}
+
+.province-tile__hit {
+  stroke: transparent;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 120ms var(--ease-out);
+}
+
+.province-tile:hover .province-tile__hit,
+.province-tile:focus .province-tile__hit {
+  stroke: rgba(255, 246, 200, 0.5);
+  stroke-width: 2.5;
+}
+
+.province-tile.is-selected .province-tile__hit {
+  stroke: rgba(43, 33, 24, 0.6);
+  stroke-width: 3.5;
+}
+
+.province-tile.is-context-tile:hover .province-tile__hit {
+  stroke: rgba(200, 190, 170, 0.35);
+  stroke-width: 1.8;
+  stroke-dasharray: 3 2;
+}
+
+/* Layer 4: 标签层 */
+.map-labels-layer {
+  z-index: 4;
+}
+
+.context-label {
+  opacity: 0.62;
+}
+
+.context-label strong {
+  font-size: clamp(10px, 0.82vw, 14px);
+  font-weight: 700;
+  font-style: italic;
+  color: rgba(60, 50, 40, 0.82);
+}
+
+.context-label span {
+  font-size: clamp(8px, 0.68vw, 11px);
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* 势力大字标签（低缩放显示） */
+.faction-map-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  color: rgba(43, 33, 24, 0.88);
+  text-shadow:
+    0 1px 0 rgba(255, 250, 232, 0.92),
+    0 0 8px rgba(255, 250, 232, 0.78),
+    0 0 14px rgba(255, 250, 232, 0.5);
+  white-space: nowrap;
+}
+
+.faction-map-label.importance-1 {
+  font-size: clamp(20px, 2.4vw, 38px);
+  letter-spacing: 0.14em;
+  color: var(--color-imperial-red);
+  text-shadow:
+    0 1px 0 rgba(255, 250, 232, 0.95),
+    0 0 10px rgba(255, 250, 232, 0.85),
+    0 0 18px rgba(255, 250, 232, 0.6);
+}
+
+.faction-map-label.importance-2 {
+  font-size: clamp(15px, 1.6vw, 26px);
+  letter-spacing: 0.1em;
+}
+
+.faction-map-label.importance-3 {
+  font-size: clamp(12px, 1.2vw, 19px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  opacity: 0.78;
+}
+
 .map-controls {
   position: absolute;
   top: 14px;
