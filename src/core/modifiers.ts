@@ -64,18 +64,23 @@ export function aggregateModifierEffect(
 }
 
 /**
- * Effect-key vocabulary used by the live modifier system. Effects are applied
- * at the computation sites that own each value (see S1 in docs/v2-optimization-spec.md).
+ * Effect-key vocabulary. Effects are applied at the computation sites that
+ * own each value (see S1 in docs/v2-optimization-spec.md). This file is the
+ * canonical reference for **which keys are LIVE modifier effects** vs which
+ * are applied as one-shot "instant" effects elsewhere.
  *
- * Multiplicative keys are additive on the multiplier basis: a value of 0.2
- * means "+20%". Flat keys add directly to the 0–100 stat.
+ *   LIVE (consumed by queryModifier at compute points, additive multiplier / flat add):
  *   - tax-mult            : region tax collection (economy.ts)
  *   - grain-output-mult   : region grain production (economy.ts)
  *   - maintenance-mult    : faction army/bureaucracy upkeep (economy.ts)
- *   - stability-flat      : region stability (control.ts)
  *   - control-flat        : region control (control.ts)
- *   - corruption-flat     : faction corruption (control.ts)
  *   - army-org-mult       : faction military organization (warfare.ts)
+ *
+ *   INSTANT (applied one-shot in reform.ts → not consumed as live modifier):
+ *   - stability-flat      : region stability  (reform.ts:217)
+ *   - corruption-flat     : faction corruption (reform.ts:244)
+ *   - centralization-flat : faction centralization (reform.ts)
+ *   - legitimacy-flat     : faction legitimacy (reform.ts)
  */
 
 /**
