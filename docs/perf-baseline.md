@@ -107,8 +107,46 @@ npm run hash:state      # 6 节点状态哈希
 | 2 (流水线拆分) | 5b94e35 | 25.340 ms | **0 漂移** ✅ | 5 节点哈希完全一致 |
 | 3 (store 拆分) | c89a843 | 30.462 ms | **0 漂移** ✅ | 427 测试全绿 |
 | 4 (Service 抽象) | _TBD_ | 26.103 ms | **0 漂移** ✅ | 438 测试全绿 |
-| 5 (存档升级) | _TBD_ | _TBD_ | _TBD_ | — |
+| 5 (存档升级) | _TBD_ | 26.602 ms | **0 漂移** ✅ | 461 测试全绿 |
 | 6 (CI) | _TBD_ | _TBD_ | _TBD_ | — |
+
+### Phase 5 详情（存档版本化 / 校验 / 迁移 / 自动存档）
+
+- 新增 `src/save/saveValidation.ts`：`validateSaveFile`（9 步校验）
+  1. JSON 结构（type guard）
+  2. format === "ming-war-save"
+  3. saveVersion 已知
+  4. 必需字段
+  5. 数据类型
+  6. checksum 一致（用 computeStateHash 重算）
+  7. 引用关系（地区 → 势力）
+  8. 无 NaN / Infinity
+  9. 日期合法（YYYY-MM，1573–1662）
+- 新增 `src/save/saveMigrations.ts`：
+  - `migrations: Record<number, SaveMigration>`（当前 v1，无内联迁移）
+  - `migrateSave`：向前链式迁移
+  - `isLegacyV030Save`：检测老 v0.3.0 字符串版本存档
+  - `migrateLegacyV030ToV1`：老存档 → 新 SerializedSave（自动补 metadata + checksum）
+- 改造 `src/save/saveManager.ts`：
+  - `writeSave` / `readSave`（新版 SerializedSave）
+  - `saveGame` / `loadGame` / `listSaves` / `migrateGameState`（旧 SaveGame 兼容层）
+  - `migrateAllLegacySaves`：一次性 IDB 升级
+- 新增 `src/save/autoSave.ts`：
+  - 3 槽自动存档（monthly / yearly / milestone）
+  - 原子替换（tmp → 校验 → 覆盖）
+  - 失败不覆盖上一个有效存档
+  - `isYearBoundary(date)` 工具
+- 新增测试：
+  - `src/tests/saveValidation.test.ts`：12 步校验覆盖
+  - `src/tests/saveMigration.test.ts`：11 步迁移覆盖
+  - `src/tests/autoSave.test.ts`：3 个业务规则测试（IDB 写入靠浏览器原生验证）
+- 测试数：438 → 461
+
+**关键不变量**：
+- 5 节点 hash 与 Phase 1/2/3/4 完全一致
+- 旧 v0.3.0 存档可读（迁移正确）
+- 损坏存档不崩（返回 null + errors）
+- 旧 `save-store.test.ts` 测试仍通过（兼容层）
 
 ### Phase 4 详情（SimulationService 抽象）
 
