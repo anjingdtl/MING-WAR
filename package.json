@@ -15,6 +15,7 @@
     "batch": "tsx src/scripts/runBatchSimulation.ts",
     "diagnose": "tsx src/scripts/diagnoseSimulation.ts",
     "map:generate": "tsx src/scripts/generateMapRegions.ts",
+    "map:rebuild-geo": "tsx src/scripts/rebuildGeoMap.ts",
     "map:validate": "tsx src/scripts/validateMapRegions.ts",
     "perf:month": "tsx src/scripts/perfMonth.ts",
     "perf:year": "tsx src/scripts/perfYear.ts",

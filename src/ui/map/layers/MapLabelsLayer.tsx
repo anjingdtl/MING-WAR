@@ -38,7 +38,7 @@ const { factionLabelMaxZoom } = LABEL_ZOOM_THRESHOLDS;
  * Layer 4 — 标签层：势力大字 + 省区名，基于 zoom 切换可读层级。
  *
  * 缩放语义（Victoria 3 式）：
- *  - zoom < 0.85：显示势力大字（FactionLabel），隐藏 importance=3 的省区名，核心省区不显示数据字段
+ *  - zoom < 0.85：显示势力大字（FactionLabel），隐藏省区名，避免战略标签互相覆盖
  *  - zoom >= 0.85：显示全部省区名 + Lens 字段，隐藏势力大字
  */
 export const MapLabelsLayer = React.memo(function MapLabelsLayer({
@@ -79,8 +79,7 @@ export const MapLabelsLayer = React.memo(function MapLabelsLayer({
         const name = region?.name ?? tile.displayName;
         const sub = region ? layerLabel(region, layer) : `${tile.defaultControllerFactionId ?? ""}`;
 
-        const isMinor = tile.importance >= 3;
-        const hideDueToZoom = isMinor && !showProvinceDetails;
+        const hideDueToZoom = !showProvinceDetails;
         const hideDataField = !showProvinceDetails;
 
         if (hideDueToZoom) return null;

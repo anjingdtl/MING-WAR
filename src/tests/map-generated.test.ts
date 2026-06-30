@@ -8,6 +8,18 @@ function numericValues(paths: string[]): number[] {
   return paths.flatMap((path) => [...path.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0])));
 }
 
+function boundsFor(paths: string[]) {
+  const values = numericValues(paths);
+  const xs = values.filter((_, index) => index % 2 === 0);
+  const ys = values.filter((_, index) => index % 2 === 1);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  };
+}
+
 describe("generated map tile facade", () => {
   it("re-exports generated map tiles through mapConfig", () => {
     expect(mapTiles).toBe(generatedMapTiles);
@@ -42,6 +54,18 @@ describe("generated map tile facade", () => {
       expect(values.length, `${tile.id} numeric path values`).toBeGreaterThanOrEqual(4);
       expect(values.every(Number.isFinite), `${tile.id} finite path values`).toBe(true);
     }
+  });
+
+  it("renders context tiles first so playable political colors stay on top", () => {
+    const firstPlayableIndex = mapTiles.findIndex((tile) => tile.isPlayableRegion);
+    const lastContextIndex = mapTiles.reduce(
+      (lastIndex, tile, index) => (!tile.isPlayableRegion ? index : lastIndex),
+      -1
+    );
+
+    expect(firstPlayableIndex).toBeGreaterThanOrEqual(0);
+    expect(lastContextIndex).toBeGreaterThanOrEqual(0);
+    expect(lastContextIndex).toBeLessThan(firstPlayableIndex);
   });
 
   it("marks all two-capital thirteen provinces as playable core tiles", () => {

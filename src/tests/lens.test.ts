@@ -91,7 +91,7 @@ describe("Lens / colorScales", () => {
     state.regions.beizhili.control = 100;
     expect(getRegionOpacity(state.regions.beizhili, "control")).toBeCloseTo(1, 5);
     state.regions.beizhili.control = 0;
-    expect(getRegionOpacity(state.regions.beizhili, "control")).toBeGreaterThanOrEqual(0.34);
+    expect(getRegionOpacity(state.regions.beizhili, "control")).toBeGreaterThanOrEqual(0.72);
   });
 
   it("other lenses use fixed opacity", () => {

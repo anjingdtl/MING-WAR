@@ -54,6 +54,7 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
       {tiles.map((tile) => {
         const { color, opacity } = getTileFillColor(tile, state, lens);
         const isContext = !tile.isPlayableRegion;
+        const shouldClipToLand = tile.kind !== "sea-zone";
         const faction = tileFactionId(tile, state);
         const sameFaction = isPoliticalLens && hoveredFaction !== null && faction === hoveredFaction;
         return (
@@ -79,7 +80,7 @@ export const PoliticalOverlayLayer = React.memo(function PoliticalOverlayLayer({
                 d={d}
                 fill={color}
                 fillOpacity={sameFaction ? Math.min(opacity + 0.18, 0.95) : opacity}
-                clipPath="url(#map-land-clip)"
+                clipPath={shouldClipToLand ? "url(#map-land-clip)" : undefined}
               />
             ))}
           </g>

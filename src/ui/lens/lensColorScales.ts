@@ -10,8 +10,8 @@ import type { MapTileShape } from "../../map/mapTypes";
 import { resolveMapFactionColor } from "../../map/mapFactionColors";
 import type { LensId } from "./lensDefinitions";
 
-/** context 图块的固定覆盖透明度（低于 playable，让底图透出） */
-export const CONTEXT_TILE_OPACITY = 0.45;
+/** context 图块的固定覆盖透明度：需要压住底层地理色，避免出现未归属的透明底块。 */
+export const CONTEXT_TILE_OPACITY = 0.72;
 
 /* 通用工具:把一个数值映射到 [0, 1] */
 function clamp01(v: number): number {
@@ -90,7 +90,7 @@ export function getRegionColor(
 /** 区域填充透明度(根据该 Lens 的数据"显著度") */
 export function getRegionOpacity(region: RegionState, lens: LensId): number {
   if (lens === "control") {
-    return Math.max(0.34, region.control / 100);
+    return Math.max(0.72, region.control / 100);
   }
   // 其他 Lens 给一个固定透明度,避免色板被 0.7 稀释
   return 0.72;

@@ -12,6 +12,15 @@ describe("GameMap", () => {
     expect(onSelect).toHaveBeenCalledWith("beizhili");
   });
 
+  it("shows faction labels instead of province names at low zoom", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByTitle("缩小"));
+    fireEvent.click(screen.getByTitle("缩小"));
+
+    expect(screen.getByText("大明")).toBeTruthy();
+    expect(screen.queryByText("北直隶")).toBeNull();
+  });
+
   it("colors political regions from their current controller", () => {
     const state = createMvpScenario();
     state.regions.beizhili.controllerFactionId = "jianzhou";
@@ -27,6 +36,13 @@ describe("GameMap", () => {
     expect(screen.getByTestId("region-area-beizhili").getAttribute("clip-path")).toBe("url(#map-land-clip)");
     expect(screen.getByTestId("region-area-joseon_north").getAttribute("clip-path")).toBe("url(#map-land-clip)");
     expect(screen.getByTestId("region-area-nurgan_coast").getAttribute("clip-path")).toBe("url(#map-land-clip)");
+  });
+
+  it("does not clip sea-zone political overlays to the land mask", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByTestId("region-area-western-pacific").getAttribute("clip-path")).toBeNull();
+    expect(screen.getByTestId("region-area-liuqiu").getAttribute("clip-path")).toBeNull();
   });
 
   it("zooms in and out and resets view", () => {
@@ -73,5 +89,14 @@ describe("GameMap", () => {
     render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
     const tibetArea = screen.getByTestId("region-area-tibet");
     expect(tibetArea.getAttribute("fill")).toBe("#7A6B8A");
+  });
+
+  it("keeps context political coverage strong enough to dominate the physical base", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    const tibetArea = screen.getByTestId("region-area-tibet");
+    const mobeiArea = screen.getByTestId("region-area-mobei");
+
+    expect(Number(tibetArea.getAttribute("fill-opacity"))).toBeGreaterThanOrEqual(0.68);
+    expect(Number(mobeiArea.getAttribute("fill-opacity"))).toBeGreaterThanOrEqual(0.68);
   });
 });
