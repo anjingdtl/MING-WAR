@@ -41,7 +41,6 @@ describe("GameMap", () => {
   it("does not clip sea-zone political overlays to the land mask", () => {
     render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
 
-    expect(screen.getByTestId("region-area-western-pacific").getAttribute("clip-path")).toBeNull();
     expect(screen.getByTestId("region-area-liuqiu").getAttribute("clip-path")).toBeNull();
   });
 

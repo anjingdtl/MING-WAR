@@ -399,11 +399,7 @@ function buildContextTiles(admin1: GeoFeatureCollection, admin0: GeoFeatureColle
     contextTile("hami", "哈密", [manualPath([[90.0, 42.5], [90.0, 44.0], [100.0, 44.0], [100.0, 41.0]])], [95.0, 42.5], 72, "mobei"),
     contextTile("mobei", "漠北诸部", countryRingPaths(admin0, "Mongolia", () => true), [102.5, 47.8], 84, "mobei"),
     contextTile("southeast-asia", "东南亚边缘", [manualPath([[95.0, 22.0], [110.0, 22.0], [110.0, 13.0], [105.0, 5.0], [95.0, 11.5]])], [103.0, 13.0], 96, "southeast-asia"),
-    contextTile("liuqiu", "琉球", [manualPath([[122.0, 24.0], [130.0, 25.5], [130.0, 28.0], [125.0, 28.0], [122.0, 26.5]])], [127.0, 26.5], 64, "liuqiu", "sea-zone"),
-    contextTile("western-pacific", "西太平洋", [manualPath([[130.0, 45.0], [160.0, 45.0], [160.0, 15.0], [145.0, 18.0], [130.0, 32.0]])], [145.0, 30.0], 84, "western-sea", "sea-zone"),
-    contextTile("northern-sea", "北海", [manualPath([[140.0, 60.0], [144.0, 60.0], [144.0, 50.0], [140.0, 50.0]])], [142.0, 55.0], 64, "western-sea", "sea-zone"),
-    // 东北亚边缘 / 鄂霍次克海 — 海参崴+日本海(东边界 viewBox 上限 1000)
-    contextTile("northeast-asia-edge", "东北亚边缘", [manualPath([[130.0, 55.0], [144.0, 55.0], [144.0, 42.0], [130.0, 42.0]])], [137.0, 49.0], 84, "northeast-asia-edge", "sea-zone")
+    contextTile("liuqiu", "琉球", [manualPath([[122.0, 24.0], [130.0, 25.5], [130.0, 28.0], [125.0, 28.0], [122.0, 26.5]])], [127.0, 26.5], 64, "liuqiu", "sea-zone")
   ];
 }
 
@@ -473,8 +469,7 @@ function buildFactionLabels(): string {
     { factionId: "tibet", label: "乌斯藏", ...factionLabelPoint(89.5, 30.7), minZoom: 0, maxZoom: 0.85, importance: 3 },
     { factionId: "mobei", label: "漠北诸部", ...factionLabelPoint(102.5, 47.8), minZoom: 0, maxZoom: 0.85, importance: 3 },
     { factionId: "southeast-asia", label: "东南亚", ...factionLabelPoint(103.0, 13.0), minZoom: 0, maxZoom: 0.8, importance: 3 },
-    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.0, 26.5), minZoom: 0, maxZoom: 0.8, importance: 3 },
-    { factionId: "northeast-asia-edge", label: "东北亚边缘", ...factionLabelPoint(140.0, 49.0), minZoom: 0, maxZoom: 0.8, importance: 3 }
+    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.0, 26.5), minZoom: 0, maxZoom: 0.8, importance: 3 }
   ];
 
   return `import type { FactionMapLabel } from "../mapTypes";

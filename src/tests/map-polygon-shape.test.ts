@@ -120,10 +120,7 @@ describe("historical frontier tiles v0.7.7 real province boundaries", () => {
 describe("context and sea-zone tiles v0.7.8 real boundaries", () => {
   const CONTEXT_TILES = [
     "southeast-asia",
-    "liuqiu",
-    "western-pacific",
-    "northern-sea",
-    "northeast-asia-edge"
+    "liuqiu"
   ] as const;
 
   it("uses real NE admin0 / ocean data", () => {

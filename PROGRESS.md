@@ -281,6 +281,39 @@
 
 ---
 
+### v0.7.8 → v0.7.9 删除与日本四岛重合的冗余海区块（2026-07-01，第五次反馈）
+
+**用户反馈**：v0.7.8 调试图中 `western-pacific` / `northern-sea` / `northeast-asia-edge` 三块海区块与日本四岛（`japan_west` / `japan_east` / `ezo` / `sakhalin` 等）区域重合，没有独立存在的必要。
+
+**处理方案**：
+
+- 从 `contextMapTileSource` 中删除 `western-pacific`、`northern-sea`、`northeast-asia-edge` 三个 tile。
+- 同步删除 `factionMapLabels` 中的 `东北亚边缘` 标签、`mapFactionFallbackColors` 中的 `northeast-asia-edge` 兜底色。
+- 同步清理 `rebuildGeoMap.ts` 中对应的 `contextTile` / label 模板、以及测试中的相关断言。
+- 重新生成 `mapTiles.ts`。
+
+**修改文件**：
+
+1. `src/map/source/mapRegionSource.ts` — 移除 3 个 context/sea tile。
+2. `src/map/generated/mapTiles.ts` / `factionMapLabels.ts` — 重新生成。
+3. `src/map/mapFactionColors.ts` — 移除 `northeast-asia-edge` 兜底色。
+4. `src/scripts/rebuildGeoMap.ts` — 移除对应 contextTile 与 label 模板。
+5. `src/tests/map-polygon-shape.test.ts` / `map-tile-location.test.ts` / `map.test.tsx` — 移除被删除 tile 的断言。
+6. `PROGRESS.md` — 本条记录。
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npx vitest run` ✓ **530 / 530 pass**
+- `npx tsx src/scripts/validateMapRegions.ts` ✓ 36 tiles (31 playable + 5 context)
+- Python 调试渲染 ✓ 日本四岛周围无额外色块重叠
+
+**调试图**：`D:/workbuddyspace/2026-07-01-11-05-54/debug_map_v077.png`
+
+**遗留**：同 v0.7.7 / v0.7.8（`rebuildGeoMap.ts` 未改造）。
+
+---
+
 ### v0.7.7 → v0.7.8 清除剩余矩形 context / 海上色块（2026-07-01，第四次反馈）
 
 **用户反馈**：v0.7.7 调试截图中仍有多个矩形色块（东南亚、琉球、西太平洋、北海、东北亚边缘）。

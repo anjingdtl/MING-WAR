@@ -25,9 +25,7 @@ export const mapFactionFallbackColors: Record<string, string> = {
   mobei: "#6E7A8C",
   "southeast-asia": "#6F8A6A",
   liuqiu: "#6B8AA0",
-  "western-sea": "#5F7A82",
-  // 东北亚边缘 / 鄂霍次克海 — 海面偏冷紫，对应日本海 / 鄂海
-  "northeast-asia-edge": "#6B6A8C"
+  "western-sea": "#5F7A82"
 };
 
 /** 中性远景色（无势力归属的纯地理区） */

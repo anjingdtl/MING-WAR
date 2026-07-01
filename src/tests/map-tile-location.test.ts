@@ -80,8 +80,7 @@ const TILES: TileLocation[] = [
   // context tile — 真实边界
   { id: "hami",            expectedCenterLng: 85.06,  expectedCenterLat: 41.08, tolerance: 15 },
   { id: "liuqiu",          expectedCenterLng: 127.70, expectedCenterLat: 27.45, tolerance: 10 },
-  { id: "southeast-asia",  expectedCenterLng: 100.39, expectedCenterLat: 19.85, tolerance: 15 },
-  { id: "northeast-asia-edge", expectedCenterLng: 143.52, expectedCenterLat: 46.93, tolerance: 15 }
+  { id: "southeast-asia",  expectedCenterLng: 100.39, expectedCenterLat: 19.85, tolerance: 15 }
 ];
 
 function projLngLat(lng: number, lat: number): { x: number; y: number } {
@@ -121,8 +120,7 @@ describe("v0.7.7 faction labels align with tile bbox centers", () => {
     { faction: "haixi",   label: "海西女真", tileId: "haixi" },
     { faction: "jianzhou",label: "建州女真", tileId: "jianzhou" },
     { faction: "liuqiu",  label: "琉球",     tileId: "liuqiu" },
-    { faction: "southeast-asia", label: "东南亚", tileId: "southeast-asia" },
-    { faction: "northeast-asia-edge", label: "东北亚边缘", tileId: "northeast-asia-edge" }
+    { faction: "southeast-asia", label: "东南亚", tileId: "southeast-asia" }
   ];
 
   for (const { faction, label, tileId } of LABEL_CHECK) {

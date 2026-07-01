@@ -153,14 +153,5 @@ export const factionMapLabels: FactionMapLabel[] = [
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3
-  },
-  {
-    "factionId": "northeast-asia-edge",
-    "label": "东北亚边缘",
-    "x": 969.2,
-    "y": 150.9,
-    "minZoom": 0,
-    "maxZoom": 0.8,
-    "importance": 3
   }
 ];
