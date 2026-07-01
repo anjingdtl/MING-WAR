@@ -65,17 +65,22 @@ describe("GameMap", () => {
     expect(screen.getByTestId("map-routes-layer")).toBeTruthy();
   });
 
-  it("renders ink-wash terrain treatments behind the political overlay", () => {
+  it("keeps the base geography free of decorative dashed and heavy brush lines", () => {
     render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
     const baseLayer = screen.getByTestId("base-geo-layer");
 
-    expect(baseLayer.querySelector("#ink-wash-filter")).toBeTruthy();
-    expect(baseLayer.querySelectorAll(".map-ink-mist").length).toBeGreaterThanOrEqual(3);
-    expect(baseLayer.querySelectorAll(".map-mountain-wash").length).toBeGreaterThan(0);
+    expect(baseLayer.querySelector("#ink-wash-filter")).toBeNull();
+    expect(baseLayer.querySelectorAll(".map-ink-mist").length).toBe(0);
+    expect(baseLayer.querySelectorAll(".map-paper-grain").length).toBe(0);
+    expect(baseLayer.querySelectorAll(".map-mountain-wash").length).toBe(0);
+    expect(baseLayer.querySelectorAll(".map-mountain").length).toBe(0);
+    expect(baseLayer.querySelectorAll(".map-ridge").length).toBe(0);
 
     const riverLayer = document.querySelector(".river-overlay-layer");
-    expect(riverLayer?.querySelectorAll(".map-river-shadow").length).toBeGreaterThan(0);
-    expect(riverLayer?.querySelectorAll(".map-river-bank").length).toBeGreaterThan(0);
+    expect(riverLayer).toBeNull();
+
+    const routeLayer = screen.getByTestId("map-routes-layer");
+    expect(routeLayer.querySelectorAll("line").length).toBe(0);
   });
 
   it("separates political overlay fill from interaction hit area", () => {

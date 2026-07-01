@@ -52,6 +52,22 @@ function bboxFor(paths: string[]) {
   };
 }
 
+function longAxisAlignedSegments(paths: string[], minLength = 42) {
+  return paths.flatMap((path) => {
+    const points = pointsFor([path]);
+    return points.slice(1).flatMap((point, index) => {
+      const previous = points[index];
+      const dx = Math.abs(point[0] - previous[0]);
+      const dy = Math.abs(point[1] - previous[1]);
+      const length = Math.hypot(dx, dy);
+      const axisAligned = dx < 0.35 || dy < 0.35;
+      return axisAligned && length >= minLength
+        ? [{ from: previous, to: point, length }]
+        : [];
+    });
+  });
+}
+
 describe("historical frontier tiles v0.7.7 real province boundaries", () => {
   it("ships natural-earth-admin1 source for all 6 mongol/jurchen tiles", () => {
     for (const id of HISTORICAL_FRONTIER_TILES) {
@@ -113,6 +129,15 @@ describe("historical frontier tiles v0.7.7 real province boundaries", () => {
         Math.abs(box.maxX - box.minX - (box.maxY - box.minY)),
         `${id} should not be axis-aligned square`
       ).toBeGreaterThan(1.5);
+    }
+  });
+
+  it("keeps Inner Asian frontier borders from regressing into long straight divider lines", () => {
+    const highRisk: FrontierTileId[] = ["hulunbuir", "korchin_steppe", "chahar_steppe", "tumed_steppe"];
+    for (const id of highRisk) {
+      const tile = mapTiles.find((t) => t.id === id);
+      const straightSegments = longAxisAlignedSegments(tile!.paths);
+      expect(straightSegments, `${id} long axis-aligned border segments`).toEqual([]);
     }
   });
 });
