@@ -3,17 +3,17 @@ import { mapTiles } from "../map/generated/mapTiles";
 import { factionMapLabels } from "../map/generated/factionMapLabels";
 
 /**
- * v0.7.6 回归保护：13 个 tile 的 path 位置必须对齐到历史经纬度边界。
+ * v0.7.7 回归保护：关键 tile 的 path 位置必须对齐到真实地理省区边界。
  *
- * 根因（v0.7.5 之前的 bug）：6 个 mongol/jurchen tile 和 4 个 context tile 的
- * SVG path 中心点投影坐标整体偏西 30-100px，导致色块和真实省区不匹配。
- * v0.7.6 修复后用经纬度精确设计,所有 path bbox 中心必须落在目标范围内。
+ * 本次用 Natural Earth 10m admin1 数据重新生成了蒙古诸部、女真、朝鲜、
+ * 漠北、西藏、新疆等地区的边界。这些 expected 中心点是根据当前真实边界
+ * 的质心反推得到的经纬度，用于防止后续有人把 path 改回手工矩形或漂移。
  *
- * 投影公式（从 beizhili label=612,255 和 tibet label=269,375 反推）:
- *   x = 13.728 * lng - 980.45
- *   y = -11.15 * lat + 709.2
+ * 投影公式（与 rebuildGeoMap.ts / generateMapRegions.ts 一致）:
+ *   x = ((lng - 68) / 80) * 1000
+ *   y = ((58 - lat) / 51) * 700
  *
- * 失败 = 有人把 path/label 改回偏西的位置，或 tile 移到了错误的经纬度。
+ * 失败 = 有人把 path/label 改离真实地理边界，需要重新对齐。
  */
 
 interface PathPoint {
@@ -32,23 +32,12 @@ function pointsFor(paths: string[]): PathPoint[] {
   return pts;
 }
 
-function bboxCenter(paths: string[]): PathPoint {
-  const pts = pointsFor(paths);
-  const xs = pts.map((p) => p.x);
-  const ys = pts.map((p) => p.y);
-  return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
-}
-
-/**
- * 多边形几何中心（shoelace 质心），比 bbox 中心更接近"视觉中心"。
- * 不规则多边形的 bbox 中心可能因为凸出顶点而偏离真实中心。
- */
 function polygonCentroid(paths: string[]): PathPoint {
   const pts = pointsFor(paths);
   const n = pts.length;
   let cx = 0;
   let cy = 0;
-  let a2 = 0; // 2 * signed area
+  let a2 = 0;
   for (let i = 0; i < n; i += 1) {
     const p1 = pts[i];
     const p2 = pts[(i + 1) % n];
@@ -76,41 +65,41 @@ interface TileLocation {
   id: string;
   expectedCenterLng: number;
   expectedCenterLat: number;
-  /** path bbox 中心到投影中心允许的偏移 (px) */
+  /** path 质心到投影中心允许的偏移 (px) */
   tolerance: number;
 }
 
 const TILES: TileLocation[] = [
-  // 6 个 mongol/jurchen tile — 严格经纬度设计
-  // tolerance 20px 应对不规则多边形质心偏离(凸点拉质心向凸点方向)
-  { id: "hulunbuir",       expectedCenterLng: 122.64, expectedCenterLat: 50.74, tolerance: 20 },
-  { id: "korchin_steppe",  expectedCenterLng: 122.29, expectedCenterLat: 46.5,  tolerance: 20 },
-  { id: "chahar_steppe",   expectedCenterLng: 112.75, expectedCenterLat: 43.44, tolerance: 20 },
-  { id: "tumed_steppe",    expectedCenterLng: 110.8,  expectedCenterLat: 41.3,  tolerance: 15 },
-  { id: "haixi",           expectedCenterLng: 129.0,  expectedCenterLat: 46.5,  tolerance: 20 },
-  { id: "jianzhou",        expectedCenterLng: 126.33, expectedCenterLat: 43.5,  tolerance: 20 },
-  // 4 个 context tile — 修正后位置
-  { id: "hami",            expectedCenterLng: 95.0,   expectedCenterLat: 42.5,  tolerance: 15 },
-  { id: "liuqiu",          expectedCenterLng: 127.0,  expectedCenterLat: 26.5,  tolerance: 20 },
-  { id: "southeast-asia",  expectedCenterLng: 103.0,  expectedCenterLat: 13.0,  tolerance: 20 },
-  // 4 顶点 viewBox 受限 tile — expected 用实际能到的中心
-  { id: "northeast-asia-edge", expectedCenterLng: 137.0, expectedCenterLat: 49.0, tolerance: 20 }
+  // 6 个 mongol/jurchen tile — 真实省区边界
+  { id: "hulunbuir",       expectedCenterLng: 122.00, expectedCenterLat: 48.00, tolerance: 10 },
+  { id: "korchin_steppe",  expectedCenterLng: 118.18, expectedCenterLat: 45.74, tolerance: 10 },
+  { id: "chahar_steppe",   expectedCenterLng: 111.93, expectedCenterLat: 42.01, tolerance: 10 },
+  { id: "tumed_steppe",    expectedCenterLng: 103.48, expectedCenterLat: 40.49, tolerance: 10 },
+  { id: "haixi",           expectedCenterLng: 127.74, expectedCenterLat: 47.88, tolerance: 10 },
+  { id: "jianzhou",        expectedCenterLng: 125.06, expectedCenterLat: 42.66, tolerance: 10 },
+  // context tile — 真实边界
+  { id: "hami",            expectedCenterLng: 85.06,  expectedCenterLat: 41.08, tolerance: 15 },
+  { id: "liuqiu",          expectedCenterLng: 127.70, expectedCenterLat: 27.45, tolerance: 10 },
+  { id: "southeast-asia",  expectedCenterLng: 102.07, expectedCenterLat: 17.61, tolerance: 15 },
+  { id: "northeast-asia-edge", expectedCenterLng: 140.02, expectedCenterLat: 45.73, tolerance: 10 }
 ];
 
 function projLngLat(lng: number, lat: number): { x: number; y: number } {
-  return { x: 13.728 * lng - 980.45, y: -11.15 * lat + 709.2 };
+  return {
+    x: ((lng - 68) / 80) * 1000,
+    y: ((58 - lat) / 51) * 700
+  };
 }
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-describe("v0.7.6 map tile path geographic location", () => {
+describe("v0.7.7 map tile path geographic location", () => {
   for (const tile of TILES) {
     it(`${tile.id} path center matches expected (${tile.expectedCenterLng}E, ${tile.expectedCenterLat}N) within ${tile.tolerance}px`, () => {
       const t = mapTiles.find((mt) => mt.id === tile.id);
       expect(t, `${tile.id} should exist in mapTiles`).toBeDefined();
-      // 用几何中心(更接近视觉中心),不用 bbox 中心(不规则多边形有偏差)
       const center = polygonCentroid(t!.paths);
       const expected = projLngLat(tile.expectedCenterLng, tile.expectedCenterLat);
       const d = distance(center, expected);
@@ -123,10 +112,7 @@ describe("v0.7.6 map tile path geographic location", () => {
   }
 });
 
-describe("v0.7.6 faction labels align with tile bbox centers", () => {
-  // 验证 label 位置落在 tile path bbox 内
-  // 不要求 label = bbox 中心(因为不规则多边形视觉中心 ≠ bbox 中心)
-  // 只需要 label 落在 path 内(简化:label 在 bbox 内即可)
+describe("v0.7.7 faction labels align with tile bbox centers", () => {
   const LABEL_CHECK: Array<{ faction: string; label: string; tileId: string }> = [
     { faction: "korchin", label: "呼伦贝尔", tileId: "hulunbuir" },
     { faction: "korchin", label: "科尔沁",   tileId: "korchin_steppe" },
@@ -158,20 +144,19 @@ describe("v0.7.6 faction labels align with tile bbox centers", () => {
   }
 });
 
-describe("v0.7.6 no frontier tile drifts back to the v0.7.5 west-offset bbox", () => {
-  // 显式回归保护：v0.7.5 时这 6 个 tile bbox 整体偏西,导致色块跑到错误省份
-  // 例如: chahar_steppe v0.7.5 bbox x: 500-605 (偏西,实际应在 502-667)
-  // v0.7.6 起 minX 必须 >= 502 (不再是 500)
+describe("v0.7.7 no frontier tile drifts west of real province boundary", () => {
+  // 回归保护：防止后续把真实边界改回偏西的手工多边形。
+  // 阈值取当前真实 bbox 西边界再向西留 10px 缓冲。
   const WEST_BOUND: Record<string, number> = {
-    hulunbuir: 645,
-    korchin_steppe: 665,
-    chahar_steppe: 500,
-    tumed_steppe: 500,
-    haixi: 748,
-    jianzhou: 693
+    hulunbuir: 640,
+    korchin_steppe: 590,
+    chahar_steppe: 490,
+    tumed_steppe: 355,
+    haixi: 655,
+    jianzhou: 625
   };
   for (const [id, minX] of Object.entries(WEST_BOUND)) {
-    it(`${id} bbox minX >= ${minX} (regression guard for v0.7.5 west drift)`, () => {
+    it(`${id} bbox minX >= ${minX} (regression guard for west drift)`, () => {
       const t = mapTiles.find((mt) => mt.id === id);
       const pts = pointsFor(t!.paths);
       const actualMinX = Math.min(...pts.map((p) => p.x));

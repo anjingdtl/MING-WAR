@@ -19,3 +19,6 @@ output/
 .superpowers/
 .workbuddy/
 dev.err
+
+# Natural Earth raw data used for one-off boundary extraction; extracted paths live in source
+/data/

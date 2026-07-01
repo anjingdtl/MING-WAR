@@ -242,6 +242,45 @@
 
 ---
 
+### v0.7.6 → v0.7.7 真实省区边界 1:1 重映射（2026-07-01，第三次反馈）
+
+**用户反馈（11:27 起）**：截图中蒙古、女真、朝鲜等势力色块仍是“矩形方块”，没有和真实地图省区政治边界重叠，而大明两京一十三省已经和真实省区对齐。
+
+**真实根因**：v0.7.6 虽然用经纬度设计，但 6 个 mongol/jurchen tile、朝鲜、哈密等仍是**手工绘制的 6-10 顶点多边形**，不是从真实行政边界数据提取的；而大明 15 省来自 Natural Earth 10m admin1，所以二者视觉精度完全不在一个层级。
+
+**v0.7.7 修复方案**：下载 Natural Earth 10m admin1 数据，用真实省区边界重新生成对应 game tile：
+
+- **蒙古诸部**：把 `Inner Mongol` 按经线 108°/116°/120° 切为 4 份，对应 `tumed_steppe` / `chahar_steppe` / `korchin_steppe` / `hulunbuir`。
+- **女真**：`Heilongjiang` → `haixi`，`Jilin` + 辽东以东 → `jianzhou`。
+- **朝鲜**：直接分别取 North Korea / South Korea 的真实边界 → `joseon_north` / `joseon_south`。
+- **俄罗斯远东**：`Amur`+`Yevrey` → `amur_basin`，`Khabarovsk`+`Primor'ye` → `nurgan_coast`，`Sakhalin` → `sakhalin`。
+- **远景 context**：`Mongolia` → `mobei`，`Xizang` → `tibet`，新疆东半部 → `hami`。
+- 所有 label 坐标同步更新到对应真实省区的投影中心。
+
+**修改文件**：
+
+1. `src/map/source/mapRegionSource.ts` — 18 个 tile 替换为 NE admin1 真实边界，`source` 改为 `natural-earth-admin1`。
+2. `src/map/generated/mapTiles.ts` — 重新运行 `npm run map:generate` 生成。
+3. `src/map/generated/factionMapLabels.ts` — 9 个势力标签坐标同步到新的真实省区中心。
+4. `src/tests/map-polygon-shape.test.ts` — 更新为 v0.7.7 回归保护：来源必须是 `natural-earth-admin1`、顶点 ≥10、非矩形、viewBox 内；移除不再适用的 bbox 两两不重叠断言（真实省区 bbox 会重叠，但实际 polygon 相邻）。
+5. `src/tests/map-tile-location.test.ts` — 修正投影公式为真实公式 `x = ((lng-68)/80)*1000, y = ((58-lat)/51)*700`，expected 中心点按真实边界质心更新。
+6. `PROGRESS.md` — 本条记录。
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npx vitest run` ✓ **529 / 529 pass**
+- `npx tsx src/scripts/validateMapRegions.ts` ✓ 39 tiles (31 playable + 8 context)
+- Python 调试渲染 ✓ 18 个真实边界 tile + 标签全部落在 viewBox 内，视觉上与大明 15 省对齐
+
+**调试图**：`D:/workbuddyspace/2026-07-01-11-05-54/debug_map_v077.png`
+
+**遗留**：
+
+- `src/scripts/rebuildGeoMap.ts` 仍使用手工 manualPath 和 50m NE 远程 URL，尚未改造为从本地 10m NE 数据自动切分 Inner Mongolia / 女真 / 朝鲜。下次运行 `npm run map:rebuild-geo` 会回退到 v0.7.6 手工边界；需要时再改造。
+
+---
+
 ## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**
