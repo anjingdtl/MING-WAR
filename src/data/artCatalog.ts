@@ -7,7 +7,33 @@ import intrigueUrl from "../assets/art/event-intrigue.png";
 import militaryUrl from "../assets/art/event-military.png";
 import politicalUrl from "../assets/art/event-political.png";
 import popularUrl from "../assets/art/event-popular.png";
-import portraitSheetUrl from "../assets/art/ming-character-portraits.png";
+import jiashenCatastropheUrl from "../assets/art/events/jiashen-catastrophe.png";
+import jisiIncidentUrl from "../assets/art/events/jisi-incident.png";
+import koreanWarUrl from "../assets/art/events/korean-war.png";
+import laterJinFoundedUrl from "../assets/art/events/later-jin-founded.png";
+import liaoxiangSurchargeUrl from "../assets/art/events/liaoxiang-surcharge.png";
+import saarhuCampaignUrl from "../assets/art/events/saarhu-campaign.png";
+import shaanxiChainDroughtUrl from "../assets/art/events/shaanxi-chain-drought.png";
+import tiaoobianControversyUrl from "../assets/art/events/tiaoobian-controversy.png";
+import weiZhongxianPurgeUrl from "../assets/art/events/wei-zhongxian-purge.png";
+import yuanChonghuanExecutionUrl from "../assets/art/events/yuan-chonghuan-execution.png";
+import chongzhenEmperorUrl from "../assets/art/portraits/characters/chongzhen-emperor.png";
+import joseonSeonjoUrl from "../assets/art/portraits/characters/joseon-seonjo.png";
+import liChengliangUrl from "../assets/art/portraits/characters/li-chengliang.png";
+import nurhaciUrl from "../assets/art/portraits/characters/nurhaci.png";
+import toyotomiHideyoshiUrl from "../assets/art/portraits/characters/toyotomi-hideyoshi.png";
+import wanliEmperorUrl from "../assets/art/portraits/characters/wanli-emperor.png";
+import weiZhongxianUrl from "../assets/art/portraits/characters/wei-zhongxian.png";
+import xiongTingbiUrl from "../assets/art/portraits/characters/xiong-tingbi.png";
+import yuanChonghuanUrl from "../assets/art/portraits/characters/yuan-chonghuan.png";
+import zhangJuzhengUrl from "../assets/art/portraits/characters/zhang-juzheng.png";
+import ainuLeaderUrl from "../assets/art/portraits/factions/ainu.png";
+import bozhouLeaderUrl from "../assets/art/portraits/factions/bozhou.png";
+import chaharLeaderUrl from "../assets/art/portraits/factions/chahar.png";
+import haixiLeaderUrl from "../assets/art/portraits/factions/haixi.png";
+import korchinLeaderUrl from "../assets/art/portraits/factions/korchin.png";
+import nurganLeaderUrl from "../assets/art/portraits/factions/nurgan.png";
+import tumedLeaderUrl from "../assets/art/portraits/factions/tumed.png";
 
 export type EventVisualType =
   | "political"
@@ -125,51 +151,61 @@ const eventFamilyAssets: Record<EventVisualType, string> = {
 };
 
 export const eventArtById: Record<string, ArtImage> = {
-  jisi_incident: eventScene("event-jisi-incident", "己巳之变京师戒严图", "military"),
-  liaoxiang_surcharge: eventScene("event-liaoxiang-surcharge", "辽饷加派财政图", "economic"),
-  jiashen_catastrophe: eventScene("event-jiashen-catastrophe", "甲申国难京师危局图", "disaster"),
-  tiaoobian_controversy: eventScene("event-tiaoobian-controversy", "一条鞭法争议朝议图", "economic"),
-  wei_zhongxian_purge: eventScene("event-wei-zhongxian-purge", "魏忠贤诏狱密奏图", "intrigue"),
-  yuan_chonghuan_execution: eventScene("event-yuan-chonghuan-execution", "袁崇焕之死朝堂图", "intrigue"),
-  shaanxi_chain_drought: eventScene("event-shaanxi-chain-drought", "陕西旱荒民变链图", "disaster"),
-  korean_war: eventScene("event-korean-war", "援朝战争海陆军援图", "military"),
-  later_jin_founded: eventScene("event-later-jin-founded", "后金建立部族会盟图", "frontier")
+  jisi_incident: eventScene("event-jisi-incident", "己巳之变京师戒严图", "military", jisiIncidentUrl),
+  liaoxiang_surcharge: eventScene("event-liaoxiang-surcharge", "辽饷加派财政图", "economic", liaoxiangSurchargeUrl),
+  jiashen_catastrophe: eventScene("event-jiashen-catastrophe", "甲申国难京师危局图", "disaster", jiashenCatastropheUrl),
+  tiaoobian_controversy: eventScene("event-tiaoobian-controversy", "一条鞭法争议朝议图", "economic", tiaoobianControversyUrl),
+  wei_zhongxian_purge: eventScene("event-wei-zhongxian-purge", "魏忠贤诏狱密奏图", "intrigue", weiZhongxianPurgeUrl),
+  yuan_chonghuan_execution: eventScene("event-yuan-chonghuan-execution", "袁崇焕之死朝堂图", "intrigue", yuanChonghuanExecutionUrl),
+  shaanxi_chain_drought: eventScene("event-shaanxi-chain-drought", "陕西旱荒民变链图", "disaster", shaanxiChainDroughtUrl),
+  korean_war: eventScene("event-korean-war", "援朝战争海陆军援图", "military", koreanWarUrl),
+  later_jin_founded: eventScene("event-later-jin-founded", "后金建立部族会盟图", "frontier", laterJinFoundedUrl),
+  saarhu_campaign: eventScene("event-saarhu-campaign", "萨尔浒之战军议图", "military", saarhuCampaignUrl)
 };
 
 const characterPortraits: Record<string, CharacterPortrait> = {
-  zhang_juzheng: characterPortrait("zhang_juzheng", "张居正立绘", "首辅", "8% center"),
-  nurhaci: characterPortrait("nurhaci", "努尔哈赤立绘", "建州首领", "92% center"),
-  wei_zhongxian: characterPortrait("wei_zhongxian", "魏忠贤立绘", "司礼监秉笔", "58% center"),
-  yuan_chonghuan: characterPortrait("yuan_chonghuan", "袁崇焕立绘", "辽东督师", "72% center"),
-  xiong_tingbi: characterPortrait("xiong_tingbi", "熊廷弼立绘", "辽东经略", "72% center")
+  zhang_juzheng: characterPortrait("zhang_juzheng", "张居正立绘", "首辅", zhangJuzhengUrl),
+  wanli_emperor: characterPortrait("wanli_emperor", "万历帝立绘", "大明皇帝", wanliEmperorUrl),
+  nurhaci: characterPortrait("nurhaci", "努尔哈赤立绘", "建州首领", nurhaciUrl),
+  xiong_tingbi: characterPortrait("xiong_tingbi", "熊廷弼立绘", "辽东经略", xiongTingbiUrl),
+  wei_zhongxian: characterPortrait("wei_zhongxian", "魏忠贤立绘", "司礼监秉笔", weiZhongxianUrl),
+  yuan_chonghuan: characterPortrait("yuan_chonghuan", "袁崇焕立绘", "辽东督师", yuanChonghuanUrl),
+  chongzhen_emperor: characterPortrait("chongzhen_emperor", "崇祯帝立绘", "大明皇帝", chongzhenEmperorUrl),
+  li_chengliang: characterPortrait("li_chengliang", "李成梁立绘", "辽东总兵", liChengliangUrl),
+  toyotomi_hideyoshi: characterPortrait("toyotomi_hideyoshi", "丰臣秀吉立绘", "日本关白", toyotomiHideyoshiUrl),
+  joseon_seonjo: characterPortrait("joseon_seonjo", "朝鲜宣祖立绘", "朝鲜国王", joseonSeonjoUrl)
 };
 
 export const characterIdsByEventId: Record<string, string[]> = {
-  zhang_reform_pressure: ["zhang_juzheng"],
-  zhang_juzheng_death: ["zhang_juzheng"],
-  purge_reform_legacy: ["zhang_juzheng"],
+  zhang_reform_pressure: ["zhang_juzheng", "wanli_emperor"],
+  zhang_juzheng_death: ["zhang_juzheng", "wanli_emperor"],
+  purge_reform_legacy: ["zhang_juzheng", "wanli_emperor"],
+  state_succession_dispute: ["wanli_emperor"],
+  korean_war: ["toyotomi_hideyoshi", "joseon_seonjo"],
   later_jin_founded: ["nurhaci"],
-  nurgaci_uprising: ["nurhaci"],
-  jianzhou_unification: ["nurhaci"],
+  nurgaci_uprising: ["nurhaci", "li_chengliang"],
+  jianzhou_unification: ["nurhaci", "li_chengliang"],
+  saarhu_campaign: ["nurhaci", "li_chengliang"],
   wei_zhongxian_purge: ["wei_zhongxian"],
   eunuch_wei_rise: ["wei_zhongxian"],
-  yuan_chonghuan_execution: ["yuan_chonghuan"],
-  jisi_incident: ["yuan_chonghuan"],
+  yuan_chonghuan_execution: ["yuan_chonghuan", "chongzhen_emperor"],
+  jisi_incident: ["yuan_chonghuan", "chongzhen_emperor"],
+  jiashen_catastrophe: ["chongzhen_emperor"],
   xiong_tingbi_liaodong: ["xiong_tingbi"]
 };
 
 export const factionLeaderByFactionId: Record<string, FactionLeaderPortrait> = {
-  ming: factionLeader("ming", "大明君主立绘", "0% center"),
-  tumed: factionLeader("tumed", "土默特部首领立绘", "66% center"),
-  jianzhou: factionLeader("jianzhou", "建州女真首领立绘", "100% center"),
-  chahar: factionLeader("chahar", "察哈尔部首领立绘", "66% center"),
-  haixi: factionLeader("haixi", "海西女真首领立绘", "100% center"),
-  korchin: factionLeader("korchin", "科尔沁部首领立绘", "66% center"),
-  nurgan: factionLeader("nurgan", "奴儿干诸部首领立绘", "100% center"),
-  joseon: factionLeader("joseon", "朝鲜君主立绘", "33% center"),
-  japan: factionLeader("japan", "日本诸藩大名立绘", "66% center"),
-  ainu: factionLeader("ainu", "虾夷诸部首领立绘", "66% center"),
-  bozhou: factionLeader("bozhou", "播州杨氏土司立绘", "33% center")
+  ming: factionLeader("ming", "万历帝立绘", wanliEmperorUrl),
+  tumed: factionLeader("tumed", "俺答汗立绘", tumedLeaderUrl),
+  jianzhou: factionLeader("jianzhou", "努尔哈赤立绘", nurhaciUrl),
+  chahar: factionLeader("chahar", "图们汗立绘", chaharLeaderUrl),
+  haixi: factionLeader("haixi", "王台立绘", haixiLeaderUrl),
+  korchin: factionLeader("korchin", "莽古思立绘", korchinLeaderUrl),
+  nurgan: factionLeader("nurgan", "奴儿干诸部首领立绘", nurganLeaderUrl),
+  joseon: factionLeader("joseon", "朝鲜宣祖立绘", joseonSeonjoUrl),
+  japan: factionLeader("japan", "丰臣秀吉立绘", toyotomiHideyoshiUrl),
+  ainu: factionLeader("ainu", "虾夷诸部首领立绘", ainuLeaderUrl),
+  bozhou: factionLeader("bozhou", "杨应龙立绘", bozhouLeaderUrl)
 };
 
 export function resolveEventVisual(event: GameEvent): EventVisual {
@@ -199,13 +235,13 @@ export function resolveEventCharacters(event: GameEvent): CharacterPortrait[] {
 }
 
 export function resolveFactionLeaderPortrait(factionId: string): FactionLeaderPortrait {
-  return factionLeaderByFactionId[factionId] ?? factionLeader("unknown", "未知势力首领立绘", "66% center");
+  return factionLeaderByFactionId[factionId] ?? factionLeader("unknown", "未知势力首领立绘", wanliEmperorUrl);
 }
 
-function eventScene(key: string, label: string, type: EventVisualType): ArtImage {
+function eventScene(key: string, label: string, type: EventVisualType, src: string): ArtImage {
   return {
     key,
-    src: eventFamilyAssets[type],
+    src,
     label,
     alt: `${label}：${visualFamilies[type].alt}`,
     type
@@ -216,27 +252,25 @@ function characterPortrait(
   id: string,
   label: string,
   role: string,
-  objectPosition: string
+  src: string
 ): CharacterPortrait {
   return {
     id,
     key: `portrait-${id}`,
-    src: portraitSheetUrl,
+    src,
     label,
     alt: label,
-    role,
-    objectPosition
+    role
   };
 }
 
-function factionLeader(factionId: string, label: string, objectPosition: string): FactionLeaderPortrait {
+function factionLeader(factionId: string, label: string, src: string): FactionLeaderPortrait {
   return {
     factionId,
     key: `faction-${factionId}-leader`,
-    src: portraitSheetUrl,
+    src,
     label,
-    alt: label,
-    objectPosition
+    alt: label
   };
 }
 

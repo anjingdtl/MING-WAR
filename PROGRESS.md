@@ -69,6 +69,24 @@
 
 ---
 
+## 0.3 四层艺术系统续补（2026-07-01 完成）
+
+> 承接 `a837e40 feat: add four-layer art catalog` 的中断工作。
+> 续作计划：`docs/superpowers/plans/2026-07-01-four-layer-art-continuation.md`
+
+| 层级 | 状态 |
+|---|---|
+| 重大历史事件专属插画 | ✅ 10 张重新绘制 PNG 接入：己巳之变、辽饷加派、甲申国难、一条鞭法争议、魏忠贤诏狱、袁崇焕之死、陕西旱荒链、援朝战争、后金建立、萨尔浒之战 |
+| 历史人物专属立绘 | ✅ 10 位重新绘制 PNG 接入：张居正、万历帝、努尔哈赤、熊廷弼、魏忠贤、袁崇焕、崇祯帝、李成梁、丰臣秀吉、朝鲜宣祖 |
+| 势力领袖专属立绘 | ✅ 当前 `factionTemplates` 全覆盖：大明/建州/朝鲜/日本复用对应历史人物立绘；土默特、察哈尔、海西、科尔沁、奴儿干、虾夷、播州使用重新绘制领袖 PNG |
+| 通用事件家族图 | ✅ 8 类 fallback 保留，由 `eventVisuals.ts` 兼容导出 |
+
+**资产目录**：`src/assets/art/events/`、`src/assets/art/portraits/characters/`、`src/assets/art/portraits/factions/`。
+
+**测试强化**：`src/tests/event-visuals.test.tsx` 现在验证重大事件不能回退到 `event-*.png` 通用横幅，历史人物不能回退到 `ming-character-portraits.png` 合图，势力领袖必须走 `portraits/characters/` 或 `portraits/factions/` 的独立资源。
+
+---
+
 ## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**

@@ -40,9 +40,9 @@ describe("event visuals", () => {
     const { container } = render(<EventDialog event={event} onResolve={() => undefined} />);
 
     expect(container.querySelector(".event-art--military")).not.toBeNull();
-    const image = screen.getByRole("img", { name: /军事事件/ });
+    const image = screen.getByRole("img", { name: /援朝战争/ });
     expect(image).not.toBeNull();
-    expect(image.getAttribute("src")).toContain("event-military");
+    expect(image.getAttribute("src")).toContain("korean-war");
   });
 
   it("resolves a scene image for every event", () => {
@@ -54,24 +54,61 @@ describe("event visuals", () => {
   it("uses bespoke scenes for expanded historical events", () => {
     const byId = Object.fromEntries(mvpEvents.map((event) => [event.id, event]));
 
-    expect(resolveEventScene(byId.jisi_incident).key).toBe("event-jisi-incident");
-    expect(resolveEventScene(byId.liaoxiang_surcharge).key).toBe("event-liaoxiang-surcharge");
-    expect(resolveEventScene(byId.jiashen_catastrophe).key).toBe("event-jiashen-catastrophe");
-    expect(resolveEventScene(byId.yuan_chonghuan_execution).key).toBe("event-yuan-chonghuan-execution");
+    const plannedSceneKeys = {
+      jisi_incident: "event-jisi-incident",
+      liaoxiang_surcharge: "event-liaoxiang-surcharge",
+      jiashen_catastrophe: "event-jiashen-catastrophe",
+      tiaoobian_controversy: "event-tiaoobian-controversy",
+      wei_zhongxian_purge: "event-wei-zhongxian-purge",
+      yuan_chonghuan_execution: "event-yuan-chonghuan-execution",
+      shaanxi_chain_drought: "event-shaanxi-chain-drought",
+      korean_war: "event-korean-war",
+      later_jin_founded: "event-later-jin-founded",
+      saarhu_campaign: "event-saarhu-campaign"
+    };
+
+    for (const [eventId, expectedKey] of Object.entries(plannedSceneKeys)) {
+      const scene = resolveEventScene(byId[eventId]);
+      expect(scene.key, eventId).toBe(expectedKey);
+      expect(scene.src, eventId).toContain("/assets/art/events/");
+    }
   });
 
   it("maps named historical figures to event portrait metadata", () => {
     const byId = Object.fromEntries(mvpEvents.map((event) => [event.id, event]));
+    const mappedCharacterIds = new Set(
+      mvpEvents.flatMap((event) => resolveEventCharacters(event).map((item) => item.id))
+    );
 
     expect(resolveEventCharacters(byId.zhang_reform_pressure).map((item) => item.id)).toContain("zhang_juzheng");
     expect(resolveEventCharacters(byId.later_jin_founded).map((item) => item.id)).toContain("nurhaci");
     expect(resolveEventCharacters(byId.wei_zhongxian_purge).map((item) => item.id)).toContain("wei_zhongxian");
     expect(resolveEventCharacters(byId.yuan_chonghuan_execution).map((item) => item.id)).toContain("yuan_chonghuan");
+    expect([...mappedCharacterIds]).toEqual(expect.arrayContaining([
+      "zhang_juzheng",
+      "wanli_emperor",
+      "nurhaci",
+      "xiong_tingbi",
+      "wei_zhongxian",
+      "yuan_chonghuan",
+      "chongzhen_emperor",
+      "li_chengliang",
+      "toyotomi_hideyoshi",
+      "joseon_seonjo"
+    ]));
+    for (const event of mvpEvents) {
+      for (const character of resolveEventCharacters(event)) {
+        expect(character.src, character.id).toContain("/assets/art/portraits/characters/");
+      }
+    }
   });
 
   it("covers every faction with a leader portrait", () => {
     for (const factionId of Object.keys(factionTemplates)) {
-      expect(resolveFactionLeaderPortrait(factionId).src, factionId).toBeTruthy();
+      const portrait = resolveFactionLeaderPortrait(factionId);
+      expect(portrait.src, factionId).toBeTruthy();
+      expect(portrait.src, factionId).toMatch(/\/assets\/art\/portraits\/(characters|factions)\//);
+      expect(portrait.src, factionId).not.toContain("ming-character-portraits");
     }
   });
 
