@@ -77,8 +77,8 @@ const TILES: TileLocation[] = [
   { id: "tumed_steppe",    expectedCenterLng: 103.48, expectedCenterLat: 40.49, tolerance: 10 },
   { id: "haixi",           expectedCenterLng: 127.74, expectedCenterLat: 47.88, tolerance: 10 },
   { id: "jianzhou",        expectedCenterLng: 125.06, expectedCenterLat: 42.66, tolerance: 10 },
-  // context tile — Wanli atlas frontier corridor
-  { id: "hami",            expectedCenterLng: 98.08,  expectedCenterLat: 39.41, tolerance: 15 },
+  // context tile — 真实边界
+  { id: "hami",            expectedCenterLng: 85.06,  expectedCenterLat: 41.08, tolerance: 15 },
   { id: "liuqiu",          expectedCenterLng: 127.70, expectedCenterLat: 27.45, tolerance: 10 },
   { id: "southeast-asia",  expectedCenterLng: 100.39, expectedCenterLat: 19.85, tolerance: 15 }
 ];

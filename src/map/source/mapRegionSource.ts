@@ -1,18 +1,6 @@
 import type { MapRegionShape, MapTileShape } from "../mapTypes";
 
-type ShapeOverrides<T extends { id: string }> = Partial<Omit<T, "id">>;
-
-function applyWanliBoundaryOverrides<T extends { id: string }>(
-  shapes: T[],
-  overrides: Record<string, ShapeOverrides<T>>
-): T[] {
-  return shapes.map((shape) => {
-    const override = overrides[shape.id];
-    return override ? { ...shape, ...override } : shape;
-  });
-}
-
-const rawMapRegionSource: MapRegionShape[] = [
+export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "beizhili",
     "paths": [
@@ -375,39 +363,7 @@ const rawMapRegionSource: MapRegionShape[] = [
   }
 ];
 
-const wanliPlayableBoundaryOverrides: Record<string, ShapeOverrides<MapRegionShape>> = {
-  tumed_steppe: {
-    paths: [
-      "M360.4 235.8 L374.2 225.1 L397.8 218.6 L423.4 213.9 L449.8 210.5 L478.6 209.2 L507.4 210.7 L528.6 218.2 L535.2 233.1 L528.4 250.8 L508.6 263.7 L481.5 272.8 L451.3 280.4 L420.7 285.5 L392.6 282.3 L371.8 270.1 L362.0 252.9 Z"
-    ],
-    labelX: 445,
-    labelY: 244,
-    labelWidth: 112
-  },
-  chahar_steppe: {
-    paths: [
-      "M490.2 215.8 L501.8 200.5 L522.9 188.4 L548.6 180.6 L578.4 177.3 L604.7 184.9 L620.1 200.2 L617.3 219.4 L600.6 235.8 L574.1 248.9 L545.6 260.7 L518.4 262.9 L498.7 250.4 L491.0 233.1 Z"
-    ],
-    labelX: 555,
-    labelY: 219,
-    labelWidth: 108
-  },
-  korchin_steppe: {
-    paths: [
-      "M590.8 160.4 L601.2 143.3 L619.8 131.1 L641.6 124.4 L663.7 129.0 L677.4 145.8 L674.2 166.5 L662.9 186.7 L648.4 202.5 L627.8 219.1 L606.6 221.7 L593.1 205.9 L591.7 183.2 Z"
-    ],
-    labelX: 628,
-    labelY: 171,
-    labelWidth: 104
-  }
-};
-
-export const mapRegionSource: MapRegionShape[] = applyWanliBoundaryOverrides(
-  rawMapRegionSource,
-  wanliPlayableBoundaryOverrides
-);
-
-const rawContextMapTileSource: MapTileShape[] = [
+export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "tibet",
     "paths": [
@@ -500,19 +456,3 @@ const rawContextMapTileSource: MapTileShape[] = [
     "importance": 3
   }
 ];
-
-const wanliContextBoundaryOverrides: Record<string, ShapeOverrides<MapTileShape>> = {
-  hami: {
-    paths: [
-      "M331.8 246.8 L340.4 236.1 L355.8 229.4 L372.9 224.8 L390.8 226.6 L409.4 234.9 L423.7 247.2 L420.2 263.8 L405.6 276.4 L386.3 284.1 L365.8 286.2 L348.2 280.4 L336.5 268.9 L329.9 256.1 Z"
-    ],
-    labelX: 378.5,
-    labelY: 254.8,
-    labelWidth: 72
-  }
-};
-
-export const contextMapTileSource: MapTileShape[] = applyWanliBoundaryOverrides(
-  rawContextMapTileSource,
-  wanliContextBoundaryOverrides
-);
