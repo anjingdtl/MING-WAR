@@ -104,8 +104,10 @@ export const SidePanel = memo(function SidePanel({
             type="button"
             role="tab"
             aria-selected={activeTab === id}
+            aria-label={label}
             className={`side-panel-tab ${activeTab === id ? "is-active" : ""}`}
             onClick={() => handleTabChange(id)}
+            title={label}
           >
             <Icon aria-hidden="true" size={16} />
             <span>{label}</span>
@@ -116,9 +118,11 @@ export const SidePanel = memo(function SidePanel({
           size="sm"
           onClick={onClose}
           iconLeft={<X aria-hidden="true" size={14} />}
+          className="side-panel-close"
           aria-label="关闭详情面板"
+          title="关闭详情面板"
         >
-          关闭
+          <span className="visually-hidden">关闭</span>
         </Button>
       </header>
 

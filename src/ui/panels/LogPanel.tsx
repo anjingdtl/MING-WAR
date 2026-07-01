@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
+import { ScrollText } from "lucide-react";
 import type { MonthlyReport } from "../../core/types";
-import { StatBadge } from "../common/StatBadge";
 
 interface LogPanelProps {
   reports: MonthlyReport[];
@@ -38,14 +38,15 @@ export const LogPanel = memo(function LogPanel({ reports }: LogPanelProps) {
     [reports]
   );
 
-  const headline = sorted[0];
-  const subhead = sorted.find((r) => r.severity === "warning");
-  const briefs = sorted.filter((r) => r.severity === "info").slice(0, 8);
+  const entries = sorted.slice(0, 5);
 
   return (
     <section className="log-panel" aria-label="邸报">
       <header className="gazette-header">
-        <h2>邸报</h2>
+        <h2>
+          <ScrollText aria-hidden="true" size={15} />
+          邸报
+        </h2>
         <span className="gazette-issue">
           {reports.length > 0 ? `第 ${reports.length} 期` : "创刊号"}
         </span>
@@ -54,45 +55,15 @@ export const LogPanel = memo(function LogPanel({ reports }: LogPanelProps) {
       {reports.length === 0 ? (
         <p className="gazette-empty">天下一时无事,推演伊始。</p>
       ) : (
-        <>
-          {headline && (
-            <article className={`gazette-headline gazette-headline--${headline.severity}`}>
-              <div className="gazette-headline__meta">
-                <span className="gazette-headline__kicker">{SEVERITY_LABEL[headline.severity]}</span>
-                <span className="gazette-headline__date">{headline.date}</span>
-              </div>
-              <h3>{headline.title}</h3>
-              <p>{headline.body}</p>
-            </article>
-          )}
-
-          {subhead && subhead.id !== headline?.id && (
-            <article className="gazette-subhead">
-              <strong>要闻</strong>
-              <span>{subhead.date}</span>
-              <p>{subhead.title} — {subhead.body}</p>
-            </article>
-          )}
-
-          {briefs.length > 0 && (
-            <ul className="gazette-briefs">
-              {briefs.map((b) => (
-                <li key={b.id}>
-                  <span className="gazette-briefs__date">{b.date}</span>
-                  <span className="gazette-briefs__text">{b.title}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <footer className="gazette-footer">
-            <StatBadge
-              label="本月条数"
-              value={reports.length}
-              size="sm"
-            />
-          </footer>
-        </>
+        <ul className="gazette-feed">
+          {entries.map((entry) => (
+            <li key={entry.id} className={`gazette-feed__item gazette-feed__item--${entry.severity}`}>
+              <span className="gazette-feed__kicker">{SEVERITY_LABEL[entry.severity]}</span>
+              <span className="gazette-feed__title">{entry.title}</span>
+              <span className="gazette-feed__date">{entry.date}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );
