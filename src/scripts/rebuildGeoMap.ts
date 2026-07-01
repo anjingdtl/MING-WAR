@@ -368,7 +368,9 @@ function buildContextTiles(admin1: GeoFeatureCollection, admin0: GeoFeatureColle
     contextTile("southeast-asia", "东南亚边缘", [manualPath([[92.0, 18.0], [107.0, 18.0], [113.0, 9.0], [98.0, 7.2], [92.0, 11.0]])], [103.0, 12.8], 96, "southeast-asia"),
     contextTile("liuqiu", "琉球", [manualPath([[123.5, 27.2], [129.8, 28.2], [132.5, 25.0], [127.4, 23.0], [123.0, 24.4]])], [127.5, 25.3], 64, "liuqiu", "sea-zone"),
     contextTile("western-pacific", "西太平洋", [manualPath([[136.2, 31.0], [148.0, 35.0], [148.0, 7.0], [139.0, 9.0], [136.0, 22.0]])], [143.0, 21.0], 84, "western-sea", "sea-zone"),
-    contextTile("northern-sea", "北海", [manualPath([[135.5, 57.5], [148.0, 58.0], [148.0, 52.5], [139.2, 52.0]])], [143.0, 55.0], 64, "western-sea", "sea-zone")
+    contextTile("northern-sea", "北海", [manualPath([[135.5, 57.5], [148.0, 58.0], [148.0, 52.5], [139.2, 52.0]])], [143.0, 55.0], 64, "western-sea", "sea-zone"),
+    // 东北亚边缘 / 鄂霍次克海 — 与北海错开 1°，避免重叠
+    contextTile("northeast-asia-edge", "东北亚边缘", [manualPath([[133.0, 57.5], [148.0, 58.0], [148.0, 52.5], [138.4, 51.4], [136.0, 53.6], [134.4, 55.8]])], [140.0, 54.4], 84, "northeast-asia-edge", "sea-zone")
   ];
 }
 
@@ -423,20 +425,23 @@ export const contextMapTileSource: MapTileShape[] = ${JSON.stringify(contextTile
 function buildFactionLabels(): string {
   const labels: FactionMapLabel[] = [
     { factionId: "ming", label: "大明", ...factionLabelPoint(113.8, 30.8), minZoom: 0, maxZoom: 0.9, importance: 1 },
-    { factionId: "jianzhou", label: "建州女真", ...factionLabelPoint(126.8, 42.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "haixi", label: "海西女真", ...factionLabelPoint(126.0, 45.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
-    { factionId: "chahar", label: "察哈尔", ...factionLabelPoint(117.8, 43.0), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "tumed", label: "土默特", ...factionLabelPoint(110.9, 42.0), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "korchin", label: "科尔沁", ...factionLabelPoint(123.6, 45.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "korchin", label: "呼伦贝尔", ...factionLabelPoint(118.0, 50.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "korchin", label: "科尔沁", ...factionLabelPoint(121.0, 46.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "haixi", label: "海西女真", ...factionLabelPoint(130.0, 46.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "chahar", label: "察哈尔", ...factionLabelPoint(112.0, 42.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "jianzhou", label: "建州女真", ...factionLabelPoint(128.0, 43.0), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "tumed", label: "土默特", ...factionLabelPoint(110.0, 40.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "joseon", label: "朝鲜北道", ...factionLabelPoint(127.5, 40.6), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "joseon", label: "朝鲜三南", ...factionLabelPoint(127.8, 35.8), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "nurgan", label: "奴儿干", ...factionLabelPoint(135.2, 47.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
-    { factionId: "joseon", label: "朝鲜", ...factionLabelPoint(127.8, 37.2), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "japan", label: "日本诸藩", ...factionLabelPoint(136.5, 35.1), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "ainu", label: "虾夷", ...factionLabelPoint(142.7, 44.0), minZoom: 0, maxZoom: 0.8, importance: 3 },
     { factionId: "bozhou", label: "播州", ...factionLabelPoint(106.6, 27.6), minZoom: 0, maxZoom: 0.8, importance: 3 },
     { factionId: "tibet", label: "乌斯藏", ...factionLabelPoint(89.5, 30.7), minZoom: 0, maxZoom: 0.85, importance: 3 },
     { factionId: "mobei", label: "漠北诸部", ...factionLabelPoint(102.5, 47.8), minZoom: 0, maxZoom: 0.85, importance: 3 },
     { factionId: "southeast-asia", label: "东南亚", ...factionLabelPoint(103.0, 12.8), minZoom: 0, maxZoom: 0.8, importance: 3 },
-    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.5, 25.3), minZoom: 0, maxZoom: 0.8, importance: 3 }
+    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.5, 25.3), minZoom: 0, maxZoom: 0.8, importance: 3 },
+    { factionId: "northeast-asia-edge", label: "东北亚边缘", ...factionLabelPoint(140.0, 54.4), minZoom: 0, maxZoom: 0.8, importance: 3 }
   ];
 
   return `import type { FactionMapLabel } from "../mapTypes";

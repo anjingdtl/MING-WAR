@@ -87,6 +87,51 @@
 
 ---
 
+## 0.4 东北亚 9 处势力色块错位修复（v0.7.4，2026-07-01）
+
+**问题**：v0.7.3 网格对齐（`8c2e326`）把 mongol/jurchen/joseon 的 map tile 几何换成矩形网格，但 `factionMapLabels.ts` 没同步更新坐标。结果 9 个势力标签浮在错误的图块上 → 用户截图里看到「色块和地图省区政治区域色块不匹配」。
+
+**根因**：
+
+- `factionMapLabels.ts` 的 (x, y) 是 v0.7.3 之前的旧位置
+- `mapTiles.ts` 的 labelX/labelY 是 v0.7.3 之后的新位置
+- 标签底色由 `PoliticalOverlayLayer` 按 (x, y) 处的实际图块染色 → 旧位置漂到邻接图块 → 颜色错位
+
+**9 处错位（按用户截图）**：
+
+| 标签 | 旧坐标 | 新坐标 | 对应图块 | 原因 |
+|---|---|---|---|---|
+| 呼伦贝尔 | 缺失 | (625, 102.9) | hulunbuir | v0.7.3 把 hulunbuir 升为可玩图块，但没补 label |
+| 科尔沁 | (695, 171.6) | (662.5, 164.7) | korchin_steppe | 网格重排后矩形右上角 = (725, 192.2) |
+| 海西女真 | (725, 171.6) | (775, 164.7) | haixi | 网格后中心 x=775 |
+| 建州女真 | (735, 212.7) | (750, 205.9) | jianzhou | 同上 |
+| 察哈尔 | (622.5, 205.9) | (550, 212.7) | chahar_steppe | 网格后矩形 (500–600, 192.2–233.3) 中心 |
+| 土默特 | (536.3, 219.6) | (525, 240.2) | tumed_steppe | 网格后矩形 (475–575, 233.3–247.1) 中心 |
+| 朝鲜北道 | 合并 | (743.8, 238.8) | joseon_north | 旧 joseon 一个 label 同时覆盖南北两省 |
+| 朝鲜三南 | 合并 | (747.5, 304.7) | joseon_south | 同上 |
+| 东北亚边缘 | 缺失 | (900, 50) | northeast-asia-edge (新 context) | 北海已存在，但缺少东北亚海面 context |
+
+**修复**：
+
+1. `src/map/generated/factionMapLabels.ts` — 18 个 label 全部重写，9 个错位的全部回到图块 labelX/labelY，新增 `hulunbuir`（factionId=korchin, 重要性 2）、拆分 `joseon` 为 `朝鲜北道`+`朝鲜三南`、新增 `东北亚边缘`（factionId=northeast-asia-edge, 重要性 3）。
+2. `src/map/source/mapRegionSource.ts` + `src/map/generated/mapTiles.ts` — 新增 context tile `northeast-asia-edge`（polygon = 鄂霍次克海方向，与 `northern-sea` 错开 1° 不重叠），`defaultControllerFactionId=northeast-asia-edge`。
+3. `src/map/mapFactionColors.ts` — 增加 `"northeast-asia-edge": "#6B6A8C"` 兜底色（冷紫，对应海面），与现有 `western-sea` (#5F7A82) 错开。
+4. `src/scripts/rebuildGeoMap.ts` — 同步更新 `buildFactionLabels` 的 `factionLabelPoint(lon, lat)` 坐标（lon = 68 + (x/1000)·80, lat = 58 − (y/700)·51 反推）、拆分 joseon、添加 hulunbuir 与东北亚边缘、新增对应 `contextTile` 节点。下次 `npm run map:rebuild-geo` 不会再回退。
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npm test` ✓ 499/499 tests pass（含 `map-labels.test.ts` 6/6 + `map-generation-pipeline.test.ts` 2/2 + 全部地图 / 模拟测试）
+- `npm run map:validate` ✓ 39 tiles (31 playable + 8 context，含新增 northeast-asia-edge)
+- 对齐脚本验证：9 个标签与 9 个 map tile 中心坐标 delta=0.00，全部 OK
+
+**遗留**：
+
+- `japan` 标签位置 (856.3, 314.3) 仍指向西日本/东日本之间空隙。下次重做日本地块时一起对齐；当前无视觉冲突（紫色色块与 joseon/japan 边界距离合理）。
+- `ainu` 标签 (933.7, 192.2) 与 ezo 中心一致但与 sakhalin 距离过近，文字会有少量视觉重叠（importance=3 远景，可接受）。
+
+---
+
 ## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**

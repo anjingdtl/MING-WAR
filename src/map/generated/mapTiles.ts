@@ -107,6 +107,21 @@ export const mapTiles: MapTileShape[] = [
     "importance": 3
   },
   {
+    "id": "northeast-asia-edge",
+    "paths": [
+      "M812 6.9 L1000 0 L1000 75.5 L880 90.2 L850 60.2 L830 30 Z"
+    ],
+    "labelX": 900,
+    "labelY": 50,
+    "labelWidth": 84,
+    "source": "generated-source",
+    "displayName": "东北亚边缘",
+    "kind": "sea-zone",
+    "isPlayableRegion": false,
+    "defaultControllerFactionId": "northeast-asia-edge",
+    "importance": 3
+  },
+  {
     "id": "beizhili",
     "paths": [
       "M609.9 252.5 L607.6 252.4 L605.4 253.6 L604.8 254.7 L603.1 253.8 L602.6 252.9 L600 253.1 L596.9 253.8 L595.2 252.5 L593.3 252 L593 250.5 L593.9 249.3 L593.7 248.1 L592.8 247.6 L594.7 245.7 L597.7 245 L599.3 243 L596.6 239.7 L598.4 238.7 L599.9 238.9 L601.6 238 L602.6 236.8 L603.6 236.9 L605.7 236.2 L605.5 234.7 L608.2 232.9 L608.4 234.2 L611.4 236.8 L613.2 237.8 L615 237.6 L616.3 238 L617.9 237.9 L617.6 238.9 L615.5 239.2 L614.8 240.2 L615.6 242.4 L617 243.5 L616.4 245.5 L612.3 246.6 L610.4 246.6 L609.3 247.6 L609.8 248.6 L611.5 250.2 L610.9 251.4 Z",

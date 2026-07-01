@@ -460,5 +460,20 @@ export const contextMapTileSource: MapTileShape[] = [
     "isPlayableRegion": false,
     "defaultControllerFactionId": "western-sea",
     "importance": 3
+  },
+  {
+    "id": "northeast-asia-edge",
+    "paths": [
+      "M812 6.9 L1000 0 L1000 75.5 L880 90.2 L850 60.2 L830 30 Z"
+    ],
+    "labelX": 900,
+    "labelY": 50,
+    "labelWidth": 84,
+    "source": "generated-source",
+    "displayName": "东北亚边缘",
+    "kind": "sea-zone",
+    "isPlayableRegion": false,
+    "defaultControllerFactionId": "northeast-asia-edge",
+    "importance": 3
   }
 ];
