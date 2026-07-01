@@ -281,6 +281,43 @@
 
 ---
 
+### v0.7.7 → v0.7.8 清除剩余矩形 context / 海上色块（2026-07-01，第四次反馈）
+
+**用户反馈**：v0.7.7 调试截图中仍有多个矩形色块（东南亚、琉球、西太平洋、北海、东北亚边缘）。
+
+**真实根因**：这些 tile 属于 `contextMapTileSource` 中的 context-region / sea-zone，v0.7.7 没有处理，仍是手工 4–6 顶点多边形。
+
+**v0.7.8 修复方案**：
+
+- 下载 Natural Earth 10m **admin0** 国家边界 + **ocean** 海面数据。
+- `southeast-asia`：用缅甸 / 泰国 / 老挝 / 柬埔寨 / 越南 / 马来西亚 / 文莱的真实陆地边界替换原梯形。
+- `liuqiu`：从日本 admin0 中截取琉球岛链（122°E–132°E，22°N–30.5°N）替换原斜矩形。
+- `western-pacific` / `northeast-asia-edge` / `northern-sea`：用 NE ocean 数据与三个水平条带求交，得到沿日本、千岛、库页岛、菲律宾真实岸线的海面多边形，填补 v0.7.7 留下的东北角空白。
+- `MapRegionSource` 类型新增 `natural-earth-admin0` 与 `natural-earth-ocean`。
+- label 坐标同步更新到新的真实几何中心。
+
+**修改文件**：
+
+1. `src/map/mapTypes.ts` — 扩展 `MapRegionSource` 联合类型。
+2. `src/map/source/mapRegionSource.ts` — 5 个 context/sea tile 替换为真实边界，`source` 标记为 `natural-earth-admin0` / `natural-earth-ocean`。
+3. `src/map/generated/mapTiles.ts` / `factionMapLabels.ts` — 重新生成。
+4. `src/tests/map-polygon-shape.test.ts` — 新增 context/sea-zone 回归保护：来源、顶点 ≥10、非矩形、viewBox 内。
+5. `src/tests/map-tile-location.test.ts` — 更新 `southeast-asia` / `northeast-asia-edge` 真实质心 expected 值。
+6. `PROGRESS.md` — 本条记录。
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npx vitest run` ✓ **532 / 532 pass**
+- `npx tsx src/scripts/validateMapRegions.ts` ✓ 39 tiles (31 playable + 8 context)
+- Python 调试渲染 ✓ 5 个 context/sea tile 全部非矩形，岸线跟随真实地理
+
+**调试图**：`D:/workbuddyspace/2026-07-01-11-05-54/debug_map_v077.png`
+
+**遗留**：同 v0.7.7（`rebuildGeoMap.ts` 未改造）。
+
+---
+
 ## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**

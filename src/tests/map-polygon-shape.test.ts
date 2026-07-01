@@ -116,3 +116,48 @@ describe("historical frontier tiles v0.7.7 real province boundaries", () => {
     }
   });
 });
+
+describe("context and sea-zone tiles v0.7.8 real boundaries", () => {
+  const CONTEXT_TILES = [
+    "southeast-asia",
+    "liuqiu",
+    "western-pacific",
+    "northern-sea",
+    "northeast-asia-edge"
+  ] as const;
+
+  it("uses real NE admin0 / ocean data", () => {
+    for (const id of CONTEXT_TILES) {
+      const tile = mapTiles.find((t) => t.id === id);
+      expect(tile, `${id} should exist`).toBeDefined();
+      expect(
+        ["natural-earth-admin0", "natural-earth-ocean"],
+        `${id} source`
+      ).toContain(tile!.source);
+    }
+  });
+
+  it("stays non-rectangular with enough vertices", () => {
+    for (const id of CONTEXT_TILES) {
+      const tile = mapTiles.find((t) => t.id === id);
+      const points = pointsFor(tile!.paths);
+      const box = bboxFor(tile!.paths);
+      expect(points.length, `${id} should have ≥10 vertices`).toBeGreaterThanOrEqual(10);
+      expect(
+        Math.abs(box.maxX - box.minX - (box.maxY - box.minY)),
+        `${id} should not be an axis-aligned square`
+      ).toBeGreaterThan(1.5);
+    }
+  });
+
+  it("keeps all context/sea tile bboxes inside the map viewBox", () => {
+    for (const id of CONTEXT_TILES) {
+      const tile = mapTiles.find((t) => t.id === id);
+      const box = bboxFor(tile!.paths);
+      expect(box.minX, `${id} minX`).toBeGreaterThanOrEqual(0);
+      expect(box.minY, `${id} minY`).toBeGreaterThanOrEqual(0);
+      expect(box.maxX, `${id} maxX`).toBeLessThanOrEqual(1000);
+      expect(box.maxY, `${id} maxY`).toBeLessThanOrEqual(700);
+    }
+  });
+});

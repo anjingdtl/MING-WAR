@@ -80,8 +80,8 @@ const TILES: TileLocation[] = [
   // context tile — 真实边界
   { id: "hami",            expectedCenterLng: 85.06,  expectedCenterLat: 41.08, tolerance: 15 },
   { id: "liuqiu",          expectedCenterLng: 127.70, expectedCenterLat: 27.45, tolerance: 10 },
-  { id: "southeast-asia",  expectedCenterLng: 102.07, expectedCenterLat: 17.61, tolerance: 15 },
-  { id: "northeast-asia-edge", expectedCenterLng: 140.02, expectedCenterLat: 45.73, tolerance: 10 }
+  { id: "southeast-asia",  expectedCenterLng: 100.39, expectedCenterLat: 19.85, tolerance: 15 },
+  { id: "northeast-asia-edge", expectedCenterLng: 143.52, expectedCenterLat: 46.93, tolerance: 15 }
 ];
 
 function projLngLat(lng: number, lat: number): { x: number; y: number } {

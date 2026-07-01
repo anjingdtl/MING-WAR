@@ -139,8 +139,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "southeast-asia",
     "label": "东南亚",
-    "x": 425.0,
-    "y": 617.6,
+    "x": 412.5,
+    "y": 551.8,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3
@@ -148,8 +148,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "liuqiu",
     "label": "琉球",
-    "x": 763.0,
-    "y": 413.7,
+    "x": 781.6,
+    "y": 379.5,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3
@@ -157,8 +157,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "northeast-asia-edge",
     "label": "东北亚边缘",
-    "x": 900.3,
-    "y": 168.5,
+    "x": 969.2,
+    "y": 150.9,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3

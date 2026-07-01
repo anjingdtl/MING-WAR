@@ -2,6 +2,8 @@ import type { RegionId } from "../core/types";
 
 export type MapRegionSource =
   | "natural-earth-admin1"
+  | "natural-earth-admin0"
+  | "natural-earth-ocean"
   | "historical-frontier-manual"
   | "tusi-enclave"
   | "generated-source";
