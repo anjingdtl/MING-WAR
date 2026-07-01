@@ -13,8 +13,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "korchin",
     "label": "呼伦贝尔",
-    "x": 625,
-    "y": 102.9,
+    "x": 703.2,
+    "y": 143.4,
     "minZoom": 0,
     "maxZoom": 0.85,
     "importance": 2
@@ -22,8 +22,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "korchin",
     "label": "科尔沁",
-    "x": 662.5,
-    "y": 164.7,
+    "x": 698.3,
+    "y": 193.1,
     "minZoom": 0,
     "maxZoom": 0.85,
     "importance": 2
@@ -31,8 +31,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "haixi",
     "label": "海西女真",
-    "x": 775,
-    "y": 164.7,
+    "x": 790.4,
+    "y": 192.3,
     "minZoom": 0,
     "maxZoom": 0.85,
     "importance": 2
@@ -40,8 +40,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "chahar",
     "label": "察哈尔",
-    "x": 550,
-    "y": 212.7,
+    "x": 567.4,
+    "y": 224.9,
     "minZoom": 0,
     "maxZoom": 0.9,
     "importance": 2
@@ -49,8 +49,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "jianzhou",
     "label": "建州女真",
-    "x": 750,
-    "y": 205.9,
+    "x": 753.9,
+    "y": 226.0,
     "minZoom": 0,
     "maxZoom": 0.9,
     "importance": 2
@@ -58,8 +58,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "tumed",
     "label": "土默特",
-    "x": 525,
-    "y": 240.2,
+    "x": 540.6,
+    "y": 248.7,
     "minZoom": 0,
     "maxZoom": 0.9,
     "importance": 2
@@ -67,8 +67,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "joseon",
     "label": "朝鲜北道",
-    "x": 743.8,
-    "y": 238.8,
+    "x": 749.3,
+    "y": 263.2,
     "minZoom": 0,
     "maxZoom": 0.9,
     "importance": 2
@@ -76,8 +76,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "joseon",
     "label": "朝鲜三南",
-    "x": 747.5,
-    "y": 304.7,
+    "x": 776.7,
+    "y": 307.8,
     "minZoom": 0,
     "maxZoom": 0.9,
     "importance": 2
@@ -85,8 +85,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "nurgan",
     "label": "奴儿干",
-    "x": 840,
-    "y": 151,
+    "x": 941.5,
+    "y": 185.1,
     "minZoom": 0,
     "maxZoom": 0.85,
     "importance": 2
@@ -139,8 +139,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "southeast-asia",
     "label": "东南亚",
-    "x": 437.5,
-    "y": 620.4,
+    "x": 433.5,
+    "y": 564.2,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3
@@ -148,8 +148,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "liuqiu",
     "label": "琉球",
-    "x": 743.8,
-    "y": 448.8,
+    "x": 763.0,
+    "y": 413.7,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3
@@ -157,8 +157,8 @@ export const factionMapLabels: FactionMapLabel[] = [
   {
     "factionId": "northeast-asia-edge",
     "label": "东北亚边缘",
-    "x": 900,
-    "y": 50,
+    "x": 900.3,
+    "y": 168.5,
     "minZoom": 0,
     "maxZoom": 0.8,
     "importance": 3

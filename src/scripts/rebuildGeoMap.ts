@@ -359,29 +359,28 @@ function buildRegions(admin1: GeoFeatureCollection, admin0: GeoFeatureCollection
     //   - 海西 = 松花江中游 / 吉林-黑龙江交界
     //   - 建州 = 长白山以西 / 辽东东部，鸭绿江北
     region("tumed_steppe", [manualPath([
-      [106.0, 40.49], [107.2, 41.01], [109.6, 40.93], [112.4, 40.86], [114.0, 40.49],
-      [113.76, 40.05], [112.4, 39.97], [109.6, 39.97], [107.2, 39.97], [106.24, 40.05]
-    ])], [110, 40.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+      [108.0, 42.0], [114.0, 42.0], [114.0, 41.0], [111.0, 40.5], [110.0, 41.2], [108.0, 41.0]
+    ])], [110.8, 41.3], 110, "historical-frontier-manual", { group: "mongolia" }),
     region("chahar_steppe", [manualPath([
-      [108.0, 42.31], [108.8, 43.41], [110.4, 43.93], [113.6, 44.0], [116.4, 43.78],
-      [116.4, 41.95], [116.16, 41.08], [114.4, 41.23], [110.4, 41.08], [108.0, 41.08]
-    ])], [112, 42.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+      [108.0, 45.0], [114.0, 45.0], [120.0, 45.0], [120.0, 43.0],
+      [114.0, 42.0], [110.0, 42.0], [108.0, 42.0], [108.0, 43.5]
+    ])], [112.75, 43.44], 110, "historical-frontier-manual", { group: "mongolia" }),
     region("korchin_steppe", [manualPath([
-      [116.8, 44.88], [117.6, 46.33], [119.2, 47.43], [121.6, 47.94], [124.8, 47.80],
-      [126.0, 46.33], [125.6, 44.88], [126.0, 44.00], [124.0, 44.29], [120.0, 44.29], [116.8, 44.29]
-    ])], [121, 46], 100, "historical-frontier-manual", { group: "mongolia" }),
+      [120.0, 48.0], [126.0, 48.0], [126.0, 45.0], [124.0, 45.0],
+      [120.0, 45.0], [120.0, 46.0], [120.0, 48.0]
+    ])], [122.29, 46.5], 100, "historical-frontier-manual", { group: "mongolia" }),
     region("hulunbuir", [manualPath([
-      [110.24, 50.35], [111.2, 52.17], [114.4, 52.90], [120.8, 52.53], [125.6, 51.08],
-      [126.0, 48.51], [124.0, 48.16], [116.0, 48.51], [111.2, 48.51], [110.24, 48.88]
-    ])], [118, 50.5], 110, "historical-frontier-manual", { group: "mongolia" }),
+      [118.5, 53.0], [122.0, 53.5], [125.0, 53.2], [126.5, 51.5],
+      [126.0, 48.0], [122.0, 48.0], [118.5, 48.0]
+    ])], [122.64, 50.74], 110, "historical-frontier-manual", { group: "mongolia" }),
     region("haixi", [manualPath([
-      [126.56, 45.24], [127.2, 46.70], [129.6, 47.80], [132.8, 47.65], [133.6, 45.97],
-      [133.76, 44.51], [133.6, 44.00], [130.4, 44.29], [127.2, 44.51], [126.56, 44.73]
-    ])], [130, 46], 96, "historical-frontier-manual", { group: "jurchen" }),
+      [128.0, 48.0], [131.0, 47.5], [132.0, 46.0], [132.0, 45.0],
+      [128.0, 45.0], [126.0, 46.0], [126.0, 48.0]
+    ])], [129.0, 46.5], 96, "historical-frontier-manual", { group: "jurchen" }),
     region("jianzhou", [manualPath([
-      [126.4, 42.68], [127.2, 43.78], [129.6, 43.93], [132.0, 43.78], [133.2, 43.04],
-      [133.2, 42.10], [132.0, 41.95], [129.6, 42.10], [127.2, 42.31], [126.24, 42.31]
-    ])], [128, 43], 96, "historical-frontier-manual", { group: "jurchen" }),
+      [124.0, 45.0], [128.0, 45.0], [130.0, 43.5], [130.0, 42.0],
+      [124.0, 42.0], [122.0, 42.5]
+    ])], [126.33, 43.5], 96, "historical-frontier-manual", { group: "jurchen" }),
     region("amur_basin", russian(["Amur", "Yevrey"]), [127.5, 50.2], 104, "natural-earth-admin1", { group: "jurchen" }),
     region("nurgan_coast", russian(["Khabarovsk", "Primor'ye"]), [135.5, 47.0], 96, "natural-earth-admin1", { group: "jurchen" }),
     region("sakhalin", russian(["Sakhalin"]), [142.4, 49.0], 86, "natural-earth-admin1", { group: "japan" }),
@@ -397,14 +396,14 @@ function buildRegions(admin1: GeoFeatureCollection, admin0: GeoFeatureCollection
 function buildContextTiles(admin1: GeoFeatureCollection, admin0: GeoFeatureCollection): MapTileShape[] {
   return [
     contextTile("tibet", "乌斯藏", pathsForAdmin1(admin1, ["Xizang"]), [89.5, 30.7], 80, "tibet"),
-    contextTile("hami", "哈密", [manualPath([[88.0, 41.0], [96.0, 43.0], [97.6, 41.3], [94.0, 39.0], [88.5, 39.5]])], [93.0, 41.1], 72, "mobei"),
+    contextTile("hami", "哈密", [manualPath([[90.0, 42.5], [90.0, 44.0], [100.0, 44.0], [100.0, 41.0]])], [95.0, 42.5], 72, "mobei"),
     contextTile("mobei", "漠北诸部", countryRingPaths(admin0, "Mongolia", () => true), [102.5, 47.8], 84, "mobei"),
-    contextTile("southeast-asia", "东南亚边缘", [manualPath([[92.0, 18.0], [107.0, 18.0], [113.0, 9.0], [98.0, 7.2], [92.0, 11.0]])], [103.0, 12.8], 96, "southeast-asia"),
-    contextTile("liuqiu", "琉球", [manualPath([[123.5, 27.2], [129.8, 28.2], [132.5, 25.0], [127.4, 23.0], [123.0, 24.4]])], [127.5, 25.3], 64, "liuqiu", "sea-zone"),
-    contextTile("western-pacific", "西太平洋", [manualPath([[136.2, 31.0], [148.0, 35.0], [148.0, 7.0], [139.0, 9.0], [136.0, 22.0]])], [143.0, 21.0], 84, "western-sea", "sea-zone"),
-    contextTile("northern-sea", "北海", [manualPath([[135.5, 57.5], [148.0, 58.0], [148.0, 52.5], [139.2, 52.0]])], [143.0, 55.0], 64, "western-sea", "sea-zone"),
-    // 东北亚边缘 / 鄂霍次克海 — 与北海错开 1°，避免重叠
-    contextTile("northeast-asia-edge", "东北亚边缘", [manualPath([[133.0, 57.5], [148.0, 58.0], [148.0, 52.5], [138.4, 51.4], [136.0, 53.6], [134.4, 55.8]])], [140.0, 54.4], 84, "northeast-asia-edge", "sea-zone")
+    contextTile("southeast-asia", "东南亚边缘", [manualPath([[95.0, 22.0], [110.0, 22.0], [110.0, 13.0], [105.0, 5.0], [95.0, 11.5]])], [103.0, 13.0], 96, "southeast-asia"),
+    contextTile("liuqiu", "琉球", [manualPath([[122.0, 24.0], [130.0, 25.5], [130.0, 28.0], [125.0, 28.0], [122.0, 26.5]])], [127.0, 26.5], 64, "liuqiu", "sea-zone"),
+    contextTile("western-pacific", "西太平洋", [manualPath([[130.0, 45.0], [160.0, 45.0], [160.0, 15.0], [145.0, 18.0], [130.0, 32.0]])], [145.0, 30.0], 84, "western-sea", "sea-zone"),
+    contextTile("northern-sea", "北海", [manualPath([[140.0, 60.0], [144.0, 60.0], [144.0, 50.0], [140.0, 50.0]])], [142.0, 55.0], 64, "western-sea", "sea-zone"),
+    // 东北亚边缘 / 鄂霍次克海 — 海参崴+日本海(东边界 viewBox 上限 1000)
+    contextTile("northeast-asia-edge", "东北亚边缘", [manualPath([[130.0, 55.0], [144.0, 55.0], [144.0, 42.0], [130.0, 42.0]])], [137.0, 49.0], 84, "northeast-asia-edge", "sea-zone")
   ];
 }
 
@@ -459,23 +458,23 @@ export const contextMapTileSource: MapTileShape[] = ${JSON.stringify(contextTile
 function buildFactionLabels(): string {
   const labels: FactionMapLabel[] = [
     { factionId: "ming", label: "大明", ...factionLabelPoint(113.8, 30.8), minZoom: 0, maxZoom: 0.9, importance: 1 },
-    { factionId: "korchin", label: "呼伦贝尔", ...factionLabelPoint(118.0, 50.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
-    { factionId: "korchin", label: "科尔沁", ...factionLabelPoint(121.0, 46.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
-    { factionId: "haixi", label: "海西女真", ...factionLabelPoint(130.0, 46.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
-    { factionId: "chahar", label: "察哈尔", ...factionLabelPoint(112.0, 42.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "jianzhou", label: "建州女真", ...factionLabelPoint(128.0, 43.0), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "tumed", label: "土默特", ...factionLabelPoint(110.0, 40.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "korchin", label: "呼伦贝尔", ...factionLabelPoint(122.64, 50.74), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "korchin", label: "科尔沁", ...factionLabelPoint(122.29, 46.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "haixi", label: "海西女真", ...factionLabelPoint(129.0, 46.5), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "chahar", label: "察哈尔", ...factionLabelPoint(112.75, 43.44), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "jianzhou", label: "建州女真", ...factionLabelPoint(126.33, 43.5), minZoom: 0, maxZoom: 0.9, importance: 2 },
+    { factionId: "tumed", label: "土默特", ...factionLabelPoint(110.8, 41.3), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "joseon", label: "朝鲜北道", ...factionLabelPoint(127.5, 40.6), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "joseon", label: "朝鲜三南", ...factionLabelPoint(127.8, 35.8), minZoom: 0, maxZoom: 0.9, importance: 2 },
-    { factionId: "nurgan", label: "奴儿干", ...factionLabelPoint(135.2, 47.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
+    { factionId: "nurgan", label: "奴儿干", ...factionLabelPoint(140.0, 47.0), minZoom: 0, maxZoom: 0.85, importance: 2 },
     { factionId: "japan", label: "日本诸藩", ...factionLabelPoint(136.5, 35.1), minZoom: 0, maxZoom: 0.9, importance: 2 },
     { factionId: "ainu", label: "虾夷", ...factionLabelPoint(142.7, 44.0), minZoom: 0, maxZoom: 0.8, importance: 3 },
     { factionId: "bozhou", label: "播州", ...factionLabelPoint(106.6, 27.6), minZoom: 0, maxZoom: 0.8, importance: 3 },
     { factionId: "tibet", label: "乌斯藏", ...factionLabelPoint(89.5, 30.7), minZoom: 0, maxZoom: 0.85, importance: 3 },
     { factionId: "mobei", label: "漠北诸部", ...factionLabelPoint(102.5, 47.8), minZoom: 0, maxZoom: 0.85, importance: 3 },
-    { factionId: "southeast-asia", label: "东南亚", ...factionLabelPoint(103.0, 12.8), minZoom: 0, maxZoom: 0.8, importance: 3 },
-    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.5, 25.3), minZoom: 0, maxZoom: 0.8, importance: 3 },
-    { factionId: "northeast-asia-edge", label: "东北亚边缘", ...factionLabelPoint(140.0, 54.4), minZoom: 0, maxZoom: 0.8, importance: 3 }
+    { factionId: "southeast-asia", label: "东南亚", ...factionLabelPoint(103.0, 13.0), minZoom: 0, maxZoom: 0.8, importance: 3 },
+    { factionId: "liuqiu", label: "琉球", ...factionLabelPoint(127.0, 26.5), minZoom: 0, maxZoom: 0.8, importance: 3 },
+    { factionId: "northeast-asia-edge", label: "东北亚边缘", ...factionLabelPoint(140.0, 49.0), minZoom: 0, maxZoom: 0.8, importance: 3 }
   ];
 
   return `import type { FactionMapLabel } from "../mapTypes";

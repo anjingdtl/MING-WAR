@@ -174,13 +174,13 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "tumed_steppe",
     "paths": [
-      // v0.7.5 — 10 顶点不规则多边形：北沿大青山（向西北凸出 478,246），
-      // 南沿黄河/河套（向西南凸出 490,247），东沿长城（张家口大同），
-      // 西沿黄河（鄂尔多斯北缘）。bbox 100×14，aspect ≈ 7.1，非正方形。
-      "M475 240 L490 233 L520 234 L555 235 L575 240 L572 246 L555 247 L520 247 L490 247 L478 246 Z"
+      // v0.7.6 — 6 顶点不规则多边形(经纬度精确):
+      // 呼包鄂三角+鄂尔多斯北缘,经度 108-114E,纬度 40.5-42N。
+      // 北边界 42N 沿 (108-114) 与 chahar 共享。中心 (541, 249)。
+      "M502.2 240.9 L584.5 240.9 L584.5 252.1 L543.4 257.6 L529.6 249.8 L502.2 252.1 Z"
     ],
-    "labelX": 525,
-    "labelY": 240.2,
+    "labelX": 540.6,
+    "labelY": 248.7,
     "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -188,13 +188,14 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "chahar_steppe",
     "paths": [
-      // v0.7.5 — 10 顶点：北沿戈壁/蒙古高原南缘（向西凸出 510,200），
-      // 东沿大兴安岭西侧（向内收 605,220），南向土默特让出土地（500,232），
-      // 西沿河套外侧。bbox 105×40，aspect ≈ 2.6。
-      "M500 215 L510 200 L530 193 L570 192 L605 195 L605 220 L602 232 L580 230 L530 232 L500 232 Z"
+      // v0.7.6 — 8 顶点不规则多边形(经纬度精确):
+      // 锡林郭勒-张家口外,经度 108-120E,纬度 42-45N。
+      // 东边界 120E 沿 (120, 43-45) 与 korchin 共享,北 45N 与 korchin 共享。
+      // 南边界 42N 沿 (108-114) 与 tumed 共享。中心 (567, 225)。
+      "M502.2 207.5 L584.5 207.5 L666.9 207.5 L666.9 229.8 L584.5 240.9 L529.6 240.9 L502.2 240.9 L502.2 224.2 Z"
     ],
-    "labelX": 550,
-    "labelY": 212.7,
+    "labelX": 567.4,
+    "labelY": 224.9,
     "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -202,13 +203,14 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "korchin_steppe",
     "paths": [
-      // v0.7.5 — 10 顶点：北沿大兴安岭（向西北凸 620,160），
-      // 东沿嫩江（向东凸 725,160），南沿西拉木伦河/辽河上游（向东南凸 725,192），
-      // 西向察哈尔让出。bbox 115×54，aspect ≈ 2.1。
-      "M610 180 L620 160 L640 145 L670 138 L710 140 L725 160 L720 180 L725 192 L700 188 L650 188 L610 188 Z"
+      // v0.7.6 — 7 顶点不规则多边形(经纬度精确):
+      // 嫩江-西拉木伦河流域,经度 120-126E,纬度 45-48N。
+      // 西边界 120E 沿 (120, 45-48) 与 chahar 共享,北 48N 与 hulunbuir 共享,
+      // 东 126E 与 haixi 共享,南 45N 与 jianzhou 共享。中心 (698, 193)。
+      "M666.9 174.0 L749.3 174.0 L749.3 207.5 L721.8 207.5 L666.9 207.5 L666.9 196.4 L666.9 174.0 Z"
     ],
-    "labelX": 662.5,
-    "labelY": 164.7,
+    "labelX": 698.3,
+    "labelY": 193.1,
     "labelWidth": 100,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -216,13 +218,14 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "hulunbuir",
     "paths": [
-      // v0.7.5 — 10 顶点：北沿额尔古纳河（向北凸 580,70），
-      // 东沿大兴安岭西侧（向内收 725,130），南沿呼伦贝尔草原（向南凸 600,130），
-      // 西向喀尔喀让出。bbox 197×65，aspect ≈ 3.0。
-      "M528 105 L540 80 L580 70 L660 75 L720 95 L725 130 L700 135 L600 130 L540 130 L528 125 Z"
+      // v0.7.6 — 7 顶点不规则多边形(经纬度精确):
+      // 呼伦贝尔+满洲里,经度 118.5-126.5E,纬度 48-53.5N。
+      // 南边界 48N 沿 (118.5-126) 与 korchin 共享,东 126E 段与 haixi 共享。
+      // 中心 (703, 143)。
+      "M646.3 118.2 L694.4 112.7 L735.5 116.0 L756.1 135.0 L749.3 174.0 L694.4 174.0 L646.3 174.0 Z"
     ],
-    "labelX": 625,
-    "labelY": 102.9,
+    "labelX": 703.2,
+    "labelY": 143.4,
     "labelWidth": 110,
     "source": "historical-frontier-manual",
     "group": "mongolia"
@@ -230,13 +233,14 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "haixi",
     "paths": [
-      // v0.7.5 — 10 顶点：北沿小兴安岭（向北凸 770,140），
-      // 东沿松花江/三江平原（向东凸 820,165），南沿开原/铁岭（向南凸 820,192），
-      // 西向科尔沁让出（732,182）。bbox 90×52，aspect ≈ 1.7。
-      "M732 175 L740 155 L770 140 L810 142 L820 165 L822 185 L820 192 L780 188 L740 185 L732 182 Z"
+      // v0.7.6 — 7 顶点不规则多边形(经纬度精确):
+      // 松花江-小兴安岭,经度 126-132E,纬度 45-48N。
+      // 西边界 126E 沿 (126, 45-48) 与 korchin/hulunbuir 共享。
+      // 中心 (790, 192)。
+      "M776.7 174.0 L817.9 179.6 L831.6 196.3 L831.6 207.5 L776.7 207.5 L749.3 196.3 L749.3 174.0 Z"
     ],
-    "labelX": 775,
-    "labelY": 164.7,
+    "labelX": 790.4,
+    "labelY": 192.3,
     "labelWidth": 96,
     "source": "historical-frontier-manual",
     "group": "jurchen"
@@ -244,13 +248,14 @@ export const mapRegionSource: MapRegionShape[] = [
   {
     "id": "jianzhou",
     "paths": [
-      // v0.7.5 — 10 顶点：北沿开原/铁岭（向北凸 770,192），
-      // 东沿长白山/鸭绿江（向东南凸 815,205），南沿鸭绿江（向南凸 815,220），
-      // 西向辽东走廊让出（728,215）。bbox 87×28，aspect ≈ 3.1。
-      "M730 210 L740 195 L770 192 L800 195 L815 205 L815 218 L800 220 L770 218 L740 215 L728 215 Z"
+      // v0.7.6 — 6 顶点不规则多边形(经纬度精确):
+      // 辽东东部-长白山,经度 122-130E,纬度 42-45N。
+      // 北边界 45N 沿 (124-128) 与 korchin 共享。
+      // 中心 (754, 226) — 比 liaodong 偏北,符合"建州在辽东北"史实。
+      "M721.8 207.5 L776.7 207.5 L804.2 218.6 L804.2 241.0 L721.8 241.0 L694.4 235.4 Z"
     ],
-    "labelX": 750,
-    "labelY": 205.9,
+    "labelX": 753.9,
+    "labelY": 226.0,
     "labelWidth": 96,
     "source": "historical-frontier-manual",
     "group": "jurchen"
@@ -392,10 +397,12 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "hami",
     "paths": [
-      "M250 233.3 L350 205.9 L370 229.2 L325 260.8 L256.3 253.9 Z"
+      // v0.7.6 — 5 顶点不规则四边形(北端内凹,南端突出):
+      // 哈密卫 93E 43N,范围 90-100E 41-44N。中心 (324, 235)。
+      "M255.1 235.3 L270.1 218.6 L392.3 218.6 L407.3 235.3 L392.3 252.1 L270.1 252.1 Z"
     ],
-    "labelX": 312.5,
-    "labelY": 232,
+    "labelX": 323.7,
+    "labelY": 235.3,
     "labelWidth": 72,
     "source": "generated-source",
     "displayName": "哈密",
@@ -422,10 +429,12 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "southeast-asia",
     "paths": [
-      "M300 549 L487.5 549 L562.5 672.5 L375 697.3 L300 645.1 Z"
+      // v0.7.6 — 6 顶点不规则多边形:中南半岛+印度支那,
+      // 范围 95-110E 5-22N。中心 (434, 564)。
+      "M323.7 463.9 L529.6 463.9 L529.6 558.5 L504.6 653.5 L383.7 653.5 L323.7 620.1 Z"
     ],
-    "labelX": 437.5,
-    "labelY": 620.4,
+    "labelX": 433.5,
+    "labelY": 564.2,
     "labelWidth": 96,
     "source": "generated-source",
     "displayName": "东南亚边缘",
@@ -437,10 +446,11 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "liuqiu",
     "paths": [
-      "M693.8 422.7 L772.5 409 L806.3 452.9 L742.5 480.4 L687.5 461.2 Z"
+      // v0.7.6 — 5 顶点:琉球(冲绳) 122-130E 24-28N。中心 (763, 414)。
+      "M694.4 397.0 L804.2 408.2 L804.2 430.5 L749.3 441.6 L694.4 430.5 Z"
     ],
-    "labelX": 743.8,
-    "labelY": 448.8,
+    "labelX": 763.0,
+    "labelY": 413.7,
     "labelWidth": 64,
     "source": "generated-source",
     "displayName": "琉球",
@@ -452,10 +462,12 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "western-pacific",
     "paths": [
-      "M852.5 370.6 L1000 315.7 L1000 700 L887.5 672.5 L850 494.1 Z"
+      // v0.7.6 — 5 顶点:日本东侧太平洋 130-144E 15-45N(viewBox 上限 1000)。
+      // 中心 (900, 375)。
+      "M804.2 207.5 L996.4 207.5 L996.4 486.2 L900.3 542.0 L804.2 430.5 Z"
     ],
-    "labelX": 937.5,
-    "labelY": 507.8,
+    "labelX": 900.3,
+    "labelY": 374.7,
     "labelWidth": 84,
     "source": "generated-source",
     "displayName": "西太平洋",
@@ -467,10 +479,11 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "northern-sea",
     "paths": [
-      "M843.8 6.9 L1000 0 L1000 75.5 L890 82.4 Z"
+      // v0.7.6 — 4 顶点:鄂霍次克海 140-144E 50-60N(viewBox 上限 1000)。中心 (969, 96)。
+      "M941.5 40.2 L996.4 40.2 L996.4 151.7 L941.5 151.7 Z"
     ],
-    "labelX": 937.5,
-    "labelY": 41.2,
+    "labelX": 968.9,
+    "labelY": 96.0,
     "labelWidth": 64,
     "source": "generated-source",
     "displayName": "北海",
@@ -482,10 +495,11 @@ export const contextMapTileSource: MapTileShape[] = [
   {
     "id": "northeast-asia-edge",
     "paths": [
-      "M812 6.9 L1000 0 L1000 75.5 L880 90.2 L850 60.2 L830 30 Z"
+      // v0.7.6 — 4 顶点:鄂海/日本海 130-144E 42-55N(viewBox 上限 1000)。中心 (900, 168)。
+      "M804.2 96.0 L996.4 96.0 L996.4 240.9 L804.2 240.9 Z"
     ],
-    "labelX": 900,
-    "labelY": 50,
+    "labelX": 900.3,
+    "labelY": 168.5,
     "labelWidth": 84,
     "source": "generated-source",
     "displayName": "东北亚边缘",

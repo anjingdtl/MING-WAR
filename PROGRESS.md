@@ -178,6 +178,70 @@
 
 ---
 
+### v0.7.5 → v0.7.6 位置错位修复（2026-07-01，第二次反馈）
+
+**用户反馈（12:44）**：v0.7.5 截图仍显示 9+ 个势力色块和实际地图省区不匹配。重新读代码并对比截图，发现 v0.7.5 只改了"形状"（10 顶点 vs 4 顶点矩形），但**所有 v0.7.5 path 的整体经纬度位置都偏西 30-100px**——尤其 6 个 mongol/jurchen tile 和 4 个 context tile 完全错位。
+
+**真实根因**（v0.7.5 之前的设计缺陷）：
+
+1. **投影参考点选取错误**——v0.7.5 设计坐标时参考的"中心点"是经验值，不是用真实的投影公式（`x = 13.728*lng - 980.45, y = -11.15*lat + 709.2`）反推。
+2. **没有用历史经纬度定义 tile 边界**——v0.7.5 直接用像素坐标手画多边形，没有参照真实地理范围（如"海西 = 松花江流域 124-132E 44-48N"）。
+3. **viewBox 边界处理缺失**——v0.7.5 给 context tile（如 `western-pacific` 130-160E）设计的 path 顶到 x=1216，越出 viewBox 上限 1000。
+
+**用户指出 15+ 个位置错位**：黑龙江（amur_basin）、奴儿干（nurgan_coast）、海西、建州、朝鲜北道、朝鲜三南、呼伦贝尔、科尔沁、察哈尔、土默特、哈密、琉球、东南亚边缘、东北亚边缘、北海、西太平洋。
+
+**v0.7.6 修复方案**：用经纬度精确设计 6 个 mongol/jurchen tile + 5 个 context tile（hami/liuqiu/southeast-asia/northeast-asia-edge/northern-sea/western-pacific）的 path，**相邻 tile 严格共享经纬线**（避免 path 边跨立），整体约束在 viewBox 1000×700 内。
+
+**13 个 tile 投影坐标表**（从北京 116E 39.9N → (612, 264) 和 拉萨 91E 30N → (269, 375) 回归反推）：
+
+| tile | 真实经纬度 | path 中心（投影） | bbox (w×h) | aspect |
+|---|---|---|---|---|
+| `hulunbuir`（呼伦贝尔） | 118.5-126.5E, 48-53.5N | (703, 143) | 110×61 | 1.79 |
+| `korchin_steppe`（科尔沁） | 120-126E, 45-48N | (698, 193) | 82×45 | 1.85 |
+| `chahar_steppe`（察哈尔） | 108-120E, 42-45N | (567, 225) | 165×33 | 4.93 |
+| `tumed_steppe`（土默特） | 108-114E, 40.5-42N | (541, 249) | 82×17 | 4.93 |
+| `haixi`（海西女真） | 126-132E, 45-48N | (790, 192) | 82×45 | 1.85 |
+| `jianzhou`（建州女真） | 122-130E, 42-45N | (754, 226) | 110×39 | 2.82 |
+| `hami`（哈密） | 90-100E, 41-44N | (324, 235) | 137×34 | 4.05 |
+| `liuqiu`（琉球） | 122-130E, 24-28N | (763, 414) | 110×45 | 2.44 |
+| `southeast-asia`（东南亚边缘） | 95-110E, 5-22N | (434, 564) | 206×190 | 1.08 |
+| `western-pacific`（西太平洋） | 130-144E, 15-45N | (900, 375) | 192×335 | 0.57 |
+| `northern-sea`（北海） | 140-144E, 50-60N | (969, 96) | 55×112 | 0.49 |
+| `northeast-asia-edge`（东北亚边缘） | 130-144E, 42-55N | (900, 168) | 192×145 | 1.32 |
+
+**关键设计原则**：
+- 相邻 tile 严格共享经纬线（hulunbuir 南 48N = korchin 北 48N = haixi 西 126E 起点 = hulunbuir 东边界）
+- path 边不与邻接 tile 跨立（用跨立实验严格检测，6 mongol/jurchen tile 0 跨立）
+- bbox 严格不超出 viewBox (0..1000, 0..700)
+- 每个 tile 6+ 顶点（保留 v0.7.5 不规则形状）
+- 4 顶点 context tile（海面）只用 4 顶点足够
+
+**修改（5 个源文件 + 1 新测试）**：
+
+1. `src/map/source/mapRegionSource.ts` — 13 个 tile paths 全部用经纬度公式计算像素坐标；labelX/labelY 同步
+2. `src/map/generated/mapTiles.ts` — 同步 13 个 tile（rebuildGeoMap 产物）
+3. `src/map/generated/factionMapLabels.ts` — 9 个 label 位置更新（korchin/haixi/jianzhou 集体南移 5px 让出建州位）
+4. `src/scripts/rebuildGeoMap.ts` — `buildRegions` + `buildContextTiles` + `buildFactionLabels` 全部用经纬度精度的 manualPath（保证下次 `npm run map:rebuild-geo` 不会再回退到偏西位置）
+5. **新增** `src/tests/map-tile-location.test.ts` — 25 个新测试守住 v0.7.6 设计承诺：
+   - 10 个 tile 投影中心 ±20px 容差（shoelace 几何中心，非 bbox 中心）
+   - 9 个 label 落在对应 tile bbox 内
+   - 6 个 mongol/jurchen tile bbox minX 显式 ≥ v0.7.5 旧值（**西偏漂移回归保护**）
+6. `PROGRESS.md` — 本条记录
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npx vitest run` ✓ **529 / 529 pass**（v0.7.5 是 504，新增 25 个位置测试）
+- `npx tsx src/scripts/validateMapRegions.ts` ✓ 39 tiles (31 playable + 8 context)
+- Python 几何脚本 ✓ 6 mongol/jurchen tile 严格 0 跨立（path 边不交叉），13 个 tile 全部 bbox 在 viewBox 内
+
+**遗留（不在本次范围）**：
+
+- `japan` 标签位置（856.3, 314.3）仍指向西日本/东日本之间空隙（v0.7.3 遗留，不影响日本色块正确性）
+- `ainu` 标签位置（933.7, 192.2）与 ezo 中心一致但与 sakhalin 文字少量重叠（importance=3 远景，可接受）
+
+---
+
 ## 1. 当前状态（v0.6.0-stability）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**
