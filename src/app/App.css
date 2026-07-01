@@ -166,60 +166,106 @@ a:hover {
 }
 
 .map-sea {
-  fill: #567f8c;
+  fill: url("#sea-wash");
+}
+
+.map-sea-paper {
+  fill: url("#paper-grain");
+  mix-blend-mode: soft-light;
+  opacity: 0.34;
 }
 
 .map-land {
   fill: url("#terrain-light");
-  stroke: rgba(60, 48, 30, 0.85);
-  stroke-width: 1.4;
+  stroke: rgba(42, 34, 24, 0.72);
+  stroke-width: 1.15;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 0 rgba(255, 246, 215, 0.34));
+}
+
+.map-ink-mist-layer {
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.map-ink-mist {
+  fill: url("#ink-mist");
 }
 
 .map-paper-grain {
   fill: url("#paper-grain");
   mix-blend-mode: multiply;
-  opacity: 0.42;
+  opacity: 0.50;
   pointer-events: none;
+}
+
+.map-mountain-wash {
+  fill: none;
+  stroke: rgba(48, 41, 31, 0.18);
+  stroke-width: 24;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.88;
+  filter: blur(1.6px);
 }
 
 .map-mountain {
   fill: none;
-  stroke: rgba(102, 83, 52, 0.34);
-  stroke-width: 15;
+  stroke: rgba(53, 43, 31, 0.42);
+  stroke-width: 8.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 1px 0 rgba(255, 248, 225, 0.32));
+  opacity: 0.74;
 }
 
 .map-ridge {
   fill: none;
-  stroke: rgba(77, 61, 39, 0.46);
-  stroke-width: 2.2;
+  stroke: rgba(39, 31, 22, 0.50);
+  stroke-width: 1.45;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  opacity: 0.66;
+  stroke-dasharray: 11 7 3 8;
+  opacity: 0.60;
 }
 
 .map-lake {
-  fill: rgba(76, 128, 142, 0.82);
-  stroke: rgba(242, 232, 203, 0.56);
-  stroke-width: 1.8;
+  fill: rgba(84, 126, 132, 0.64);
+  stroke: rgba(248, 239, 205, 0.74);
+  stroke-width: 2.6;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 0 rgba(49, 70, 68, 0.24));
 }
 
+.map-river-shadow,
+.map-river-bank,
 .map-river {
   fill: none;
-  stroke: #2f8fb8;
-  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  opacity: 0.95;
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.42));
+}
+
+.map-river-shadow {
+  stroke: rgba(28, 42, 42, 0.30);
+  stroke-width: 6.4;
+  opacity: 0.34;
+}
+
+.map-river-bank {
+  stroke: rgba(251, 244, 220, 0.80);
+  stroke-width: 4.8;
+  opacity: 0.78;
+}
+
+.map-river {
+  stroke: rgba(54, 110, 123, 0.90);
+  stroke-width: 2.15;
+  opacity: 0.88;
+  stroke-dasharray: 34 6 18 5;
 }
 
 .map-panel::before {

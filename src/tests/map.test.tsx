@@ -66,6 +66,19 @@ describe("GameMap", () => {
     expect(screen.getByTestId("map-routes-layer")).toBeTruthy();
   });
 
+  it("renders ink-wash terrain treatments behind the political overlay", () => {
+    render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
+    const baseLayer = screen.getByTestId("base-geo-layer");
+
+    expect(baseLayer.querySelector("#ink-wash-filter")).toBeTruthy();
+    expect(baseLayer.querySelectorAll(".map-ink-mist").length).toBeGreaterThanOrEqual(3);
+    expect(baseLayer.querySelectorAll(".map-mountain-wash").length).toBeGreaterThan(0);
+
+    const riverLayer = document.querySelector(".river-overlay-layer");
+    expect(riverLayer?.querySelectorAll(".map-river-shadow").length).toBeGreaterThan(0);
+    expect(riverLayer?.querySelectorAll(".map-river-bank").length).toBeGreaterThan(0);
+  });
+
   it("separates political overlay fill from interaction hit area", () => {
     render(<GameMap state={createMvpScenario()} layer="control" lens="control" selectedRegionId={null} onSelect={vi.fn()} />);
     const overlayArea = screen.getByTestId("region-area-beizhili");
