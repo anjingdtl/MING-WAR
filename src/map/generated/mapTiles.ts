@@ -374,7 +374,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "tumed_steppe",
     "paths": [
-      "M475 247.1 L575 247.1 L575 233.3 L475 233.3 Z"
+      "M475 240 L490 233 L520 234 L555 235 L575 240 L572 246 L555 247 L520 247 L490 247 L478 246 Z"
     ],
     "labelX": 525,
     "labelY": 240.2,
@@ -390,7 +390,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "chahar_steppe",
     "paths": [
-      "M500 233.3 L600 233.3 L600 192.2 L500 192.2 Z"
+      "M500 215 L510 200 L530 193 L570 192 L605 195 L605 220 L602 232 L580 230 L530 232 L500 232 Z"
     ],
     "labelX": 550,
     "labelY": 212.7,
@@ -406,7 +406,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "korchin_steppe",
     "paths": [
-      "M600 192.2 L725 192.2 L725 137.3 L600 137.3 Z"
+      "M610 180 L620 160 L640 145 L670 138 L710 140 L725 160 L720 180 L725 192 L700 188 L650 188 L610 188 Z"
     ],
     "labelX": 662.5,
     "labelY": 164.7,
@@ -422,7 +422,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "hulunbuir",
     "paths": [
-      "M525 137.3 L725 137.3 L725 68.6 L525 68.6 Z"
+      "M528 105 L540 80 L580 70 L660 75 L720 95 L725 130 L700 135 L600 130 L540 130 L528 125 Z"
     ],
     "labelX": 625,
     "labelY": 102.9,
@@ -438,7 +438,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "haixi",
     "paths": [
-      "M725 192.2 L825 192.2 L825 137.3 L725 137.3 Z"
+      "M732 175 L740 155 L770 140 L810 142 L820 165 L822 185 L820 192 L780 188 L740 185 L732 182 Z"
     ],
     "labelX": 775,
     "labelY": 164.7,
@@ -454,7 +454,7 @@ export const mapTiles: MapTileShape[] = [
   {
     "id": "jianzhou",
     "paths": [
-      "M700 219.6 L800 219.6 L800 192.2 L700 192.2 Z"
+      "M730 210 L740 195 L770 192 L800 195 L815 205 L815 218 L800 220 L770 218 L740 215 L728 215 Z"
     ],
     "labelX": 750,
     "labelY": 205.9,

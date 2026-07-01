@@ -130,6 +130,52 @@
 - `japan` 标签位置 (856.3, 314.3) 仍指向西日本/东日本之间空隙。下次重做日本地块时一起对齐；当前无视觉冲突（紫色色块与 joseon/japan 边界距离合理）。
 - `ainu` 标签 (933.7, 192.2) 与 ezo 中心一致但与 sakhalin 距离过近，文字会有少量视觉重叠（importance=3 远景，可接受）。
 
+### v0.7.4 → v0.7.5 视觉回退 + 真实根因修复（2026-07-01）
+
+**用户反馈（11:27）**：v0.7.4 提交后截图仍显示 9 个势力色块"还是正方形，没有真的嵌入到地图省区里"。重新读代码后发现 **v0.7.4 的 PROGRESS 自述把根因写错了**——不是"label 错位导致色块错位"，而是 v0.7.3（commit `8c2e326`）**故意**把 6 个 mongol/jurchen tile 设计成严格 4 顶点矩形网格。
+
+**v0.7.3 当时改 grid 矩形的真实原因**：12+ 顶点自由多边形的 bbox 30+ 对互相重叠 → 色块交错混合。所以选择"严格矩形 + 共享经纬线"以 0 重叠为优先。
+
+**v0.7.5 决策**：保留 v0.7.3 的胜利果实（bbox 不重叠），但**改用 8-10 顶点多边形**让形状沿历史地理边界（草原/林地/山脉/河流）走，自然不再"正方块感"。
+
+**6 处多边形（投影坐标，单位 SVG 像素）**：
+
+| Tile | 顶点 | bbox (w×h) | aspect | 真实历史边界 |
+|---|---|---|---|---|
+| `hulunbuir` (呼伦贝尔) | 10 | 197×65 | 3.03 | 额尔古纳河、呼伦贝尔草原、大兴安岭西侧 |
+| `korchin_steppe` (科尔沁) | 11 | 115×54 | 2.13 | 大兴安岭、嫩江、西拉木伦河、辽河上游 |
+| `chahar_steppe` (察哈尔) | 10 | 105×40 | 2.62 | 蒙古高原南缘、锡林郭勒、大兴安岭西侧 |
+| `tumed_steppe` (土默特) | 10 | 100×14 | 7.14 | 大青山、长城、黄河河套 |
+| `haixi` (海西女真) | 10 | 90×52 | 1.73 | 小兴安岭、松花江中游、开原/铁岭 |
+| `jianzhou` (建州女真) | 10 | 87×28 | 3.11 | 长白山、鸭绿江、辽东东部 |
+
+**两两 bbox 严格不重叠**（v0.7.3 回归保护，lat 边界留 ≥1° 缓冲；用 Python 脚本验证 15 对全 OK）。
+
+**修复（已落地）**：
+
+1. `src/map/source/mapRegionSource.ts` — 6 个 `historical-frontier-manual` tile 的 `paths` 从 4 顶点矩形改为 8-10 顶点多边形（SVG 像素坐标），每条都带注释说明历史地理边界。
+2. `src/map/generated/mapTiles.ts` — 同步 6 个 tile（rebuildGeoMap 跑出来的产物，必须跟源数据一致）。
+3. `src/scripts/rebuildGeoMap.ts` — 同步 `buildRegions` 里的 6 个 `manualPath([[lng,lat],...])` 改用经纬度精度（步进 0.3-0.5°）的多边形，保证下次 `npm run map:rebuild-geo` 不会再回退到 4 顶点网格。
+4. **新增** `src/tests/map-polygon-shape.test.ts` — 5 个测试守住 v0.7.5 设计承诺：
+   - 6 个 tile 至少 6 顶点（v0.7.3 是 4）
+   - bbox 长宽比 ≠ 1（误差 1.5px 容忍）
+   - 两两 bbox 严格不重叠（v0.7.3 回归保护）
+   - bbox 在 viewBox（0..1000, 0..700）内
+   - `mapRegionSource` 和 `mapTiles` 6 个 tile paths 同步（防止下次 rebuild 漂移）
+5. `PROGRESS.md` — 本条记录
+
+**验收**：
+
+- `npm run typecheck` ✓ 0 errors
+- `npx vitest run` ✓ **504 / 504 pass**（v0.7.4 是 499，新增 5 个新测试）
+- `npx tsx src/scripts/validateMapRegions.ts` ✓ 39 tiles (31 playable + 8 context)
+- Python 脚本几何检查 ✓ 6 个多边形顶点 10-11、aspect 1.73-7.14、两两 bbox 15 对全不重叠
+
+**遗留（不在本次范围）**：
+
+- `japan` 标签 (856.3, 314.3) 仍指向西日本/东日本之间空隙（v0.7.3 遗留）
+- `ainu` 标签 (933.7, 192.2) 与 ezo 中心一致但与 sakhalin 距离过近（v0.7.3 遗留）
+
 ---
 
 ## 1. 当前状态（v0.6.0-stability）
