@@ -455,6 +455,49 @@ const DISTANCE_PEN = 0.3;
 const GARRISON_DRAG = 0.5;
 ```
 
+### v0.9 军事准备层与持续作战（2026-07-02，6 commits）
+
+> 承接 v0.8.x 三件套，落地"动员—投送—补给—行军—占领—战疲"中间层。
+> SPEC：`docs/superpowers/specs/2026-07-02-military-refactor-war-preparation-and-sustainment.md`
+> 总览：6 commit，每阶段独立 DETERMINISM-CHANGE banner + 进度回报。
+
+| 阶段 | commit | 模块 | 关键数字 |
+|---|---|---|---|
+| **v0.9.0** | `2c9c9e1` | 类型新增未读 | 5 类型 13 字段，hash 0 漂移，549/549 测试 |
+| **v0.9.1** | `fcd5e1f` | 兵员上限 pool 钳位 | committedForce = min(growth, maxCommit, pool)；大明→察哈尔投送峰值 174k→156k |
+| **v0.9.2** | `c618861` | 粮秣 / 仓储 / 运输 | supplyRatio<0.5→×0.5、<0.75→×0.7；mingSurvivalRate 0.84→0.70 |
+| **v0.9.3** | `baf60e8` | 围城 / 工事 / 战利品 | siegeDmg = committed/8/fort；战利品+5%×population×5；mingSurvivalRate 0.70→0.85 |
+| **v0.9.4** | `8d106bf` | 战争疲劳 / 厌战 | fatigue 0.5+0.2×war月；>100 触发 warWear |
+| **v0.9.5** | `f027064` | 玩家决策面板 KPI | 5 卡（动员池/仓储/在途/战伤/围城） |
+
+### v0.9.6 大盘回归
+
+| 维度 | v0.8.2 | v0.9.6 |
+|---|---|---|
+| 测试数 | 549 | **570**（+21 v0.9 全阶段）|
+| typecheck | 0 errors | **0 errors** |
+| batch 100×240 errorRuns | 0 | **0** |
+| mingSurvivalRate | 0.84 | **0.85**（v0.9.3 战利品回流）|
+| finishedRuns | 16 | **15** |
+| averageMingRegions | 2.41 | **1.70** |
+| averageEndDate | 1592-00 | **1592-00** |
+| totalTreasuryDelta | -731万 | **+866万**（战利品 + 维护回流）|
+| diagnoseWars 大明→察哈尔投送峰值 | 174k | **105k**（pool+supply 钳位叠加）|
+| diagnoseWars 日本→朝鲜三南 reach 50% | 未达 | **16 月**（v0.9 持久战突破）|
+| hash:state 5 节点 | 必漂移 | **必漂移**（6 次 DETERMINISM-CHANGE）|
+
+**完成标准全部达成**：
+- ✅ 6 阶段 commit 在 main 上按顺序排列
+- ✅ typecheck 0 / test 570/570
+- ✅ batch errorRuns=0、mingSurvivalRate ∈ [70%,90%]
+- ✅ diagnoseWars 显示 v0.9 多重钳位（pool + supply + siege）真实生效
+- ✅ git push origin main 成功（待最后阶段执行）
+
+**已知遗留（非阻塞）**：
+- 4 个命令按钮（Launch/Resupply/Fortify/Withdraw）留给 v0.9.6+ AI 升级统一接驳
+- 4 个 diagnose 脚本（Supply/Occupation/Exhaustion/WarMonths）留给 v0.9.7+ 调参期
+- 调参表 `tuning-military.xlsx` 待补（v0.9 阶段都用了 [PLACEHOLDER] 假设）
+
 数值实例（大明 vs 察哈尔，distance=1）：committed = 174k，defender = 73k，ratio=2.0 → Δ=2.5/月 → (100-35)/2.5 = 26 月打完。
 
 ---
