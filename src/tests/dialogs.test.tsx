@@ -19,7 +19,7 @@ describe("dialogs", () => {
     expect(screen.getByRole("option", { name: "建州女真" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "日本诸藩" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "播州杨氏" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: /万历帝立绘/ })).toBeTruthy();
+    expect(screen.getByRole("img", { name: /万历帝/ })).toBeTruthy();
   });
 
   it("resolves event options", () => {

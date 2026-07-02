@@ -164,16 +164,16 @@ export const eventArtById: Record<string, ArtImage> = {
 };
 
 const characterPortraits: Record<string, CharacterPortrait> = {
-  zhang_juzheng: characterPortrait("zhang_juzheng", "张居正立绘", "首辅", zhangJuzhengUrl),
-  wanli_emperor: characterPortrait("wanli_emperor", "万历帝立绘", "大明皇帝", wanliEmperorUrl),
-  nurhaci: characterPortrait("nurhaci", "努尔哈赤立绘", "建州首领", nurhaciUrl),
-  xiong_tingbi: characterPortrait("xiong_tingbi", "熊廷弼立绘", "辽东经略", xiongTingbiUrl),
-  wei_zhongxian: characterPortrait("wei_zhongxian", "魏忠贤立绘", "司礼监秉笔", weiZhongxianUrl),
-  yuan_chonghuan: characterPortrait("yuan_chonghuan", "袁崇焕立绘", "辽东督师", yuanChonghuanUrl),
-  chongzhen_emperor: characterPortrait("chongzhen_emperor", "崇祯帝立绘", "大明皇帝", chongzhenEmperorUrl),
-  li_chengliang: characterPortrait("li_chengliang", "李成梁立绘", "辽东总兵", liChengliangUrl),
-  toyotomi_hideyoshi: characterPortrait("toyotomi_hideyoshi", "丰臣秀吉立绘", "日本关白", toyotomiHideyoshiUrl),
-  joseon_seonjo: characterPortrait("joseon_seonjo", "朝鲜宣祖立绘", "朝鲜国王", joseonSeonjoUrl)
+  zhang_juzheng: characterPortrait("zhang_juzheng", "张居正", "首辅", zhangJuzhengUrl),
+  wanli_emperor: characterPortrait("wanli_emperor", "万历帝", "大明皇帝", wanliEmperorUrl),
+  nurhaci: characterPortrait("nurhaci", "努尔哈赤", "建州首领", nurhaciUrl),
+  xiong_tingbi: characterPortrait("xiong_tingbi", "熊廷弼", "辽东经略", xiongTingbiUrl),
+  wei_zhongxian: characterPortrait("wei_zhongxian", "魏忠贤", "司礼监秉笔", weiZhongxianUrl),
+  yuan_chonghuan: characterPortrait("yuan_chonghuan", "袁崇焕", "辽东督师", yuanChonghuanUrl),
+  chongzhen_emperor: characterPortrait("chongzhen_emperor", "崇祯帝", "大明皇帝", chongzhenEmperorUrl),
+  li_chengliang: characterPortrait("li_chengliang", "李成梁", "辽东总兵", liChengliangUrl),
+  toyotomi_hideyoshi: characterPortrait("toyotomi_hideyoshi", "丰臣秀吉", "日本关白", toyotomiHideyoshiUrl),
+  joseon_seonjo: characterPortrait("joseon_seonjo", "朝鲜宣祖", "朝鲜国王", joseonSeonjoUrl)
 };
 
 export const characterIdsByEventId: Record<string, string[]> = {
@@ -195,17 +195,17 @@ export const characterIdsByEventId: Record<string, string[]> = {
 };
 
 export const factionLeaderByFactionId: Record<string, FactionLeaderPortrait> = {
-  ming: factionLeader("ming", "万历帝立绘", wanliEmperorUrl),
-  tumed: factionLeader("tumed", "俺答汗立绘", tumedLeaderUrl),
-  jianzhou: factionLeader("jianzhou", "努尔哈赤立绘", nurhaciUrl),
-  chahar: factionLeader("chahar", "图们汗立绘", chaharLeaderUrl),
-  haixi: factionLeader("haixi", "王台立绘", haixiLeaderUrl),
-  korchin: factionLeader("korchin", "莽古思立绘", korchinLeaderUrl),
-  nurgan: factionLeader("nurgan", "奴儿干诸部首领立绘", nurganLeaderUrl),
-  joseon: factionLeader("joseon", "朝鲜宣祖立绘", joseonSeonjoUrl),
-  japan: factionLeader("japan", "丰臣秀吉立绘", toyotomiHideyoshiUrl),
-  ainu: factionLeader("ainu", "虾夷诸部首领立绘", ainuLeaderUrl),
-  bozhou: factionLeader("bozhou", "杨应龙立绘", bozhouLeaderUrl)
+  ming: factionLeader("ming", "万历帝", wanliEmperorUrl),
+  tumed: factionLeader("tumed", "俺答汗", tumedLeaderUrl),
+  jianzhou: factionLeader("jianzhou", "努尔哈赤", nurhaciUrl),
+  chahar: factionLeader("chahar", "图们汗", chaharLeaderUrl),
+  haixi: factionLeader("haixi", "王台", haixiLeaderUrl),
+  korchin: factionLeader("korchin", "莽古思", korchinLeaderUrl),
+  nurgan: factionLeader("nurgan", "奴儿干诸部首领", nurganLeaderUrl),
+  joseon: factionLeader("joseon", "朝鲜宣祖", joseonSeonjoUrl),
+  japan: factionLeader("japan", "丰臣秀吉", toyotomiHideyoshiUrl),
+  ainu: factionLeader("ainu", "虾夷诸部首领", ainuLeaderUrl),
+  bozhou: factionLeader("bozhou", "杨应龙", bozhouLeaderUrl)
 };
 
 export function resolveEventVisual(event: GameEvent): EventVisual {
@@ -235,7 +235,7 @@ export function resolveEventCharacters(event: GameEvent): CharacterPortrait[] {
 }
 
 export function resolveFactionLeaderPortrait(factionId: string): FactionLeaderPortrait {
-  return factionLeaderByFactionId[factionId] ?? factionLeader("unknown", "未知势力首领立绘", wanliEmperorUrl);
+  return factionLeaderByFactionId[factionId] ?? factionLeader("unknown", "未知势力首领", wanliEmperorUrl);
 }
 
 function eventScene(key: string, label: string, type: EventVisualType, src: string): ArtImage {

@@ -118,6 +118,6 @@ describe("event visuals", () => {
 
     render(<EventDialog event={event} onResolve={() => undefined} />);
 
-    expect(screen.getByRole("img", { name: /袁崇焕立绘/ })).not.toBeNull();
+    expect(screen.getByRole("img", { name: /^袁崇焕$/ })).not.toBeNull();
   });
 });
