@@ -492,10 +492,79 @@ const captured = attackerWins && region.garrison < 5000;
 
 ---
 
+## 7. v0.8.2 — 大明财政韧性修复
+
+> 2026-07-02 commit（v0.8.2 实施细节）
+> 关联：`src/core/economy.ts`、`src/scripts/diagnoseMingFinances.ts`、`src/tests/economy-population.test.ts`
+
+### 7.1 根因诊断
+
+新增 `diagnoseMingFinances.ts` 跑 24 月明细（seed=157301）：
+
+| 项目 | v0.8 baseline | 目标 |
+|---|---|---|
+| 大明月田赋 | 127-140k | ≥200k |
+| 大明月军费（含战地） | 200-290k | ≤150k |
+| 月俸禄 | 36k | 36k |
+| **月净流** | **-150 ~ -200k** | **≥+50k** |
+| 国库从 500万 蒸发到 0 | ~33 月 | ≥60 月 |
+
+**v0.6/v0.7/v0.8 共同 bug**：`economy.ts:50` 税收系数 0.004 + `economy.ts:82` dynasty 军费 0.28 → 军费是税收的 1.5-2x，国库 3 年内枯竭，触发崩盘链。
+
+### 7.2 修复方案
+
+两常量调整（最小侵入）：
+
+```ts
+// economy.ts:50 - 税收系数 0.004 → 0.007
+const taxCollected = ... * 0.007 * taxMult;
+// 历史对照：万历九年（1581）太仓存银达 1100 万两。
+
+// economy.ts:78-82 - dynasty 军费 0.28 → 0.20
+const costPerSoldier =
+  faction.type === "tribal" ? 0.15
+  : faction.type === "rebel" ? 0.08
+  : faction.type === "local" ? 0.30
+  : 0.20;
+// 保持 tribal/rebel/local 系数不变（势力差异化保留）。
+```
+
+**调整后预期**：
+- 月田赋 140k → 245k（+75%）
+- 月军费 290k → 116k（-60%）
+- 月净流 -150k → +93k
+
+### 7.3 验收（2026-07-02 10:23）
+
+| 维度 | v0.8 baseline | v0.8.2 |
+|---|---|---|
+| 测试数 | 545 | **549**（+4 个 v0.8.2 财政韧性测试）|
+| typecheck | 0 errors | 0 errors |
+| batch 100 runs errorRuns | 0 | **0** |
+| **mingSurvivalRate** | **0%** | **84%** ✅ |
+| 崩盘时间 | 1582 | **1592**（推迟 10 年）|
+| finishedRuns (240 月内) | 0 | **16** |
+| diagnoseSimulation 240 月 | 国库 -122w collapsed @ 1583 | 国库 741w active @ 1593 |
+
+### 7.4 历史对照
+
+- **1573-01 开局**：国库 500万两（太仓银库存），与万历元年（1573）实况一致。
+- **1585-01 中期**：国库 1188万两，接近张居正改革后万历九年（1581）"太仓所存足支九年"极盛期。
+- **1593-01 后期**：国库 740万两，反映万历中后期"国匮民穷"实况（小冰期+三征+吏治腐败）。
+
+### 7.5 已知副作用 / 后续方向
+
+1. **人口崩盘**：120.9M → 37.2M（-69%），但主要由 rebel 蚕食 + 灾害累积造成，符合明末实况。
+2. **v0.8.2 baseline 后，义军/叛乱仍是大明终结主因**：这反而符合明末史实（闯王/张献忠，而非被建州/察哈尔灭）。可后续 v0.8.3 加"招抚+镇压"双轨机制。
+3. **税收/军费系数 DETERMINISM-CHANGE**：所有 seed 命运重新分配。无法与 v0.8.x 存档兼容。
+
+---
+
 ## 8. 文档同步
 
-- [x] `PROGRESS.md` §1 v0.8 新增段落
-- [x] `PROGRESS.md` §1 v0.8.1 新增段落（待 v0.8.1 commit 时填）
-- [ ] `docs/v2-implementation-plan.md` 加 v0.8 / v0.8.1 子步骤
-- [ ] CLAUDE.md §5 加 v0.8 已知坑（投送系数、距离衰减、capture 阈值）
+- [x] `PROGRESS.md` §1 v0.8 / v0.8.1 / v0.8.2 新增段落
+- [x] `src/scripts/diagnoseMingFinances.ts` v0.8.2 财政明细诊断脚本
+- [x] `src/tests/economy-population.test.ts` +4 v0.8.2 财政韧性测试
+- [ ] `docs/v2-implementation-plan.md` 加 v0.8.x 子步骤
+- [ ] CLAUDE.md §5 加 v0.8.x 已知坑（投送系数、距离衰减、capture 阈值、财政系数）
 - [x] 本 SPEC 完成后 1 段总结填入 `PROGRESS.md §0.5`

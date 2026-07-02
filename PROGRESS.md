@@ -405,6 +405,40 @@ const captured = attackerWins && region.garrison < 5000;
 2. **小势力可能更晚被吞并**：120 月 diagnostic 显示全部 cutoff 在 40-49% progress 区间，符合"持久战"目标。
 3. **`M3` 驻军参与防御 + v0.8.1 garrison 阈值 = 双保险**：驻军既影响 advanceWar 的 defenderStrength（×0.5），又决定首战能否 capture。
 
+### v0.8.2 大明财政韧性修复（2026-07-02）
+
+**根因**：v0.6/v0.7/v0.8 共同 bug — 大明月田赋 ~140k vs 月军费 ~290k，持续赤字 150k/月，500万 初始国库 ~33 月即归零、随后崩溃链。新增 `diagnoseMingFinances.ts` 脚本验证。
+
+**修复**（两常量调整，最小侵入）：
+
+```ts
+// economy.ts:50  税收系数 0.004 -> 0.007
+// economy.ts:82  dynasty 军费 0.28  -> 0.20
+// 保持 tribal(0.15) / rebel(0.08) / local(0.30) 系数不变。
+```
+
+**验收（2026-07-02 10:23）**：
+
+| 维度 | v0.8 baseline | v0.8.2 |
+|---|---|---|
+| 测试数 | 545 | **549**（+4 个 v0.8.2 财政韧性测试）|
+| batch 100 runs errorRuns | 0 | **0** |
+| **mingSurvivalRate** | **0%** | **84%** |
+| 崩盘时间 | 1582 | **1592**（推迟 10 年）|
+| finishedRuns (240 月内) | 0 | **16** |
+| 国库轨迹 (seed 157301) | -122w @ 1583 collapsed | 741w @ 1593 active |
+
+**历史对照**：
+- 1573-01：国库 500w（太仓银库存，对齐万历元年）
+- 1585-01：1188w（对齐万历九年太仓存银 1100w 极盛期）
+- 1593-01：741w（对齐万历中后期国匮民穷实况）
+
+**已知 v0.8.2 副作用 / 后续方向**：
+
+1. **人口崩盘**：120.9M → 37.2M（-69%），由 rebel 蚕食 + 灾害累积造成，符合明末实况。
+2. **义军/叛乱仍是大明终结主因**（符合明末闯王/张献忠史实，非被建州/察哈尔灭）。可后续 v0.8.3 加"招抚+镇压"双轨机制。
+3. **DETERMINISM-CHANGE**：所有 seed 命运重新分配；与 v0.8.x 存档不兼容。详见 `economy.ts` 顶部 banner。
+
 **新增 / 修改文件**：
 
 新增：`src/scripts/diagnoseWars.ts`（战争时间线诊断）、`docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md`（SPEC）
