@@ -27,6 +27,16 @@ function makeRegion(overrides: Partial<RegionState> = {}): RegionState {
     connections: [],
     activeDisasters: [],
     rebelPressure: 0,
+    // v0.9: 物流节点/军事子结构（测试默认值）
+    logisticsNode: null,
+    military: {
+      infrastructureLevel: 0,
+      seasonalState: "normal",
+      localSupport: 50,
+      occupationResistance: 0,
+      forageCapacity: 0.5,
+      strategicValue: 30,
+    },
     ...overrides
   };
 }
@@ -59,6 +69,11 @@ function makeFaction(overrides: Partial<FactionState> = {}): FactionState {
     homeTurfMult: 1.0,
     maxCommitRatio: 1.0,
     warCommitments: {},
+    // v0.9: 测试默认（中性的低值）
+    mobilizationPool: 6000,
+    conscriptionRate: 0.20,
+    warDesireModifier: 0,
+    formations: [],
     ...overrides
   };
 }

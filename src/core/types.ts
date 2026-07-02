@@ -139,6 +139,44 @@ export interface DisasterState {
   remainingMonths: number;
 }
 
+/**
+ * v0.9: 地区军事子结构 —— 把"驻军/人口/粮草"和"道路/季节/民心/抵抗"
+ * 真正接到战斗 / 投送 / 占领 / 战疲公式。先于 v0.9.0 默认值落地，
+ * 但所有字段保持 0/中性默认值，**本阶段不读取**（与 v0.8.x 行为等价）。
+ */
+export interface RegionMilitaryState {
+  /** 0..3 道路/桥梁/转运等级。中原与南方运河多 ≥2，草原/山地为 0-1。 */
+  infrastructureLevel: number;
+  /** 当月季节标签（normal / mud / winter / drought / flood / harvest）。 */
+  seasonalState: "normal" | "mud" | "winter" | "drought" | "flood" | "harvest";
+  /** 0..100 民众对外来势力的合作度（v0.9.4 occupation phase 使用）。 */
+  localSupport: number;
+  /** 0..100 被占领后的抵抗压力（>70 触发起义准备）。 */
+  occupationResistance: number;
+  /** 0..1 就地筹粮能力（军队征粮上限比例）。 */
+  forageCapacity: number;
+  /** 0..100 AI 目标权重（高 = 战略要地）。 */
+  strategicValue: number;
+}
+
+/**
+ * v0.9: 后勤节点 —— 仓储吞吐 / 海港 / 河港。仅重要节点挂载（不重要的
+ * 为 null），先于 v0.9.2 logistics phase 落地；本阶段不读取。
+ */
+export interface LogisticsNodeState {
+  regionId: RegionId;
+  /** 0..3 仓储转运等级。 */
+  depotLevel: number;
+  /** 当前粮秣库存（统一折算）。 */
+  depotStock: number;
+  /** 当月最大运输吞吐。 */
+  throughput: number;
+  /** 0..3 海港（0 = 无）。 */
+  portLevel: number;
+  /** 0..3 河港。 */
+  riverPortLevel: number;
+}
+
 export interface RegionState {
   id: RegionId;
   name: string;
@@ -170,6 +208,45 @@ export interface RegionState {
    * 真正可感：距离越远，投送系数 / 补给衰减越差。
    */
   distanceFromCapital?: Record<FactionId, number>;
+  /**
+   * v0.9: 后勤节点（仓/港）。不重要节点为 null；不读取，仅占位。
+   * v0.9.2 logistics phase 开始作为路径容量 / 调度枢纽的消费点。
+   */
+  logisticsNode?: LogisticsNodeState | null;
+  /** v0.9: 军事子结构（必填，默认中性值）。v0.9.3/0.9.4 阶段读取。 */
+  military: RegionMilitaryState;
+}
+
+/**
+ * v0.9: 编队（formation）—— 一支有驻地、有训练度、有装备度的兵力单元。
+ * 设计上把"兵力"细分到编队，而不是 faction.armyTotal 一个数字：
+ * - troopCount：已动员总员额（含新兵）
+ * - readyTroops：训练/装备到位后可投入战斗的兵
+ * - reserveTroops：在训/补员中的后备
+ * - training ∈ [0,1]：0=新兵 / 1=老兵
+ * - equipmentReadiness ∈ [0,1]：0=赤手空拳 / 1=火绳枪齐备
+ * - morale ∈ [0,1]：受 supplyRatio / 上月胜负影响
+ * - supplyStockDays：前线随军粮折算天数（Vanguard buffer）
+ * - commanderCoord ∈ [0,1]：0=无帅 / 1=名将
+ * - posture：attack/defend/raid/garrison
+ *
+ * v0.9.0 默认空数组；v0.9.1 warPreparation phase 落地后由每月 tick 填充。
+ * 此时不读取，仍与 v0.8.x 行为等价。
+ */
+export interface FormationState {
+  id: string;
+  factionId: FactionId;
+  homeRegionId: RegionId;
+  position: RegionId | null;
+  troopCount: number;
+  readyTroops: number;
+  reserveTroops: number;
+  training: number;
+  equipmentReadiness: number;
+  morale: number;
+  supplyStockDays: number;
+  commanderCoord: number;
+  posture: "attack" | "defend" | "raid" | "garrison";
 }
 
 export interface FactionState {
@@ -212,6 +289,26 @@ export interface FactionState {
    * 让 committedForce 持久化在 faction 上，避免 war 状态需要重复计算。
    */
   warCommitments: Record<RegionId, number>;
+  /**
+   * v0.9.1: 兵员上限池。committedForce 的最终钳位：
+   * `committedForce = min(armyTotal, maxCommitRatio × armyTotal × distanceMult, mobilizationPool)`。
+   * 每月自然增长 5%（封顶 1.5× armyTotal）—— 反映长期养兵的成本。
+   * v0.9.0 默认 = `armyTotal × 0.20`（近似"现役 + 战时可再动员"）。
+   */
+  mobilizationPool: number;
+  /**
+   * v0.9: 征兵率上限（0..0.25）。受法律 / 人口 / 战时恐慌影响。
+   * 仅占位，v0.9.1 warPreparation phase 读取。
+   */
+  conscriptionRate: number;
+  /**
+   * v0.9: AI 宣战倾向修正（-50..+50）。具体效果由 v0.9.6 decisions 公式读取。
+   */
+  warDesireModifier: number;
+  /**
+   * v0.9.1: 该势力的编队清单。默认空数组，v0.9.1 起由 warPreparation 填充。
+   */
+  formations: FormationState[];
 }
 
 export interface PlayerDecision {

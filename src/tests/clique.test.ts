@@ -41,6 +41,16 @@ function makeRegion(overrides: Partial<RegionState> = {}): RegionState {
     connections: [],
     activeDisasters: [],
     rebelPressure: 0,
+    // v0.9: 物流节点/军事子结构
+    logisticsNode: null,
+    military: {
+      infrastructureLevel: 0,
+      seasonalState: "normal",
+      localSupport: 50,
+      occupationResistance: 0,
+      forageCapacity: 0.5,
+      strategicValue: 30,
+    },
     ...overrides,
   };
 }

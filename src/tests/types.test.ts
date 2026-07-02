@@ -40,6 +40,11 @@ describe("domain types", () => {
       homeTurfMult: 1.05,
       maxCommitRatio: 0.30,
       warCommitments: {},
+      // v0.9: 兵员池/征兵率/AI 倾向/编队清单
+      mobilizationPool: 136000,
+      conscriptionRate: 0.15,
+      warDesireModifier: -5,
+      formations: [],
     };
 
     const region: RegionState = {
@@ -62,7 +67,17 @@ describe("domain types", () => {
       coreFactionIds: ["ming"],
       connections: ["liaodong"],
       activeDisasters: [],
-      rebelPressure: 0
+      rebelPressure: 0,
+      // v0.9: 物流节点/军事子结构
+      logisticsNode: null,
+      military: {
+        infrastructureLevel: 0,
+        seasonalState: "normal",
+        localSupport: 50,
+        occupationResistance: 0,
+        forageCapacity: 0.5,
+        strategicValue: 30,
+      }
     };
 
     const decision: PlayerDecision = {

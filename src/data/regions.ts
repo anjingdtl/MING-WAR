@@ -1,4 +1,4 @@
-import type { ClimateType, FactionId, RegionState, TerrainType } from "../core/types";
+import type { ClimateType, FactionId, RegionMilitaryState, RegionState, TerrainType } from "../core/types";
 
 interface RegionTemplateInput {
   id: string;
@@ -23,6 +23,18 @@ interface RegionTemplateInput {
 }
 
 function region(input: RegionTemplateInput): RegionState {
+  // v0.9: 军事子结构默认值。中性值为"刚开局"——0 道路等级、中性支持 50、
+  // 0 抵抗压力、0.5 筹粮（中等地）、30 战略权重。后续 v0.9.x 阶段按 faction
+  // 形态差异化（如中原 1-3、草原 0-1）；本阶段确保 typecheck 通过且所有
+  // region 都有必填字段。
+  const military: RegionMilitaryState = {
+    infrastructureLevel: 0,
+    seasonalState: "normal",
+    localSupport: 50,
+    occupationResistance: 0,
+    forageCapacity: 0.5,
+    strategicValue: 30,
+  };
   return {
     id: input.id,
     name: input.name,
@@ -43,7 +55,10 @@ function region(input: RegionTemplateInput): RegionState {
     coreFactionIds: input.coreFactionIds ?? [input.ownerFactionId],
     connections: input.connections,
     activeDisasters: [],
-    rebelPressure: input.rebelPressure ?? 0
+    rebelPressure: input.rebelPressure ?? 0,
+    // v0.9: 物流节点默认 null（不读）；军事子结构必填中性值。
+    logisticsNode: null,
+    military,
   };
 }
 

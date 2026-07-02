@@ -46,6 +46,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.05,
     maxCommitRatio: 0.30,
     warCommitments: {},
+    // v0.9: 兵员上限池（580k × 0.20 = 116k 现役），征兵率（中央 15% 受卫所制），AI 倾向微负，编队清单（暂空）
+    mobilizationPool: 116000,
+    conscriptionRate: 0.15,
+    warDesireModifier: -5,
+    formations: [],
   },
   tumed: {
     id: "tumed",
@@ -78,6 +83,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.25,
     maxCommitRatio: 0.55,
     warCommitments: {},
+    // v0.9: 95k × 0.20 = 19k 现役，草原部落征兵宽松，AI 偏攻
+    mobilizationPool: 19000,
+    conscriptionRate: 0.22,
+    warDesireModifier: 5,
+    formations: [],
   },
   jianzhou: {
     id: "jianzhou",
@@ -110,6 +120,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.40,
     maxCommitRatio: 0.60,
     warCommitments: {},
+    // v0.9: 42k × 0.20 = 8.4k 现役，全民皆兵
+    mobilizationPool: 8400,
+    conscriptionRate: 0.18,
+    warDesireModifier: 12,
+    formations: [],
   },
   chahar: {
     id: "chahar",
@@ -142,6 +157,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.30,
     maxCommitRatio: 0.55,
     warCommitments: {},
+    // v0.9: 74k × 0.20 = 14.8k
+    mobilizationPool: 14800,
+    conscriptionRate: 0.22,
+    warDesireModifier: 8,
+    formations: [],
   },
   haixi: {
     id: "haixi",
@@ -174,6 +194,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.20,
     maxCommitRatio: 0.50,
     warCommitments: {},
+    // v0.9: 39k × 0.20 = 7.8k
+    mobilizationPool: 7800,
+    conscriptionRate: 0.18,
+    warDesireModifier: 0,
+    formations: [],
   },
   korchin: {
     id: "korchin",
@@ -206,6 +231,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.30,
     maxCommitRatio: 0.55,
     warCommitments: {},
+    // v0.9: 36k × 0.20 = 7.2k
+    mobilizationPool: 7200,
+    conscriptionRate: 0.18,
+    warDesireModifier: -3,
+    formations: [],
   },
   nurgan: {
     id: "nurgan",
@@ -238,6 +268,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.25,
     maxCommitRatio: 0.50,
     warCommitments: {},
+    // v0.9: 24k × 0.20 = 4.8k
+    mobilizationPool: 4800,
+    conscriptionRate: 0.18,
+    warDesireModifier: -8,
+    formations: [],
   },
   joseon: {
     id: "joseon",
@@ -270,6 +305,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.20,
     maxCommitRatio: 0.45,
     warCommitments: {},
+    // v0.9: 56k × 0.20 = 11.2k
+    mobilizationPool: 11200,
+    conscriptionRate: 0.12,
+    warDesireModifier: -10,
+    formations: [],
   },
   japan: {
     id: "japan",
@@ -302,6 +342,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.15,
     maxCommitRatio: 0.45,
     warCommitments: {},
+    // v0.9: 92k × 0.20 = 18.4k
+    mobilizationPool: 18400,
+    conscriptionRate: 0.15,
+    warDesireModifier: 4,
+    formations: [],
   },
   ainu: {
     id: "ainu",
@@ -334,6 +379,11 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.10,
     maxCommitRatio: 0.40,
     warCommitments: {},
+    // v0.9: 9k × 0.20 = 1.8k
+    mobilizationPool: 1800,
+    conscriptionRate: 0.20,
+    warDesireModifier: -15,
+    formations: [],
   },
   bozhou: {
     id: "bozhou",
@@ -366,5 +416,10 @@ export const factionTemplates: Record<string, FactionState> = {
     homeTurfMult: 1.30,
     maxCommitRatio: 0.50,
     warCommitments: {},
+    // v0.9: 28k × 0.20 = 5.6k
+    mobilizationPool: 5600,
+    conscriptionRate: 0.16,
+    warDesireModifier: -5,
+    formations: [],
   }
 };

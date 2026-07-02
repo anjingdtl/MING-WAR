@@ -49,6 +49,11 @@ const rebelFaction: FactionState = {
   homeTurfMult: 1.10,
   maxCommitRatio: 0.40,
   warCommitments: {},
+  // v0.9: 义军无固定兵员，征兵最宽松（30%），AI 高度扩张
+  mobilizationPool: 0,
+  conscriptionRate: 0.30,
+  warDesireModifier: 10,
+  formations: [],
 };
 
 /**
