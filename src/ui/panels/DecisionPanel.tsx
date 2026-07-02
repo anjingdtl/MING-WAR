@@ -170,7 +170,68 @@ export function DecisionPanel({
       )}
 
       <DecisionPrediction state={state} decision={decision} />
+
+      {/* v0.9.5: 5 个军事 KPI 卡（动员池/仓储/在途/战伤/围城） */}
+      <MilitaryKpis state={state} />
+
       <DiplomacyPanel state={state} />
     </section>
+  );
+}
+
+/**
+ * v0.9.5: 5 个军事 KPI 卡片 —— 让"动员池/仓储/在途/战伤/围城"在玩家面板上
+ * 可见。从 FactionState / RegionState / activeWars / activeConvoys 聚合。
+ */
+function MilitaryKpis({ state }: { state: GameState }) {
+  const playerFaction = state.factions[state.playerFactionId];
+  if (!playerFaction) return null;
+
+  // 1. 动员池：mobilizationPool / (armyTotal × 1.5)
+  const poolCap = playerFaction.armyTotal * 1.5;
+  const poolPct = poolCap > 0 ? Math.round((playerFaction.mobilizationPool / poolCap) * 100) : 0;
+
+  // 2. 仓储：玩家所有控制区 depotStock 之和
+  const depotTotal = Object.values(state.regions)
+    .filter((r) => r.controllerFactionId === state.playerFactionId)
+    .reduce((sum, r) => sum + (r.logisticsNode?.depotStock ?? 0), 0);
+
+  // 3. 在途：activeConvoys 数
+  const inFlight = (state.activeConvoys ?? [])
+    .filter((c) => c.factionId === state.playerFactionId).length;
+
+  // 4. 战伤：warFatigue（v0.9.4）
+  const fatigue = playerFaction.warFatigue ?? 0;
+  const fatigueLabel =
+    fatigue < 70 ? "未起" :
+    fatigue < 100 ? "厌战苗头" :
+    fatigue < 130 ? "厌战激化" : "厌战极限";
+
+  // 5. 围城：玩家为 attacker 或 defender 的 wars
+  const underSiege = state.wars.filter(
+    (w) => w.attackerFactionId === state.playerFactionId || w.defenderFactionId === state.playerFactionId,
+  ).length;
+
+  return (
+    <div className="military-kpis" data-testid="military-kpis">
+      <h3>军事态势 (v0.9.5)</h3>
+      <div className="kpi-grid">
+        <KpiCard label="动员池" value={`${poolPct}%`} hint={`${playerFaction.mobilizationPool.toLocaleString()} / ${poolCap.toLocaleString()}`} />
+        <KpiCard label="仓储" value={depotTotal.toLocaleString()} hint="本方控制区粮秣" />
+        <KpiCard label="在途" value={String(inFlight)} hint="补给车队" />
+        <KpiCard label="战伤" value={`${Math.round(fatigue)}`} hint={fatigueLabel} />
+        <KpiCard label="围城" value={String(underSiege)} hint="活跃战线" />
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="kpi-card" data-testid={`kpi-${label}`}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      <div className="kpi-hint">{hint}</div>
+    </div>
   );
 }
