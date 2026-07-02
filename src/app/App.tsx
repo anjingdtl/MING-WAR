@@ -3,7 +3,7 @@ import { mvpEvents } from "../data/events";
 import { TopBar } from "../ui/layout/TopBar";
 import { SidePanel, type SidePanelTab } from "../ui/layout/SidePanel";
 import { EventDialog } from "../ui/dialogs/EventDialog";
-import { StartDialog } from "../ui/dialogs/StartDialog";
+import { MainMenu } from "../ui/dialogs/MainMenu";
 import { TutorialDialog } from "../ui/dialogs/TutorialDialog";
 import { HelpModal } from "../ui/dialogs/HelpModal";
 import { GameMap } from "../ui/map/GameMap";
@@ -22,6 +22,7 @@ const LENS_ORDER: LensId[] = ["control", "economy", "military", "people", "court
 export function App() {
   // v0.6-stability §3.4 / §4.6：精确选择器订阅，避免整 store 触发重渲染
   const startGame = useGameStore((s) => s.startGame);
+  const loadGameFromSave = useGameStore((s) => s.loadGameFromSave);
   const advanceOneMonth = useGameStore((s) => s.advanceOneMonth);
   const resolveEvent = useGameStore((s) => s.resolveEvent);
   const setDecision = useGameStore((s) => s.setDecision);
@@ -34,6 +35,7 @@ export function App() {
   const selectedRegionId = useUiStore((s) => s.selectedRegionId);
   const selectRegion = useUiStore((s) => s.selectRegion);
   const pendingEvent = mvpEvents.find((event) => event.id === pendingEventId) ?? null;
+  const [mainMenuOpen, setMainMenuOpen] = useState(true);
 
   // Phase 5: Tutorial 状态
   const [tutorialOpen, setTutorialOpen] = useState(() => {
@@ -109,7 +111,7 @@ export function App() {
     [sidePanelOpen, helpOpen]
   );
 
-  useHotkeys(tutorialOpen ? [] : hotkeys);
+  useHotkeys(tutorialOpen || mainMenuOpen ? [] : hotkeys);
 
   /* ---- stable callbacks for memoized children ---- */
   const toggleSidePanel = useCallback(() => setSidePanelOpen((v) => !v), []);
@@ -119,6 +121,17 @@ export function App() {
     try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* ignore */ }
     setTutorialOpen(false);
   }, []);
+  const handleMenuStart = useCallback(() => {
+    startGame("ming", 157301);
+    setMainMenuOpen(false);
+  }, [startGame]);
+  const handleMenuLoad = useCallback(
+    async (saveId: string) => {
+      const ok = await loadGameFromSave(saveId);
+      if (ok) setMainMenuOpen(false);
+    },
+    [loadGameFromSave]
+  );
   const handleRegionSelect = useCallback(
     (id: string) => {
       selectRegion(id);
@@ -130,7 +143,7 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <StartDialog onStart={startGame} />
+      {mainMenuOpen && <MainMenu onStart={handleMenuStart} onLoad={handleMenuLoad} />}
       <TopBar
         state={state}
         onAdvance={advanceOneMonth}
@@ -161,7 +174,7 @@ export function App() {
         />
       </div>
       <EventDialog event={pendingEvent} onResolve={resolveEvent} />
-      {tutorialOpen && (
+      {tutorialOpen && !mainMenuOpen && (
         <TutorialDialog onComplete={completeTutorialCb} onSkip={completeTutorialCb} />
       )}
       <HelpModal open={helpOpen} onClose={closeHelp} />

@@ -9,6 +9,7 @@ import { mvpEvents } from "../data/events";
 import { createMvpScenario, defaultPlayerDecision } from "../data/scenarios";
 import { proposeAlliance as doProposeAlliance } from "../core/diplomacy";
 import { requestPeace as doRequestPeace } from "../core/peace";
+import { loadGame as loadSaveGame } from "../save/saveManager";
 import { useUiStore } from "./uiStore";
 import { useGameViewStore, derivePlayerFactionSummary } from "./gameViewStore";
 
@@ -31,6 +32,7 @@ interface GameStore {
   setDecision: (decision: Partial<PlayerDecision>) => void;
   advanceOneMonth: () => void;
   resolveEvent: (optionId: string) => void;
+  loadGameFromSave: (saveId: string) => Promise<boolean>;
   /** S6 遗留#2：主动外交动作 */
   proposeAlliance: (targetFactionId: string) => void;
   requestPeace: (warId: string) => void;
@@ -113,6 +115,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     useUiStore.getState().setPendingEventId(null);
     set({ state: newState });
     syncViewStore(newState);
+  },
+  loadGameFromSave: async (saveId) => {
+    const save = await loadSaveGame(saveId);
+    if (!save) return false;
+    useUiStore.getState().setPendingEventId(null);
+    useUiStore.getState().setSimulationStatus("idle");
+    set({ state: save.state, decision: save.decision });
+    useGameViewStore.getState().setDecision(save.decision);
+    syncViewStore(save.state);
+    return true;
   },
   proposeAlliance: (targetFactionId) => {
     const current = get();

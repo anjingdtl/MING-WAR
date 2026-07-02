@@ -81,10 +81,11 @@ export async function writeSave(save: SerializedSave): Promise<{ ok: boolean; er
   if (!validation.ok) {
     return { ok: false, errors: validation.errors };
   }
+  const saveId = save.metadata.saveName;
   const db = await openSaveDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
-    tx.objectStore(storeName).put(save);
+    tx.objectStore(storeName).put(save, saveId);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -128,7 +129,7 @@ export async function saveGame(save: SaveGame): Promise<void> {
   const db = await openSaveDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(storeName, "readwrite");
-    tx.objectStore(storeName).put(save);
+    tx.objectStore(storeName).put(save, save.id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -137,14 +138,23 @@ export async function saveGame(save: SaveGame): Promise<void> {
 
 export async function listSaves(): Promise<SaveGame[]> {
   const db = await openSaveDb();
-  const saves = await new Promise<SaveGame[]>((resolve, reject) => {
+  const saves = await new Promise<Array<{ key: IDBValidKey; value: unknown }>>((resolve, reject) => {
     const tx = db.transaction(storeName, "readonly");
-    const request = tx.objectStore(storeName).getAll();
-    request.onsuccess = () => resolve(request.result as SaveGame[]);
-    request.onerror = () => reject(request.error);
+    const store = tx.objectStore(storeName);
+    const valuesRequest = store.getAll();
+    const keysRequest = store.getAllKeys();
+    tx.oncomplete = () => {
+      const values = valuesRequest.result as unknown[];
+      const keys = keysRequest.result;
+      resolve(values.map((value, index) => ({ key: keys[index], value })));
+    };
+    tx.onerror = () => reject(tx.error);
   });
   db.close();
-  return saves.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  return saves
+    .map(({ key, value }) => normalizeSaveForList(key, value))
+    .filter((save): save is SaveGame => save !== null)
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
 /**
@@ -253,4 +263,23 @@ export function migrateGameState(state: GameState): GameState {
   }
   migrated.version = "0.3.0";
   return migrated;
+}
+
+function normalizeSaveForList(key: IDBValidKey, raw: unknown): SaveGame | null {
+  const id = String(key);
+  if (isLegacyV030Save(raw)) {
+    return { ...raw, id };
+  }
+  const candidate = raw as Partial<SerializedSave>;
+  if (candidate?.format !== "ming-war-save" || !candidate.state || !candidate.decision || !candidate.metadata) {
+    return null;
+  }
+  return {
+    id,
+    name: candidate.metadata.saveName,
+    savedAt: candidate.updatedAt ?? candidate.createdAt ?? "",
+    state: candidate.state,
+    decision: candidate.decision,
+    version: candidate.state.version
+  };
 }
