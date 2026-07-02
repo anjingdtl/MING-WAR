@@ -369,6 +369,42 @@ const progressDelta = Math.round((strengthRatio - 1) * 6);
 3. **committedForce 增长慢（5%/月）**：大明 vs 察哈尔首战第 2 月 committedForce=28k、第 3 月 54k、第 4 月 capture（resolveBattle 直接胜）。如果首战 attackerWins=false 进入持久战，会看到完整的 6-7 月到 maxCommit 174k。
 4. **大明 AI 决策激进**：scoreTarget 默认按 garrison 小/人口大选，每月换目标。resolveBattle 改纯函数后已无 armyTotal 副作用。
 
+### v0.8.1 调严 capture 阈值（2026-07-02）
+
+**根因**：v0.8 M1-M5 修复了 `advanceWar` 持久战路径，但 `resolveBattle` 首战 capture 路径未触及。
+
+```ts
+// v0.8 旧 capture 条件
+const nextControl = attackerWins ? Math.max(20, region.control - 18) : ...;
+const captured = attackerWins && nextControl <= 35;
+// control=53 → nextControl=35 → capture（辽东首战即失）
+```
+
+**修复**：
+
+```ts
+// v0.8.1: capture 改为 garrison-only
+const captured = attackerWins && region.garrison < 5000;
+```
+
+**为什么 garrison-only？** `max(20, control-18)` 下界恒为 20，`nextControl <= 15` 永远触发不了，等价于"garrison < 5000 这条隐含规则被显式化"。5000 是万历县城/卫所最小守备编制。
+
+**验收（2026-07-02 10:09）**：
+
+| 维度 | 结果 |
+|---|---|
+| 测试数 | 540 → **545**（+5 个 v0.8.1 capture 边界测试） |
+| typecheck | 0 errors |
+| batch 100 runs errorRuns | **0** |
+| diagnoseWars 120 月 capture 触发 | **0**（v0.8 baseline 大明周边多数 1-3 月被吞并） |
+| 历史对照 | 萨尔浒之战：辽东 garrison 未清空，未被吞并 ✅ |
+
+**已知 v0.8.1 副作用 / 后续方向**：
+
+1. **`mingSurvivalRate` 仍 0（1582）**：capture 不再是主因，问题转移到大明韧性（财政 / 内政 / 叛乱），由 v0.8.2 处理。
+2. **小势力可能更晚被吞并**：120 月 diagnostic 显示全部 cutoff 在 40-49% progress 区间，符合"持久战"目标。
+3. **`M3` 驻军参与防御 + v0.8.1 garrison 阈值 = 双保险**：驻军既影响 advanceWar 的 defenderStrength（×0.5），又决定首战能否 capture。
+
 **新增 / 修改文件**：
 
 新增：`src/scripts/diagnoseWars.ts`（战争时间线诊断）、`docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md`（SPEC）

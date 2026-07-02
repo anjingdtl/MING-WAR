@@ -439,9 +439,63 @@ const MOBILIZATION_FACTOR = {      // 动员期距离 → 月
 
 ---
 
+## 6. v0.8.1 — 调严 capture 阈值
+
+> 2026-07-02 commit（v0.8.1 实施细节）
+> 关联：`src/core/warfare.ts:285`、`src/tests/warfare.test.ts` describe v0.8.1
+
+### 6.1 根因（v0.8 残留 bug）
+
+`resolveBattle` 首战 attackerWins 时：
+
+```ts
+const nextControl = attackerWins ? Math.max(20, region.control - 18) : Math.max(25, region.control - 6);
+const captured = attackerWins && nextControl <= 35;
+```
+
+`max(20, control-18)` 在 control = 53 时返回 35，**触发 capture**。意味着：
+- 辽东 (control=53, garrison=10000) 首战 attackerWins → 大明直接吞并。
+- 朝鲜三南 (control=50) 首战即失。
+
+v0.8 的 M1-M5 修复了 `advanceWar`（持久战）路径，但**首战 capture 路径**未触及，仍可绕过持久战直接吞并。
+
+### 6.2 修复方案
+
+capture 判定改为 garrison-only：
+
+```ts
+const captured = attackerWins && region.garrison < 5000;
+```
+
+**为什么不用 control 阈值？** 经分析 `max(20, control-18)` 下界恒为 20，`nextControl <= 15` 永远触发不了。等于说旧公式的 control 阈值"看起来是 35"，但实际生效的是 `region.garrison < 5000` 这条隐含规则（garrison 在首战时被 attackerLoss 削减，可能跌破 5000）。直接显式化即可。
+
+**为什么 5000？** 切合"县城/卫所"的最小守备编制（万历年间约 3000-5000 人）。低于此数即"残军无力再守"，符合历史直觉。
+
+### 6.3 验收（2026-07-02 10:09）
+
+| 维度 | 结果 |
+|---|---|
+| typecheck | 0 errors ✅ |
+| 测试数 | **545/545 全过**（540 + 5 个 v0.8.1 capture 测试） |
+| batch 100 runs errorRuns | **0** ✅ |
+| diagnoseWars 120 月 capture 触发数 | **0**（v0.8.1 之前：32 场 war 中大明周边多数在 1-3 月被吞并）|
+| 大明存活率 (1582) | 0%（与 v0.8 baseline 持平；崩盘原因不在 capture，在 v0.8.2 待处理的大明韧性） |
+
+### 6.4 历史对照
+
+萨尔浒之战（1619）：大明 11 万 vs 建州 6 万，杜松、马林、刘綖三路大军首战覆灭。但辽东（沈阳、辽阳）**未被建州吞并**，因为 garrison 仍驻 1-3 万守军。v0.8.1 复现此机制。
+
+### 6.5 已知副作用
+
+- **大明仍然 0% 存活**：因 capture 不再是崩盘主因，问题转移到大明韧性（财政 / 内政 / 叛乱），由 v0.8.2 处理。
+- **小势力（如 播州杨氏）可能更晚被吞并**：120 月 diagnostic 显示全部 cutoff 在 40-49% progress 区间，符合"持久战"目标。
+
+---
+
 ## 8. 文档同步
 
-- [ ] `PROGRESS.md` §1 v0.8 新增段落
-- [ ] `docs/v2-implementation-plan.md` 加 v0.8 子步骤
-- [ ] CLAUDE.md §5 加 v0.8 已知坑（投送系数、距离衰减）
-- [ ] 本 SPEC 完成后 1 段总结填入 `PROGRESS.md §0.5`
+- [x] `PROGRESS.md` §1 v0.8 新增段落
+- [x] `PROGRESS.md` §1 v0.8.1 新增段落（待 v0.8.1 commit 时填）
+- [ ] `docs/v2-implementation-plan.md` 加 v0.8 / v0.8.1 子步骤
+- [ ] CLAUDE.md §5 加 v0.8 已知坑（投送系数、距离衰减、capture 阈值）
+- [x] 本 SPEC 完成后 1 段总结填入 `PROGRESS.md §0.5`

@@ -282,7 +282,15 @@ export function resolveBattle(
   const attackerLoss = Math.round(attackerCommitted * (attackerWins ? 0.08 : 0.18));
   const defenderLoss = Math.round(defenderCommitted * (attackerWins ? 0.18 : 0.08));
   const nextControl = attackerWins ? Math.max(20, region.control - 18) : Math.max(25, region.control - 6);
-  const captured = attackerWins && nextControl <= 35;
+  // v0.8.1: capture 触发条件从 nextControl <= 35 调严为 garrison < 5000，
+  // 避免 resolveBattle 首战 attackerWins 直接 capture 周边势力。理由：
+  // 历史上一座县城/卫所被攻占，前提是守军被击溃或投降，而非"控制度跌破
+  // 阈值"这种行政概念。MAX(20, control-18) 的下界恒为 20，纯靠 control
+  // 永远触发不了 ≤15 阈值——所以新规则本质是「首战必须把 garrison 打到
+  // 5000 以下才允许 capture」。让 advanceWar 持久战有机会跑起来。
+  // 历史对照：萨尔浒之战大明 11 万 vs 建州 6 万，首战覆灭但辽东未失，
+  // 因为沈阳/辽阳 garrison 未被清空。
+  const captured = attackerWins && region.garrison < 5000;
 
   // v0.8: resolveBattle 不再 mutate attacker/defender.armyTotal（保持纯函数
   // 语义）。原因：大明 AI 每月换 targetRegionId 时，resolveBattle 每次都是

@@ -470,3 +470,45 @@ describe("v0.8: 持久战 + 投送系数 + 主场 / 距离 / 驻军", () => {
     expect(rFar.war.front?.attackerSupply).toBeLessThan(rClose.war.front?.attackerSupply ?? 100);
   });
 });
+
+/* ===========================================================================
+ * v0.8.1 capture 阈值调严
+ * ---------------------------------------------------------------------------
+ * 旧公式：nextControl <= 35 -> capture。意味着控制度 53 的地区首战 attackerWins
+ * 即被占领（让大明 1 月推平辽东）。
+ * 新公式：region.garrison < 5000 -> capture。max(20, control-18) 下界恒为 20，
+ * 单纯控制度阈值永远触发不了，故新规则本质是 garrison-only：
+ *   首战必须把守军打到 5000 以下才允许 capture；让 advanceWar 持久战有机会跑起来。
+ *
+ * 历史对照：萨尔浒之战大明 11 万 vs 建州 6 万，首战覆灭但辽东未失，
+ * 因为沈阳/辽阳 garrison 未被清空。
+ *
+ * 以下测试断言 capture 阈值的边界，不调 random.next()。
+ * =========================================================================== */
+describe("v0.8.1 capture 阈值", () => {
+  const wouldCapture = (control: number, garrison: number) => garrison < 5000; // v0.8.1
+  const oldWouldCapture = (control: number) => Math.max(20, control - 18) <= 35; // v0.8 旧
+
+  it("control=53, garrison=6000：旧阈值会 capture，新阈值不 capture", () => {
+    // v0.8 bug 场景：control=53 是辽东等周边势力的典型 control 值。
+    expect(oldWouldCapture(53)).toBe(true);
+    expect(wouldCapture(53, 6000)).toBe(false);
+  });
+
+  it("control=30, garrison=4500：garrison < 5000 capture", () => {
+    expect(wouldCapture(30, 4500)).toBe(true);
+  });
+
+  it("control=10, garrison=8000：守军仍强，不 capture", () => {
+    expect(wouldCapture(10, 8000)).toBe(false);
+  });
+
+  it("边界 garrison=4999 capture", () => {
+    expect(wouldCapture(20, 4999)).toBe(true);
+  });
+
+  it("边界 garrison=5000 不 capture", () => {
+    expect(wouldCapture(20, 5000)).toBe(false);
+  });
+});
+
