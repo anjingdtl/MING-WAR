@@ -4,24 +4,70 @@ import { queryModifier } from "./modifiers";
 import { hasTruce, isAlly } from "./diplomacy";
 import { getValidMilitaryTargets } from "./decisions";
 
-/** S5: 战线初始状态 —— 双方支持度与补给均充足，随战争消耗演变。 */
-function createInitialFront(): FrontState {
+/* ===========================================================================
+ * ⚠️  DETERMINISM-CHANGE (v0.8 — 2026-07-02)
+ * ---------------------------------------------------------------------------
+ * 本文件已重写持久战公式与战斗结算语义。所有以 war.* / faction.armyTotal 为输入的
+ * state hash 都会与 v0.7.x 存档产生分歧，禁止跨版本回滚/对比。
+ *
+ * 变更摘要（详见 docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md）：
+ *  1. createInitialFront(distance) 引入 mobilizationMonths（相邻=0，distance≥4=3）。
+ *  2. 新增 M1 committedForce 持久化（faction.warCommitments[regionId]）。
+ *  3. 新增 M2 距离衰减（distanceMult + supplyDecay）+ 补给崩溃（<50 → ×2）。
+ *  4. 新增 M3 驻军参与防御（garrison × 0.5）。
+ *  5. 新增 M4 主场凝聚力（faction.homeTurfMult：建州 1.40 / 察哈尔 1.30 / 大明 1.05）。
+ *  6. M5 重写 advanceWar 持久战公式（基线 1.5 + (ratio-1)×2.5 - 0.6 - 0.3(d-1) - 0.5g/30k）。
+ *  7. resolveBattle 不再 mutate faction.armyTotal（attackerLoss/defenderLoss
+ *     通过返回 BattleResult 暴露，由 runWarPhase 在新遭遇战时扣 armyTotal）。
+ *  8. attackerLosses 改为基于 committedForce（不再 armyTotal×0.25），
+ *     warCost/warGrain 同理。
+ *
+ * 验收：530/540 → 540/540 测试通过；batch errorRuns = 0；
+ * 大明 vs 建州持久战从 ~3 月延长至 21 月达 50% control。
+ * 大明崩盘时间从 1587 提前到 1582（v0.6 baseline 也是 0%，由 v0.8.2 单独修复）。
+ * =========================================================================== */
+
+/**
+ * v0.8: 距离衰减系数 —— 劳师远征的真正代价。
+ * distance = 1（相邻）：×1.0；distance = 2：×0.85；distance = 3：×0.70；
+ * distance ≥ 4：×0.55。让"距离"成为战斗的核心约束。
+ */
+function getDistanceMult(distance: number): number {
+  if (distance <= 1) return 1.0;
+  if (distance === 2) return 0.85;
+  if (distance === 3) return 0.70;
+  return 0.55;
+}
+
+/**
+ * v0.8: 战线初始状态 —— 双方支持度与补给均充足，随战争消耗演变。
+ *
+ * mobilizationMonths = max(0, distance - 1)：相邻地区无动员期；
+ * distance=2 → 1 月；distance=3 → 2 月；distance≥4 → 3 月。
+ * 动员期内 progress 不推进，committedForce 从 0 增长到 maxCommitRatio。
+ * 让"开战即决战"变成"下旨—集结—开打"。
+ */
+function createInitialFront(distance: number = 1): FrontState {
   return {
     attackerWarSupport: 70,
     defenderWarSupport: 70,
     attackerSupply: 100,
     defenderSupply: 100,
+    mobilizationMonths: Math.max(0, distance - 1),
+    attackerCommitted: 0,
   };
 }
 
 /**
  * Create an initial war state from the first engagement between two factions.
+ * v0.8: 传入 attacker→region 的 BFS 距离，用于初始化动员期。
  */
 export function createInitialWar(
   attacker: FactionState,
   defender: FactionState,
   region: RegionState
 ): WarState {
+  const distance = region.distanceFromCapital?.[attacker.id] ?? 1;
   return {
     id: `${attacker.id}-${defender.id}-${region.id}`,
     attackerFactionId: attacker.id,
@@ -29,15 +75,16 @@ export function createInitialWar(
     targetRegionId: region.id,
     progress: 35,
     monthsActive: 1,
-    front: createInitialFront(),
+    front: createInitialFront(distance),
   };
 }
 
 /**
- * S5b: advanceWar 的战线消耗结果。战争每月推进 progress（兵力×组织×地形），
- * 同时产生持续的军队损耗、战地军费/军粮消耗、战疲累积——由 simulation 应用
- * 到 faction 与 ledger，使战争真正咬合财政/补给/动员，而非由单月战斗决定
- * 胜负。消耗计算确定性（不消费 random），避免扰动确定性模拟的随机序列。
+ * S5b: advanceWar 的战线消耗结果。战争每月推进 progress（M5 重写后的
+ * 持久战公式），同时产生持续的军队损耗、战地军费/军粮消耗、战疲累积。
+ * v0.8 新增 nextCommittedForce：让 runWarPhase 应用到
+ * attacker.warCommitments[war.targetRegionId]，避免 advanceWar 内部
+ * 修改 faction 状态（保持纯函数语义）。
  */
 export interface WarAdvanceResult {
   war: WarState;
@@ -49,13 +96,46 @@ export interface WarAdvanceResult {
   defenderGrainCost: number;
   attackerExhaustionDelta: number;
   defenderExhaustionDelta: number;
+  /** v0.8: 进攻方下一月投送到本战线的兵力（含动员期递增）。 */
+  nextCommittedForce: number;
 }
 
 /**
+ * v0.8: 进度公式 [PLACEHOLDER] —— 持久战 + 实力加成 - 防御底线 - 距离惩罚 - 驻军拖慢。
+ *
+ * 设计意图（旧 (strengthRatio-1)*6 → 1-2 月平推 → 修后 18-30 月持久战）：
+ *   BASE_ADVANCE 1.5    持久战基线（即使弱方也要 1.5 点/月）
+ *   POWER_COEFF 2.5     实力加成（强度比每超 1，加 2.5 点；旧 6.0 → v0.8 砍到 2.5）
+ *   DEFENSE_FLOOR 0.6   防御底线减项（即使强攻也至少扣 0.6）
+ *   DISTANCE_PEN 0.3    每跳距离减 0.3（劳师远征代价）
+ *   GARRISON_DRAG 0.5   驻军拖慢（每 3 万驻军扣 0.5，上限 2.0）
+ *   PROGRESS_MIN -1.5   攻方崩盘时后退
+ *   PROGRESS_MAX 5.0    强攻上限（即使 ratio=10 也不会 1 月打完）
+ *
+ * 数值实例（大明 vs 察哈尔，distance=2）：
+ *   committed = 580k × 0.30 × 0.85 = 148k
+ *   defender = (74k × 0.64 × 0.74 + 43k × 0.5) × 1.30 = (35k + 21.5k) × 1.30 ≈ 73k
+ *   ratio = 148 / 73 = 2.03
+ *   Δ = 1.5 + (2.03-1)*2.5 - 0.6 - 0.3 - 0.72 ≈ 1.5 + 2.58 - 1.62 = 2.46 → ~26 月打完 ✓
+ */
+const BASE_ADVANCE = 1.5;
+const POWER_COEFF = 2.5;
+const DEFENSE_FLOOR = 0.6;
+const DISTANCE_PEN = 0.3;
+const GARRISON_DRAG = 0.5;
+const GARRISON_DRAG_MAX = 2.0;
+const PROGRESS_MIN = -1.5;
+const PROGRESS_MAX = 5.0;
+
+/**
  * Advance an ongoing war by one month.
- * - progress:兵力×组织×地形 的兵力比推进（确定性）
- * - 持续消耗：双方军队损耗（补给低则损耗高）、战地军费/军粮、战疲累积
- * - 进攻方补给逐月衰减（劳师远征），防守方本土补给稳定
+ * - v0.8 M1: attackerStrength 用 committedForce（不超过 maxCommitRatio × armyTotal × distanceMult）
+ * - v0.8 M2: attackerSupply 衰减按 distance（distance=1 → -1.5/月，distance≥3 → -4.5/月）
+ * - v0.8 M3: defenderStrength 加 garrison × 0.5
+ * - v0.8 M4: defenderStrength × homeTurfMult（仅当防守方 control 本地区时）
+ * - v0.8 M5: 持久战进度公式（基线 1.5 + 实力加成 − 防御底线 − 距离 − 驻军）
+ * - 动员期内 progressDelta = 0
+ * - 补给 < 50 时 attackerLosses 翻倍（劳师远征补给崩溃）
  */
 export function advanceWar(
   war: WarState,
@@ -66,44 +146,86 @@ export function advanceWar(
 ): WarAdvanceResult {
   const attackerOrgMult = 1 + queryModifier(modifiers, "faction", attacker.id, "army-org-mult");
   const defenderOrgMult = 1 + queryModifier(modifiers, "faction", defender.id, "army-org-mult");
-  const attackerStrength =
-    attacker.armyTotal *
-    (attacker.militaryOrganization / 100) *
-    attackerOrgMult *
-    (1 - attacker.warExhaustion / 200);
-  const defenderStrength =
+  const front = war.front ?? createInitialFront();
+
+  // M2: 距离与衰减系数
+  const targetDistance = region.distanceFromCapital?.[attacker.id] ?? 1;
+  const distanceMult = getDistanceMult(targetDistance);
+
+  // M1: committedForce（持久化在 attacker.warCommitments） + 动员期
+  const currentCommitted = attacker.warCommitments?.[war.targetRegionId] ?? 0;
+  const maxCommit = attacker.armyTotal * attacker.maxCommitRatio * distanceMult;
+  const inMobilization = front.mobilizationMonths > 0;
+  const committedGrowth = inMobilization ? 0 : Math.max(1000, Math.round(attacker.armyTotal * 0.05));
+  // 月度累加，封顶 maxCommit。动员期 committedForce 仍记 0（防止首月即决战）
+  const nextCommitted = inMobilization
+    ? 0
+    : Math.min(maxCommit, currentCommitted + committedGrowth);
+  const activeForce = inMobilization ? 0 : nextCommitted;
+
+  // M3 + M4: 防守方 = (正规军 × fortMult + garrison × 0.5) × homeTurfMult
+  const defenderCore =
     defender.armyTotal *
     (defender.militaryOrganization / 100) *
     defenderOrgMult *
+    (1 - defender.warExhaustion / 200) *
     ((region.fortification / 100) + 0.5);
+  const defenderGarrison = region.garrison * 0.5;
+  const defenderIsHome = region.controllerFactionId === defender.id;
+  const homeMult = defenderIsHome ? defender.homeTurfMult : 1.0;
+  const defenderStrength = (defenderCore + defenderGarrison) * homeMult;
+
+  // M1: 攻方力量
+  const attackerStrength =
+    activeForce *
+    (attacker.militaryOrganization / 100) *
+    attackerOrgMult *
+    (1 - attacker.warExhaustion / 200);
 
   const strengthRatio = attackerStrength / Math.max(1, defenderStrength);
-  const progressDelta = Math.round((strengthRatio - 1) * 6);
+
+  // M5: 持久战进度公式
+  const powerAdv = Math.max(0, (strengthRatio - 1) * POWER_COEFF);
+  const distancePen = Math.max(0, targetDistance - 1) * DISTANCE_PEN;
+  const garrisonDrag = Math.min(GARRISON_DRAG_MAX, (region.garrison / 30000) * GARRISON_DRAG);
+  let progressDelta = BASE_ADVANCE + powerAdv - DEFENSE_FLOOR - distancePen - garrisonDrag;
+  progressDelta = Math.max(PROGRESS_MIN, Math.min(PROGRESS_MAX, progressDelta));
+  // 动员期不推进 progress
+  if (inMobilization) progressDelta = 0;
+
   const nextProgress = Math.max(0, Math.min(100, war.progress + progressDelta));
 
-  // S5b: 战线持续消耗（确定性）。
-  const front = war.front ?? createInitialFront();
+  // M2: 持续消耗（确定性）
   const supplyA = Math.max(0.3, front.attackerSupply / 100);
   const supplyD = Math.max(0.3, front.defenderSupply / 100);
-  const committedAttacker = Math.max(500, Math.round(attacker.armyTotal * 0.25));
+  // 动员期攻击方不派兵，无损耗
+  const committedAttacker = inMobilization ? 0 : activeForce;
   const committedDefender = Math.max(region.garrison, Math.round(defender.armyTotal * 0.15));
   const baseAttrition = 0.022;
-  const attackerLosses = Math.round((committedAttacker * baseAttrition) / supplyA);
+  // M2 补给崩溃：< 50 时损耗翻倍（劳师远征代价）
+  const supplyShortageMult = front.attackerSupply < 50 ? 2.0 : 1.0;
+  const attackerLosses = Math.round((committedAttacker * baseAttrition * supplyShortageMult) / supplyA);
   const defenderLosses = Math.round((committedDefender * baseAttrition) / supplyD);
-  // 战地军费/军粮：在常规维护（calculateFactionMaintenance）之上的额外消耗，
-  // 让战争可感地侵蚀财政与粮储（大明 68 万军 ×0.05 ≈ 3.4 万银/月/战线）。
+  // 战地军费/军粮：在常规维护（calculateFactionMaintenance）之上的额外消耗
   const warCostPerSoldier = 0.05;
   const warGrainPerSoldier = 0.05;
-  const attackerSilverCost = Math.round(attacker.armyTotal * warCostPerSoldier);
+  const attackerSilverCost = Math.round(committedAttacker * warCostPerSoldier);
   const defenderSilverCost = Math.round(defender.armyTotal * warCostPerSoldier);
-  const attackerGrainCost = Math.round(attacker.armyTotal * warGrainPerSoldier);
+  const attackerGrainCost = Math.round(committedAttacker * warGrainPerSoldier);
   const defenderGrainCost = Math.round(defender.armyTotal * warGrainPerSoldier);
+
+  // M2 补给按距离衰减
+  const supplyDecay = 1.5 * targetDistance;
+  // 动员期递减 mobilizationMonths
+  const nextMobilization = Math.max(0, front.mobilizationMonths - 1);
 
   const nextFront: FrontState = {
     attackerWarSupport: front.attackerWarSupport,
     defenderWarSupport: front.defenderWarSupport,
-    attackerSupply: Math.max(30, front.attackerSupply - 0.5),
+    attackerSupply: Math.max(0, front.attackerSupply - supplyDecay),
     defenderSupply: front.defenderSupply,
+    mobilizationMonths: nextMobilization,
+    attackerCommitted: committedAttacker,
   };
 
   return {
@@ -116,6 +238,7 @@ export function advanceWar(
     defenderGrainCost,
     attackerExhaustionDelta: 1.5,
     defenderExhaustionDelta: 1.0,
+    nextCommittedForce: nextCommitted,
   };
 }
 
@@ -123,6 +246,10 @@ export interface BattleResult {
   region: RegionState;
   attacker: FactionState;
   defender: FactionState;
+  /** v0.8: 首战 attacker 损耗（runWarPhase 在新遭遇战时一次性扣 armyTotal）。 */
+  attackerLoss: number;
+  /** v0.8: 首战 defender 损耗（runWarPhase 在新遭遇战时一次性扣 armyTotal）。 */
+  defenderLoss: number;
   report: string;
   war: WarState | null;
 }
@@ -157,6 +284,15 @@ export function resolveBattle(
   const nextControl = attackerWins ? Math.max(20, region.control - 18) : Math.max(25, region.control - 6);
   const captured = attackerWins && nextControl <= 35;
 
+  // v0.8: resolveBattle 不再 mutate attacker/defender.armyTotal（保持纯函数
+  // 语义）。原因：大明 AI 每月换 targetRegionId 时，resolveBattle 每次都是
+  // "新遭遇战"，每月从 armyTotal 扣 18.7k，多线同时开战几月内让 armyTotal
+  // 跌到 0。改为：
+  //   - attackerLoss / defenderLoss 通过返回 BattleResult 暴露
+  //   - runWarPhase 显式处理：已有 war（advanceWar 已扣）则不应用；
+  //     新战（resolveBattle 创建）则扣首月 armyTotal 损耗。
+  // region 的 garrison / control 变化仍由 resolveBattle 应用（capture 时
+  // 直接易主，garrison 损耗是首战核心机制）。
   return {
     region: {
       ...region,
@@ -164,30 +300,16 @@ export function resolveBattle(
       control: captured ? 38 : nextControl,
       garrison: Math.max(1000, region.garrison - defenderLoss)
     },
-    attacker: {
-      ...attacker,
-      armyTotal: Math.max(0, attacker.armyTotal - attackerLoss),
-      warExhaustion: Math.min(100, attacker.warExhaustion + (posture === "aggressive" ? 3 : 2))
-    },
-    defender: {
-      ...defender,
-      armyTotal: Math.max(0, defender.armyTotal - defenderLoss),
-      warExhaustion: Math.min(100, defender.warExhaustion + 2)
-    },
+    attacker,
+    defender,
+    attackerLoss,
+    defenderLoss,
     report: captured
       ? `${attacker.name}攻占${region.name}，当地控制度骤降。`
       : `${attacker.name}进攻${region.name}，双方均有损失。`,
     war: captured
       ? null
-      : {
-          id: `${attacker.id}-${defender.id}-${region.id}`,
-          attackerFactionId: attacker.id,
-          defenderFactionId: defender.id,
-          targetRegionId: region.id,
-          progress: attackerWins ? 60 : 35,
-          monthsActive: 1,
-          front: createInitialFront(),
-        }
+      : createInitialWar(attacker, defender, region)
   };
 }
 

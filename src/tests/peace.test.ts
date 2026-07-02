@@ -18,6 +18,8 @@ function makeWar(overrides: Partial<WarState> = {}): WarState {
       defenderWarSupport: 60,
       attackerSupply: 100,
       defenderSupply: 100,
+      mobilizationMonths: 0,
+      attackerCommitted: 0,
     },
     ...overrides,
   };
@@ -72,7 +74,7 @@ describe("checkPeace", () => {
     const s = makeState();
     const war = makeWar({
       progress: 50,
-      front: { attackerWarSupport: 70, defenderWarSupport: 10, attackerSupply: 100, defenderSupply: 100 },
+      front: { attackerWarSupport: 70, defenderWarSupport: 10, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
     });
     const peace = checkPeace(s, war);
     expect(peace?.winnerId).toBe("jianzhou");
@@ -83,7 +85,7 @@ describe("checkPeace", () => {
     const s = makeState();
     const war = makeWar({
       progress: 50,
-      front: { attackerWarSupport: 10, defenderWarSupport: 70, attackerSupply: 100, defenderSupply: 100 },
+      front: { attackerWarSupport: 10, defenderWarSupport: 70, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
     });
     const peace = checkPeace(s, war);
     expect(peace?.winnerId).toBe("ming");
@@ -94,7 +96,7 @@ describe("checkPeace", () => {
     const war = makeWar({
       progress: 50,
       monthsActive: 5,
-      front: { attackerWarSupport: 60, defenderWarSupport: 60, attackerSupply: 100, defenderSupply: 100 },
+      front: { attackerWarSupport: 60, defenderWarSupport: 60, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
     });
     expect(checkPeace(s, war)).toBeNull();
   });
@@ -104,7 +106,7 @@ describe("checkPeace", () => {
     const war = makeWar({
       progress: 50,
       monthsActive: 50,
-      front: { attackerWarSupport: 40, defenderWarSupport: 38, attackerSupply: 100, defenderSupply: 100 },
+      front: { attackerWarSupport: 40, defenderWarSupport: 38, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
     });
     const peace = checkPeace(s, war);
     expect(peace?.reason).toBe("exhaustion");
@@ -159,7 +161,7 @@ describe("S6 遗留#2：玩家主动求和（requestPeace）", () => {
         targetRegionId: "liaodong",
         progress: 50,
         monthsActive: 5,
-        front: { attackerWarSupport: 60, defenderWarSupport: 50, attackerSupply: 100, defenderSupply: 100 },
+        front: { attackerWarSupport: 60, defenderWarSupport: 50, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
       },
     ];
     const mingRegionsBefore = Object.values(s.regions).filter((r) => r.controllerFactionId === "ming").length;

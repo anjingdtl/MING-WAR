@@ -163,6 +163,13 @@ export interface RegionState {
   popGroups?: PopGroup[];
   industries?: IndustryState[];
   market?: import("./market").MarketState;
+  /**
+   * v0.8: 预计算的 BFS 距离表，key = factionId，value = 该地区到该势力首都
+   * （capitalRegionId）的最短跳数。未计算时为空对象；createMvpScenario 与
+   * 每局开始 / 地区拓扑变更时由 computeDistanceMap 写入。让"劳师远征"
+   * 真正可感：距离越远，投送系数 / 补给衰减越差。
+   */
+  distanceFromCapital?: Record<FactionId, number>;
 }
 
 export interface FactionState {
@@ -185,6 +192,26 @@ export interface FactionState {
   status: FactionStatus;
   cliques: FactionCliqueState[];
   administrationBase: number;
+  /**
+   * v0.8: 主场防御加成。防守方在自己控制的地区（且是该势力核心/历史领地）
+   * 时 effectiveStrength × homeTurfMult。周边小势力在自己领土凝聚力高
+   * （建州 1.40、察哈尔 1.30），大明统一王朝反而内部多元，主场加成低
+   * （1.05）。仅在防守且 control 本地区时生效。
+   */
+  homeTurfMult: number;
+  /**
+   * v0.8: 投送系数上限。最大 committedForce = maxCommitRatio × armyTotal
+   * × distanceMult（距离衰减）。大明 0.30（中央调度有限），周边部落 0.55-
+   * 0.60（全民皆兵就近集结）。让"全兵力幻觉"消失——大明 58 万投送到察哈尔
+   * 前线最多 17.4 万，再乘距离衰减更少。
+   */
+  maxCommitRatio: number;
+  /**
+   * v0.8: 当前每条战线的投送兵力（regionId → committed force）。由
+   * runWarPhase 月度动员增长（5%/月），达到上限后停止。war 结束时清零。
+   * 让 committedForce 持久化在 faction 上，避免 war 状态需要重复计算。
+   */
+  warCommitments: Record<RegionId, number>;
 }
 
 export interface PlayerDecision {
@@ -203,6 +230,18 @@ export interface FrontState {
   /** 0..100 补给状况（进攻方远离本土会衰减，抬高损耗）。 */
   attackerSupply: number;
   defenderSupply: number;
+  /**
+   * v0.8: 调兵遣将剩余月（>0 时不推进 progress，每月初减 1）。距离越远
+   * 动员期越长（distance=1 → 0，distance=2 → 1，distance=3 → 2，
+   * distance≥4 → 3）。同时 committedForce 在此期间从 0 增到上限。
+   * 让"开战即决战"变成"下旨—集结—开打"。
+   */
+  mobilizationMonths: number;
+  /**
+   * v0.8: 进攻方当前投送到本战线的兵力（committedForce）。在动员期
+   * 单调递增到 maxCommitRatio × armyTotal × distanceMult。
+   */
+  attackerCommitted: number;
 }
 
 export interface WarState {

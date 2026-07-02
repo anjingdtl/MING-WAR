@@ -48,7 +48,7 @@ describe("DiplomacyPanel (S6 遗留#2 外交交互)", () => {
             targetRegionId: "liaodong",
             progress: 55,
             monthsActive: 3,
-            front: { attackerWarSupport: 60, defenderWarSupport: 50, attackerSupply: 100, defenderSupply: 100 },
+            front: { attackerWarSupport: 60, defenderWarSupport: 50, attackerSupply: 100, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 },
           },
         ],
       },

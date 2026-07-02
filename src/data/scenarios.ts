@@ -4,6 +4,7 @@ import { initializeIndustries, initializeMarket } from "../core/market";
 import { factionTemplates } from "./factions";
 import { addTreaty, ensureRelation } from "../core/diplomacy";
 import { regionTemplates } from "./regions";
+import { computeDistanceMap } from "../core/decisions";
 
 export const defaultPlayerDecision: PlayerDecision = {
   targetRegionId: "liaodong",
@@ -45,6 +46,9 @@ const rebelFaction: FactionState = {
     { cliqueId: "frontier", support: 30, strength: 0, activeModifier: 0, approval: 50 },
   ],
   administrationBase: 20,
+  homeTurfMult: 1.10,
+  maxCommitRatio: 0.40,
+  warCommitments: {},
 };
 
 /**
@@ -128,6 +132,9 @@ export function createMvpScenario(playerFactionId = "ming", seed = 157301): Game
     diplomacy: {}
   };
   initializeDiplomacy(state);
+
+  // v0.8: BFS 距离表预计算（让"劳师远征"可感）
+  computeDistanceMap(state);
 
   // Phase 3 §3.5: 开局 modifier（前史事件处理）
   // 隆庆开海 (1567): 沿海区域 commerce +0.05, 福建/广东 stability +5

@@ -37,6 +37,9 @@ describe("domain types", () => {
         { cliqueId: "frontier", support: 50, strength: 0, activeModifier: 0, approval: 50 },
       ],
       administrationBase: 72,
+      homeTurfMult: 1.05,
+      maxCommitRatio: 0.30,
+      warCommitments: {},
     };
 
     const region: RegionState = {

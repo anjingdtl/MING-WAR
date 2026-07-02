@@ -56,6 +56,9 @@ function makeFaction(overrides: Partial<FactionState> = {}): FactionState {
     status: "active",
     cliques: [],
     administrationBase: 30,
+    homeTurfMult: 1.0,
+    maxCommitRatio: 1.0,
+    warCommitments: {},
     ...overrides
   };
 }
@@ -144,7 +147,7 @@ describe("S5b: 战线持续消耗", () => {
     const region = makeRegion();
     const rHigh = advanceWar(createInitialWar(attacker, defender, region), attacker, defender, region);
     const warLow = createInitialWar(attacker, defender, region);
-    warLow.front = { attackerWarSupport: 70, defenderWarSupport: 70, attackerSupply: 40, defenderSupply: 100 };
+    warLow.front = { attackerWarSupport: 70, defenderWarSupport: 70, attackerSupply: 40, defenderSupply: 100, mobilizationMonths: 0, attackerCommitted: 0 };
     const rLow = advanceWar(warLow, attacker, defender, region);
     expect(rLow.attackerLosses).toBeGreaterThan(rHigh.attackerLosses);
   });
@@ -250,5 +253,220 @@ describe("S5 遗留#2：同盟参战（alliesJoinWar）", () => {
   it("无盟友时不产生参战 war", () => {
     const s = createMvpScenario("ming", 1);
     expect(alliesJoinWar(s, "ming", "jianzhou")).toEqual([]);
+  });
+});
+
+describe("v0.8: 持久战 + 投送系数 + 主场 / 距离 / 驻军", () => {
+  // [PLACEHOLDER] 公式：BASE 1.5 + POWER_COEFF 2.5 × (ratio-1) − FLOOR 0.6
+  //  − DIST_PEN 0.3 × (distance-1) − GARRISON_DRAG 0.5 × (garrison/30000)
+  // 数值示例：大明（maxCommit=0.30, home=1.05）vs 察哈尔（home=1.30, dist=2）：
+  //   committed = 580k × 0.30 × 0.85 = 148k
+  //   defender  = (74k × 0.64 × 0.74 + 43k × 0.5) × 1.30 = 73k
+  //   ratio = 2.03 → Δ = 1.5 + 2.58 − 0.6 − 0.3 − 0.72 = 2.46 → ~26 月打完
+
+  function makeRegionWithDistance(overrides: Partial<RegionState> = {}): RegionState {
+    return makeRegion({
+      distanceFromCapital: { ming: 1, jianzhou: 1, chahar: 2 },
+      ...overrides,
+    });
+  }
+
+  it("大明 vs 察哈尔（distance=2）：12 月内不推满，旧公式 2 月完胜已修", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 580000, militaryOrganization: 58,
+      homeTurfMult: 1.05, maxCommitRatio: 0.30,
+      warCommitments: { chahar_steppe: 580000 * 0.30 * 0.85 },  // 模拟已全投送
+    });
+    const chahar = makeFaction({
+      id: "chahar", armyTotal: 74000, militaryOrganization: 64,
+      homeTurfMult: 1.30, maxCommitRatio: 0.55,
+    });
+    const region = makeRegionWithDistance({
+      id: "chahar_steppe",
+      controllerFactionId: "chahar",
+      fortification: 24,
+      garrison: 43000,
+      distanceFromCapital: { ming: 2, jianzhou: 4, chahar: 0 },
+    });
+    const war = createInitialWar(ming, chahar, region);
+    // 跳过动员期（2 月）+ 12 月推进
+    let current = war;
+    for (let i = 0; i < 2 + 12; i++) {
+      current = advanceWar(current, ming, chahar, region).war;
+    }
+    // 14 月后（含 2 月动员）：progress 应该 < 80（不会 2 月完胜）
+    expect(current.progress).toBeLessThan(80);
+    expect(current.progress).toBeGreaterThan(35); // 但确实在推进
+  });
+
+  it("大明 vs 建州（distance=2）：18 月内不能 1 月推平", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 580000, militaryOrganization: 58,
+      homeTurfMult: 1.05, maxCommitRatio: 0.30,
+      warCommitments: { jianzhou: 580000 * 0.30 * 0.85 },
+    });
+    const jianzhou = makeFaction({
+      id: "jianzhou", armyTotal: 42000, militaryOrganization: 62,
+      homeTurfMult: 1.40, maxCommitRatio: 0.60,
+    });
+    const region = makeRegionWithDistance({
+      id: "jianzhou",
+      controllerFactionId: "jianzhou",
+      fortification: 35,
+      garrison: 32000,
+      distanceFromCapital: { ming: 2, jianzhou: 0, chahar: 4 },
+    });
+    const war = createInitialWar(ming, jianzhou, region);
+    let current = war;
+    for (let i = 0; i < 2 + 18; i++) {
+      current = advanceWar(current, ming, jianzhou, region).war;
+    }
+    // 20 月后（含 2 月动员）：progress < 95（不会"完胜"）
+    expect(current.progress).toBeLessThan(95);
+  });
+
+  it("动员期 progress 不推进，committedForce 不增长", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 580000, maxCommitRatio: 0.30,
+      warCommitments: {},
+    });
+    const jianzhou = makeFaction({
+      id: "jianzhou", armyTotal: 42000, homeTurfMult: 1.40, maxCommitRatio: 0.60,
+    });
+    const region = makeRegionWithDistance({
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 2, jianzhou: 0, chahar: 4 },
+    });
+    const war = createInitialWar(ming, jianzhou, region);
+    expect(war.front?.mobilizationMonths).toBe(1);  // distance=2 → 1 月动员
+
+    const r1 = advanceWar(war, ming, jianzhou, region);
+    expect(r1.war.progress).toBe(35);  // 动员期不推进
+    expect(r1.war.front?.mobilizationMonths).toBe(0);  // 动员期递减
+
+    const r2 = advanceWar(r1.war, ming, jianzhou, region);
+    expect(r2.war.progress).toBeGreaterThan(35);  // 动员期后开始推进
+  });
+
+  it("committedForce 渐进增长，受 maxCommitRatio 限制", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 580000, maxCommitRatio: 0.30, warCommitments: {},
+    });
+    const jianzhou = makeFaction({
+      id: "jianzhou", armyTotal: 42000, homeTurfMult: 1.40, maxCommitRatio: 0.60,
+    });
+    const region = makeRegionWithDistance({
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 1, jianzhou: 0, chahar: 4 },  // 相邻，distance=1，无动员
+    });
+    // 跳过动员期（distance=1 → 0）
+    const war = createInitialWar(ming, jianzhou, region);
+    let current = war;
+    let r1 = advanceWar(current, ming, jianzhou, region);
+    // 投送增长 = maxCommitRatio × armyTotal 的 5%（首月）
+    // expected 5%: 580k × 0.30 × 0.05 = 8700 (round)
+    expect(r1.nextCommittedForce).toBeLessThan(580000 * 0.30);
+    expect(r1.nextCommittedForce).toBeGreaterThan(0);
+
+    // 持续推进，最终不超过 maxCommitRatio。模拟 runWarPhase 的副作用：
+    // 每次 advanceWar 后把 nextCommittedForce 写回 ming.warCommitments，
+    // 否则下次 advanceWar 仍读到 0，committedForce 永远不增长。
+    let prevForce = r1.nextCommittedForce;
+    for (let i = 0; i < 60; i++) {
+      ming.warCommitments[war.targetRegionId] = r1.nextCommittedForce;
+      current = r1.war;
+      r1 = advanceWar(current, ming, jianzhou, region);
+      expect(r1.nextCommittedForce).toBeLessThanOrEqual(580000 * 0.30 + 1);
+      prevForce = r1.nextCommittedForce;
+    }
+    // 60 月后（如果还没结束），committedForce 应该已经达到 maxCommitRatio × armyTotal
+    expect(prevForce).toBeCloseTo(580000 * 0.30, -3);
+  });
+
+  it("补给 < 50 时 attackerLosses 翻倍（劳师远征补给崩溃）", () => {
+    const ming = makeFaction({ id: "ming", armyTotal: 100000, maxCommitRatio: 1.0, warCommitments: { test: 50000 } });
+    const defender = makeFaction({ id: "jianzhou", armyTotal: 10000, homeTurfMult: 1.0, maxCommitRatio: 1.0 });
+    const region = makeRegion({ distanceFromCapital: { ming: 1, jianzhou: 1 } });
+    const warFull = createInitialWar(ming, defender, region);
+    const rFull = advanceWar(warFull, ming, defender, region);
+    const warLow = createInitialWar(ming, defender, region);
+    warLow.front = { ...warLow.front!, attackerSupply: 30 };
+    const rLow = advanceWar(warLow, ming, defender, region);
+    // 补给 < 50：损耗翻倍
+    expect(rLow.attackerLosses).toBeGreaterThanOrEqual(rFull.attackerLosses * 1.8);
+  });
+
+  it("主场加成：防守方 homeTurfMult 让防守更强", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 100000, militaryOrganization: 80, maxCommitRatio: 1.0,
+      warCommitments: { test: 100000 },
+    });
+    const defenderHome = makeFaction({
+      id: "jianzhou", armyTotal: 30000, militaryOrganization: 60, homeTurfMult: 1.40, maxCommitRatio: 1.0,
+    });
+    const defenderAway = makeFaction({
+      id: "jianzhou", armyTotal: 30000, militaryOrganization: 60, homeTurfMult: 1.0, maxCommitRatio: 1.0,
+    });
+    const region = makeRegion({
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 1, jianzhou: 0 },
+    });
+    const warHome = advanceWar(createInitialWar(ming, defenderHome, region), ming, defenderHome, region);
+    const warAway = advanceWar(createInitialWar(ming, defenderAway, region), ming, defenderAway, region);
+    // 主场时 progress 推进更慢
+    expect(warHome.war.progress).toBeLessThanOrEqual(warAway.war.progress);
+  });
+
+  it("驻军 garrison 拖慢 progress", () => {
+    const ming = makeFaction({
+      id: "ming", armyTotal: 100000, militaryOrganization: 80, maxCommitRatio: 1.0,
+      warCommitments: { test: 100000 },
+    });
+    const defender = makeFaction({
+      id: "jianzhou", armyTotal: 10000, militaryOrganization: 50, homeTurfMult: 1.0, maxCommitRatio: 1.0,
+    });
+    const regionHighGarrison = makeRegion({
+      controllerFactionId: "jianzhou",
+      garrison: 80000,
+      distanceFromCapital: { ming: 1, jianzhou: 0 },
+    });
+    const regionLowGarrison = makeRegion({
+      controllerFactionId: "jianzhou",
+      garrison: 5000,
+      distanceFromCapital: { ming: 1, jianzhou: 0 },
+    });
+    const rHigh = advanceWar(createInitialWar(ming, defender, regionHighGarrison), ming, defender, regionHighGarrison);
+    const rLow = advanceWar(createInitialWar(ming, defender, regionLowGarrison), ming, defender, regionLowGarrison);
+    // 高驻军：progress 推进更慢
+    expect(rHigh.war.progress).toBeLessThanOrEqual(rLow.war.progress);
+  });
+
+  it("createInitialWar 初始化动员期 = max(0, distance-1)", () => {
+    const ming = makeFaction({ id: "ming", armyTotal: 580000, maxCommitRatio: 0.30, warCommitments: {} });
+    const jianzhou = makeFaction({ id: "jianzhou", armyTotal: 42000, homeTurfMult: 1.40, maxCommitRatio: 0.60 });
+    const region = makeRegion({
+      id: "deep",
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 4, jianzhou: 0 },
+    });
+    const war = createInitialWar(ming, jianzhou, region);
+    expect(war.front?.mobilizationMonths).toBe(3);  // distance=4 → 3 月动员
+  });
+
+  it("距离衰减 supplyDecay 按 1.5 × distance 加速补给下降", () => {
+    const ming = makeFaction({ id: "ming", armyTotal: 100000, maxCommitRatio: 1.0, warCommitments: { test: 100000 } });
+    const defender = makeFaction({ id: "jianzhou", armyTotal: 10000, homeTurfMult: 1.0, maxCommitRatio: 1.0 });
+    const regionClose = makeRegion({
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 1, jianzhou: 0 },
+    });
+    const regionFar = makeRegion({
+      controllerFactionId: "jianzhou",
+      distanceFromCapital: { ming: 4, jianzhou: 0 },
+    });
+    const rClose = advanceWar(createInitialWar(ming, defender, regionClose), ming, defender, regionClose);
+    const rFar = advanceWar(createInitialWar(ming, defender, regionFar), ming, defender, regionFar);
+    // 远距离（distance=4）衰减更快（但要等动员期结束）
+    expect(rFar.war.front?.attackerSupply).toBeLessThan(rClose.war.front?.attackerSupply ?? 100);
   });
 });

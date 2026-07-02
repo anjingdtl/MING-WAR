@@ -19,7 +19,7 @@
  */
 
 import { chooseAllAiDecisions } from "./ai";
-import { normalizePlayerDecision } from "./decisions";
+import { computeDistanceMap, normalizePlayerDecision } from "./decisions";
 import { createRandom } from "./random";
 import {
   freshTiming,
@@ -59,6 +59,9 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const ledgerEntries: import("./ledger").LedgerEntry[] = [];
   const playerDecision = normalizePlayerDecision(state, input.playerDecision);
   const aiDecisions = chooseAllAiDecisions(state);
+
+  // v0.8: 防御性 BFS 距离表重算（防御 loadGame / 序列化恢复后拓扑变更）
+  computeDistanceMap(state);
 
   // 构造阶段共享 context
   const ctx = createSimulationContext(

@@ -314,6 +314,80 @@
 
 ---
 
+### v0.8 战争节奏与势力强度重构（2026-07-02，用户反馈：推演节奏不符合历史）
+
+> 承接 v0.6-stability（架构）+ v0.7（地图）的最后一公里：把"推演节奏"修回历史。
+> SPEC：`docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md`
+> 诊断脚本：`src/scripts/diagnoseWars.ts`（新增）
+
+**用户反馈**：大明几个月就能打遍周边、周边势力太弱、省区驻军/人口/粮食完全没作用在军事层面。
+
+**根因（`src/core/warfare.ts` 旧公式）**：
+
+```ts
+const strengthRatio = attackerStrength / Math.max(1, defenderStrength);
+const progressDelta = Math.round((strengthRatio - 1) * 6);
+```
+
+大明 58 万 vs 建州 4.2 万 → ratio=14.8 → Δ=83 点/月 → 开局 35 + 83 = 100，**1 月推平辽东**。strengthRatio 用全兵力对比，无距离/投送/驻军/主场，区域 garrison 4.3 万完全没参与战斗。
+
+**5 个修复机制（M1-M5）**：
+
+| # | 机制 | 字段 / 改动 |
+|---|---|---|
+| M1 | 投送系数 | `FactionState.maxCommitRatio`（大明 0.30 / 建州 0.60 / 察哈尔 0.55）+ `warCommitments[regionId]` 月度增长到 maxCommitRatio × armyTotal × distanceMult |
+| M2 | 距离与补给 | `RegionState.distanceFromCapital[factionId]` BFS 预计算；distanceMult × 1.0/0.85/0.70/0.55；supplyDecay = 1.5 × distance |
+| M3 | 驻军参与防御 | defenderStrength = (core × fortMult + garrison × 0.5) × homeTurfMult |
+| M4 | 主场凝聚力 | `FactionState.homeTurfMult`（建州 1.40 / 察哈尔 1.30 / 土默特 1.25 / 朝鲜 1.20 / 大明 1.05） |
+| M5 | 持久战公式 + 动员期 | `progressDelta = BASE(1.5) + (ratio-1)*2.5 − 0.6 − 0.3*(d-1) − 0.5*g/30k`；FrontState.mobilizationMonths = distance-1 |
+
+**关键 bug 修复（`runWarPhase.ts`）**：
+
+1. **resolveBattle 不再每月替换 ongoing war**：旧代码 `filter+concat(battle.war)` 把已有 war（含 committedForce）替换为新 war，committedForce 永远从 0 开始。
+2. **resolveBattle 不再 mutate faction.armyTotal**：大明 AI 每月换 targetRegionId → resolveBattle 每次都是新遭遇战 → 每月 armyTotal 扣 18.7k → 多线几月内跌到 0。
+3. **attackerLosses 从 committedForce 自损**（不再 armyTotal）：committedForce 是"调度"，自损合理；armyTotal 是全国总兵力，保持稳定。
+4. **defender 被 eliminateDefeatedFactions 清除时清理 war**：否则 advanceWar 看到 collapsed defender 跳过但 war 残留，污染 state.wars。
+5. **resolveBattle capture 时移除已有 war**：capture 后 next month 大明 AI 仍指向同一 region，defender = 大明自己 skip resolveBattle。
+
+**验收**：
+
+| 维度 | v0.6 baseline | v0.8 |
+|---|---|---|
+| typecheck | 0 errors | 0 errors ✅ |
+| 测试数 | 530 | **540**（+9 v0.8 专项 + 1 types 必填修复） |
+| `mingSurvivalRate` | 0（崩盘 1587） | 0（崩盘 1582，v0.8 副作用） |
+| `errorRuns` | 0 | 0 ✅ |
+| `hash:state` | baseline | **必漂移**（CLAUDE.md §5.1 已知） |
+| 建州/科尔沁 → 大明 50% | ~3 月 | **21 月** ✅ |
+
+`DETERMINISM-CHANGE`：v0.8 大幅修改 warfare / runWarPhase 逻辑，所有 seed 命运重新分配。
+
+**已知 v0.8 副作用 / 后续方向**：
+
+1. **大明 vs 弱敌仍快速 capture**：resolveBattle 首战 attackerPower > defenderPower 时直接 capture，未进入 advanceWar 持久战。后续 v0.8.1 可把 capture 条件调严 `nextControl <= 15`。
+2. **`mingSurvivalRate` 仍 0**：v0.6 baseline 已存在（PROGRESS.md §3 标 1.0 但实测 0）。崩盘时间提前 5 年（1587→1582）可能与大明多线 committedForce 分散有关。后续 v0.8.2 单独处理大明韧性。
+3. **committedForce 增长慢（5%/月）**：大明 vs 察哈尔首战第 2 月 committedForce=28k、第 3 月 54k、第 4 月 capture（resolveBattle 直接胜）。如果首战 attackerWins=false 进入持久战，会看到完整的 6-7 月到 maxCommit 174k。
+4. **大明 AI 决策激进**：scoreTarget 默认按 garrison 小/人口大选，每月换目标。resolveBattle 改纯函数后已无 armyTotal 副作用。
+
+**新增 / 修改文件**：
+
+新增：`src/scripts/diagnoseWars.ts`（战争时间线诊断）、`docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md`（SPEC）
+
+修改：`src/core/types.ts`（3 个新字段）、`src/data/factions.ts`（11 势力 + rebel）、`src/core/decisions.ts`（computeDistanceMap BFS）、`src/data/scenarios.ts`（调用）、`src/core/simulation.ts`（防御性重算）、`src/core/warfare.ts`（重写 advanceWar + resolveBattle 改纯函数）、`src/core/simulationPhases/runWarPhase.ts`（首战 / 持久战 / war 清理）、`src/tests/warfare.test.ts`（+9 测试）、`src/tests/peace.test.ts` / `diplomacy-panel.test.tsx` / `types.test.ts`（字面量补字段）
+
+**调参建议**（[PLACEHOLDER]）：
+
+```ts
+const BASE_ADVANCE = 1.5;
+const POWER_COEFF = 2.5;
+const DEFENSE_FLOOR = 0.6;
+const DISTANCE_PEN = 0.3;
+const GARRISON_DRAG = 0.5;
+```
+
+数值实例（大明 vs 察哈尔，distance=1）：committed = 174k，defender = 73k，ratio=2.0 → Δ=2.5/月 → (100-35)/2.5 = 26 月打完。
+
+---
 ### v0.7.7 → v0.7.8 清除剩余矩形 context / 海上色块（2026-07-01，第四次反馈）
 
 **用户反馈**：v0.7.7 调试截图中仍有多个矩形色块（东南亚、琉球、西太平洋、北海、东北亚边缘）。

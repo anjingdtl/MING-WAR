@@ -43,3 +43,47 @@ export function normalizePlayerDecision(state: GameState, decision: PlayerDecisi
     domesticFocus: decision.domesticFocus
   };
 }
+
+/**
+ * v0.8: 为每个 region 预计算到各 faction 首都的 BFS 最短距离。
+ * 写入 region.distanceFromCapital[factionId] = 跳数。
+ *
+ * 调用时机：
+ *   1. createMvpScenario() 末尾（开局时）
+ *   2. simulateMonth() 入口（防御性：任何地区拓扑变更后保持距离表最新）
+ *
+ * 设计意图：让"劳师远征"可感。距离 = 1（相邻）：×1.0 投送；距离 = 2：×0.85；
+ * 距离 = 3：×0.70；距离 ≥ 4：×0.55。补给按 1.5 × distance 衰减。周边小势力
+ * 不再被大明 1-2 月推平；大明要真调兵 3-5 月才能集结完毕。
+ *
+ * 注意：不消耗 random，纯拓扑计算。runWarPhase 不调用（已经在
+ * simulateMonth 入口预计算，避免每条 war 重复 BFS）。
+ */
+export function computeDistanceMap(state: GameState): void {
+  for (const faction of Object.values(state.factions)) {
+    if (faction.status !== "active" || !faction.capitalRegionId) continue;
+    const capitalId = faction.capitalRegionId;
+    const capital = state.regions[capitalId];
+    if (!capital) continue;
+    // BFS from capital
+    const distances: Record<string, number> = { [capitalId]: 0 };
+    const queue: string[] = [capitalId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const currentDist = distances[current];
+      const currentRegion = state.regions[current];
+      if (!currentRegion) continue;
+      for (const neighborId of currentRegion.connections) {
+        if (!(neighborId in distances)) {
+          distances[neighborId] = currentDist + 1;
+          queue.push(neighborId);
+        }
+      }
+    }
+    // 写入每个 region 的 distanceFromCapital（未到达的设 Infinity → getDistanceMult 走 ≥ 4 分支）
+    for (const region of Object.values(state.regions)) {
+      if (!region.distanceFromCapital) region.distanceFromCapital = {};
+      region.distanceFromCapital[faction.id] = distances[region.id] ?? 999;
+    }
+  }
+}

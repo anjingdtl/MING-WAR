@@ -43,6 +43,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques({ reform: 55, donglin: 55, eunuch: 47 }),
     administrationBase: 72,
+    homeTurfMult: 1.05,
+    maxCommitRatio: 0.30,
+    warCommitments: {},
   },
   tumed: {
     id: "tumed",
@@ -72,6 +75,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 38,
+    homeTurfMult: 1.25,
+    maxCommitRatio: 0.55,
+    warCommitments: {},
   },
   jianzhou: {
     id: "jianzhou",
@@ -101,6 +107,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques({ frontier: 58, reform: 45 }),
     administrationBase: 32,
+    homeTurfMult: 1.40,
+    maxCommitRatio: 0.60,
+    warCommitments: {},
   },
   chahar: {
     id: "chahar",
@@ -130,6 +139,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 30,
+    homeTurfMult: 1.30,
+    maxCommitRatio: 0.55,
+    warCommitments: {},
   },
   haixi: {
     id: "haixi",
@@ -159,6 +171,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 28,
+    homeTurfMult: 1.20,
+    maxCommitRatio: 0.50,
+    warCommitments: {},
   },
   korchin: {
     id: "korchin",
@@ -188,6 +203,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 24,
+    homeTurfMult: 1.30,
+    maxCommitRatio: 0.55,
+    warCommitments: {},
   },
   nurgan: {
     id: "nurgan",
@@ -217,6 +235,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 20,
+    homeTurfMult: 1.25,
+    maxCommitRatio: 0.50,
+    warCommitments: {},
   },
   joseon: {
     id: "joseon",
@@ -246,6 +267,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques({ reform: 58, frontier: 44 }),
     administrationBase: 58,
+    homeTurfMult: 1.20,
+    maxCommitRatio: 0.45,
+    warCommitments: {},
   },
   japan: {
     id: "japan",
@@ -275,6 +299,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques({ frontier: 64, reform: 42 }),
     administrationBase: 44,
+    homeTurfMult: 1.15,
+    maxCommitRatio: 0.45,
+    warCommitments: {},
   },
   ainu: {
     id: "ainu",
@@ -304,6 +331,9 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques(),
     administrationBase: 16,
+    homeTurfMult: 1.10,
+    maxCommitRatio: 0.40,
+    warCommitments: {},
   },
   bozhou: {
     id: "bozhou",
@@ -333,5 +363,8 @@ export const factionTemplates: Record<string, FactionState> = {
     status: "active",
     cliques: defaultCliques({ reform: 55 }),
     administrationBase: 34,
+    homeTurfMult: 1.30,
+    maxCommitRatio: 0.50,
+    warCommitments: {},
   }
 };
