@@ -58,6 +58,8 @@ export function simulateMonth(input: SimulationInput): SimulationResult {
   const reports: MonthlyReport[] = [];
   const ledgerEntries: import("./ledger").LedgerEntry[] = [];
   const playerDecision = normalizePlayerDecision(state, input.playerDecision);
+  // T8: AI 决策升级为 pickMaxWarDesire；P5 随机扰动由 runFactionPhase 末尾
+  // applyAiDecisionJitter 触发（在所有 S2-S4 random 消费之后）。
   const aiDecisions = chooseAllAiDecisions(state);
 
   // v0.8: 防御性 BFS 距离表重算（防御 loadGame / 序列化恢复后拓扑变更）

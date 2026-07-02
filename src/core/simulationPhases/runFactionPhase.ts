@@ -8,10 +8,17 @@
  * 新增 faction.mobilizationPool 月度自然增长（5% 上限 1.5x armyTotal）。
  * 调用顺序在 army 征募之后、deficit 报告之前——保证征募/池 增长联动
  * 模拟仍产出单一序列。
+ *
+ * ⚠️ DETERMINISM-CHANGE (T8 — 2026-07-02)
+ * 末尾新增 applyAiDecisionJitter（P5 随机消费点）：对每条 AI 决策
+ * warDesire ∈ [-5, +5] 时加 ±3 扰动。位置在所有维护/征募/腐败/疲劳
+ * 计算之后——保证 S3 内不出现新 random 序列断点。
+ * 结果会覆盖 ctx.aiDecisions + ctx.decisionsLookup（供 S4-S7 复用）。
  */
 
 import { calculateFactionMaintenance } from "../economy";
 import { applyLedgerToState, type LedgerEntry } from "../ledger";
+import { applyAiDecisionJitter } from "../ai";
 import type { PhaseFn } from "../simulationContext";
 
 export const runFactionPhase: PhaseFn = (ctx) => {
@@ -110,6 +117,18 @@ export const runFactionPhase: PhaseFn = (ctx) => {
           }
         }
       }
+    }
+  }
+
+  // T8 P5: AI 决策随机扰动（warDesire ∈ [-5, +5] 时 ±3 jitter）。
+  // 必须在所有 S2-S4 random 消费点之后，且在 S7 war 阶段之前，
+  // 让 S4 外交 / S5 改革 / S7 战争 都用 jittered 决策。
+  const jittered = applyAiDecisionJitter(ctx.state, ctx.aiDecisions, ctx.random);
+  ctx.aiDecisions = jittered;
+  // 同步 decisionsLookup（runDiplomacyPhase / runPoliticsPhase 用）
+  for (const [fid, dec] of Object.entries(jittered)) {
+    if (ctx.decisionsLookup[fid]) {
+      ctx.decisionsLookup[fid] = dec;
     }
   }
 };

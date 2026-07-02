@@ -1,4 +1,19 @@
-import type { GameState, PlayerDecision, RegionId } from "./types";
+/**
+ * ⚠️  DETERMINISM-CHANGE (T8 — 2026-07-02)
+ * ---------------------------------------------------------------------------
+ * 新增 computeWarDesire 公式 + 8 个 sub-score 函数，让 AI 决策从"兵力对比"
+ * 升级为"可持续作战可行性"。AI 自动宣战需 warDesire > 15。
+ *
+ * 同时新增 P5 随机消费点：runFactionPhase 末尾对每条 AI 决策加 ±3 随机扰动
+ * （让 warDesire ∈ [-5, +5] 时不完全决定论）。所有 seed 命运重新分配；
+ * hash:state 与 v0.9.6 不再一致。
+ *
+ * 来源：研究文档《MING-WAR 军事系统优化改造深度研究报告》§4 末"AI 行为
+ * 必须同步升级"；SPEC §4.5 + §6 P5。
+ * ===========================================================================
+ */
+
+import type { FactionId, FactionState, GameState, PlayerDecision, RegionId, RegionState } from "./types";
 import { hasTruce, isAlly } from "./diplomacy";
 
 export function getFactionRegionIds(state: GameState, factionId: string): RegionId[] {
@@ -42,6 +57,134 @@ export function normalizePlayerDecision(state: GameState, decision: PlayerDecisi
     posture: decision.posture,
     domesticFocus: decision.domesticFocus
   };
+}
+
+/* ===========================================================================
+ * T8 WarDesire 公式：7 风险项 + 个性修正
+ * =========================================================================== */
+
+const WINTER_MONTHS: ReadonlySet<number> = new Set([11, 12, 1, 2]);
+
+/** T8: 战略目标价值（直接取 region.military.strategicValue，0-100）。 */
+export function computeWarGoalValue(target: RegionState): number {
+  return target.military?.strategicValue ?? 0;
+}
+
+/** T8: 边境安全值（距离越近越紧迫）。distance=1 → 20；distance=2 → 6.7；... 远端 → 趋近 0。 */
+export function computeBorderSecurityValue(distance: number): number {
+  if (distance >= 999) return 0;
+  return 20 / (1 + distance);
+}
+
+/** T8: 同盟支持加值（盟友 aggression 加权）。[0, +20]。 */
+export function computeAllySupport(state: GameState, factionId: FactionId): number {
+  let sum = 0;
+  for (const allyId of Object.keys(state.factions)) {
+    if (allyId === factionId) continue;
+    const ally = state.factions[allyId];
+    if (ally.status !== "active") continue;
+    if (!isAlly(state, factionId, allyId)) continue;
+    sum += ally.aiProfile?.aggression ?? 50;
+  }
+  // 归一化到 [0, 20]：1 个 aggr=100 盟友 → 10；2 个 aggr=100 盟友 → 20
+  return Math.min(20, sum * 0.1);
+}
+
+/** T8: 补给压力（supplyRatio < 0.5 时严扣）。[0, -40]。 */
+export function computeSupplyOverstretch(supplyRatio: number): number {
+  return Math.max(0, (0.5 - supplyRatio) * 80);
+}
+
+/** T8: 冬季惩罚。月份 ∈ {11, 12, 1, 2} → -30；其余 0。 */
+export function computeWinterPenalty(month: number): number {
+  return WINTER_MONTHS.has(month) ? 30 : 0;
+}
+
+/** T8: 战疲风险。fatigue > 70 时开始扣；> 100 → -15；> 130 → -30。 */
+export function computeExhaustionRisk(faction: FactionState): number {
+  const fatigue = (faction as FactionState & { warFatigue?: number }).warFatigue ?? 0;
+  if (fatigue < 70) return 0;
+  if (fatigue < 100) return (fatigue - 70) * 0.5; // 70→100 区间 0→-15
+  if (fatigue < 130) return 15 + (fatigue - 100) * 0.5; // 100→130 区间 -15→-30
+  return 30;
+}
+
+/** T8: 财政风险。treasury < 6×月支出 → -40；< 12×月支出 → -20。 */
+export function computeTreasuryRisk(faction: FactionState, monthlyCost: number): number {
+  if (monthlyCost <= 0) return 0;
+  const ratio = faction.treasury / monthlyCost;
+  if (ratio < 6) return 40;
+  if (ratio < 12) return 20;
+  return 0;
+}
+
+/** T8: 占领治理成本。occupationResistance > 50 时开始扣。[0, -25]。 */
+export function computeOccupationRisk(target: RegionState): number {
+  const resistance = target.military?.occupationResistance ?? 0;
+  if (resistance <= 50) return 0;
+  return Math.min(25, (resistance - 50) * 0.5);
+}
+
+/**
+ * T8: AI 决策的"战争欲望"分数。正值 = 想打；负值 = 避免开新战。
+ *
+ * 设计：让 AI 决策从"兵力对比"升级为"可持续作战可行性"。
+ *  - WarGoal + Border + Ally = "想打"的理由
+ *  - Supply / Winter / Exhaustion / Treasury / Occupation = "别打"的理由
+ *  - 个性化 ±10 修正在 faction.warDesireModifier（玩家/历史可调）
+ *
+ * AI 自动宣战需 warDesire > 15；玩家手选仍是手动覆盖（不变）。
+ */
+export function computeWarDesire(
+  faction: FactionState,
+  target: RegionState,
+  state: GameState,
+  options: { supplyRatio?: number; month?: number; monthlyCost?: number } = {}
+): number {
+  const distance = target.distanceFromCapital?.[faction.id] ?? 999;
+  const supplyRatio = options.supplyRatio ?? 1.0;
+  const month = options.month ?? 12; // 默认严冬，逼迫 AI 冬季不战
+  // 月支出保守估算：armyTotal × 0.27（与 economy.ts costPerSoldier 对齐）
+  const monthlyCost = options.monthlyCost ?? faction.armyTotal * 0.27;
+
+  const warDesire =
+    + computeWarGoalValue(target)
+    + computeBorderSecurityValue(distance)
+    + computeAllySupport(state, faction.id)
+    - computeSupplyOverstretch(supplyRatio)
+    - computeWinterPenalty(month)
+    - computeExhaustionRisk(faction)
+    - computeTreasuryRisk(faction, monthlyCost)
+    - computeOccupationRisk(target)
+    + (faction.warDesireModifier ?? 0);
+
+  return warDesire;
+}
+
+/**
+ * T8: 在所有有效军事目标中选出 warDesire 最大的 regionId。
+ * 仅返回 warDesire > 0 的目标（避免负值目标被 AI 错选）。
+ * 全部为负返回 null（AI 本月不主动宣战）。
+ */
+export function pickMaxWarDesire(
+  faction: FactionState,
+  state: GameState,
+  options: { month?: number; supplyRatio?: number } = {}
+): RegionId | null {
+  const targets = getValidMilitaryTargets(state, faction.id);
+  if (targets.length === 0) return null;
+  let bestId: RegionId | null = null;
+  let bestScore = -Infinity;
+  for (const tid of targets) {
+    const target = state.regions[tid];
+    if (!target) continue;
+    const score = computeWarDesire(faction, target, state, options);
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = tid;
+    }
+  }
+  return bestScore > 0 ? bestId : null;
 }
 
 /**
