@@ -42,13 +42,18 @@ function makeRegion(overrides: Partial<RegionState> = {}): RegionState {
 }
 
 function makeFaction(overrides: Partial<FactionState> = {}): FactionState {
+  // v0.9.1: 默认 mobilizationPool = maxCommitRatio × armyTotal × 1.2，
+  // 留出 20% 缓冲——确保 v0.8 旧测试的"committedForce 接近 maxCommit"期望
+  // 仍然成立（pool 不参与钳位），同时允许 v0.9.1 新测试显式覆盖小 pool。
+  const armyTotal = overrides.armyTotal ?? 30000;
+  const maxCommitRatio = overrides.maxCommitRatio ?? 1.0;
   return {
     id: "jurchen",
     name: "Jurchen",
     type: "tribal",
     treasury: 1000,
     grainReserve: 1000,
-    armyTotal: 30000,
+    armyTotal,
     administration: 30,
     militaryOrganization: 60,
     legitimacy: 50,
@@ -67,10 +72,10 @@ function makeFaction(overrides: Partial<FactionState> = {}): FactionState {
     cliques: [],
     administrationBase: 30,
     homeTurfMult: 1.0,
-    maxCommitRatio: 1.0,
+    maxCommitRatio,
     warCommitments: {},
-    // v0.9: 测试默认（中性的低值）
-    mobilizationPool: 6000,
+    // v0.9.1: 默认 pool = maxCommit × 1.2，不参与 v0.8 旧测试钳位。
+    mobilizationPool: armyTotal * maxCommitRatio * 1.2,
     conscriptionRate: 0.20,
     warDesireModifier: 0,
     formations: [],
@@ -524,6 +529,80 @@ describe("v0.8.1 capture 阈值", () => {
 
   it("边界 garrison=5000 不 capture", () => {
     expect(wouldCapture(20, 5000)).toBe(false);
+  });
+});
+
+/* ===========================================================================
+ * v0.9.1 兵员上限池 (mobilizationPool) 钳位 — 2026-07-02
+ *
+ * 设计：committedForce = min(growth, maxCommit, poolCap) 三取小。
+ * 默认 makeFaction pool=6000（与 armyTotal=30000 × 0.20 一致）。
+ * 大 armyTotal 但小 pool → 钳位生效。
+ * 验收 3 个 use case：
+ *   1. 小 pool 钳位（pool < maxCommit 且 pool < growth）
+ *   2. 大 pool 时退化为 v0.8 maxCommit 钳位（pool 不参与）
+ *   3. 钳位下 committedForce 不超过 pool
+ * =========================================================================== */
+describe("v0.9.1 兵员池钳位", () => {
+  it("当 pool < maxCommit，committedForce 被 pool 钳住", () => {
+    // armyTotal=30k, maxCommitRatio=1.0 → maxCommit=30k；pool=5k → 钳位到 5k
+    const attacker = makeFaction({
+      armyTotal: 30000,
+      maxCommitRatio: 1.0,
+      mobilizationPool: 5000,
+    });
+    const defender = makeFaction({ id: "ming" });
+    const region = makeRegion({ distanceFromCapital: { jurchen: 1 } });
+    const war = createInitialWar(attacker, defender, region);
+    const next = war.front!;
+    const result = advanceWar(
+      { ...war, front: { ...next, mobilizationMonths: 0 } },
+      attacker,
+      defender,
+      region,
+    );
+    expect(result.nextCommittedForce).toBeLessThanOrEqual(attacker.mobilizationPool);
+  });
+
+  it("当 pool > maxCommit，回退到 v0.8 maxCommit 钳位", () => {
+    // armyTotal=10k, maxCommitRatio=0.30 → maxCommit=3k；pool=50k → pool 不参与
+    const attacker = makeFaction({
+      armyTotal: 10000,
+      maxCommitRatio: 0.30,
+      mobilizationPool: 50000,
+    });
+    const defender = makeFaction({ id: "ming" });
+    const region = makeRegion({ distanceFromCapital: { jurchen: 1 } });
+    const war = createInitialWar(attacker, defender, region);
+    const result = advanceWar(
+      { ...war, front: { ...war.front!, mobilizationMonths: 0, attackerSupply: 100 } },
+      attacker,
+      defender,
+      region,
+    );
+    expect(result.nextCommittedForce).toBeLessThanOrEqual(attacker.armyTotal * attacker.maxCommitRatio);
+  });
+
+  it("多次 advance 累计不会突破 pool 上限", () => {
+    const attacker = makeFaction({
+      armyTotal: 30000,
+      maxCommitRatio: 1.0,
+      mobilizationPool: 5000,
+    });
+    const defender = makeFaction({ id: "ming" });
+    const region = makeRegion({ distanceFromCapital: { jurchen: 1 } });
+    let current = createInitialWar(attacker, defender, region);
+    for (let i = 0; i < 30; i++) {
+      const r = advanceWar(current, attacker, defender, region);
+      current = r.war;
+      // 把 nextCommittedForce 应用回 warCommitments，让下个月的 currentCommitted 持续累加
+      attacker.warCommitments[current.targetRegionId] = r.nextCommittedForce;
+      if (i === 0) {
+        // 第二个月起跳过动员期
+        current = { ...current, front: { ...current.front!, mobilizationMonths: 0 } };
+      }
+    }
+    expect(current.front!.attackerCommitted).toBeLessThanOrEqual(attacker.mobilizationPool);
   });
 });
 

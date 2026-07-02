@@ -6,11 +6,13 @@ import { getValidMilitaryTargets } from "./decisions";
 
 /* ===========================================================================
  * ⚠️  DETERMINISM-CHANGE (v0.8 — 2026-07-02)
+ * DETERMINISM-CHANGE (v0.9.1 — 2026-07-02)
  * ---------------------------------------------------------------------------
- * 本文件已重写持久战公式与战斗结算语义。所有以 war.* / faction.armyTotal 为输入的
- * state hash 都会与 v0.7.x 存档产生分歧，禁止跨版本回滚/对比。
+ * v0.8 已重写持久战公式与战斗结算语义。v0.9.1 新增 committedForce 第三钳位
+ * （兵员上限池 mobilizationPool），使 committedForce = min(growth, maxCommit,
+ * poolCap) 三取小。所有 seed 命运重新分配；hash:state 与 v0.8.2 不再一致。
  *
- * 变更摘要（详见 docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md）：
+ * 历史变更摘要（v0.8）：
  *  1. createInitialFront(distance) 引入 mobilizationMonths（相邻=0，distance≥4=3）。
  *  2. 新增 M1 committedForce 持久化（faction.warCommitments[regionId]）。
  *  3. 新增 M2 距离衰减（distanceMult + supplyDecay）+ 补给崩溃（<50 → ×2）。
@@ -22,9 +24,12 @@ import { getValidMilitaryTargets } from "./decisions";
  *  8. attackerLosses 改为基于 committedForce（不再 armyTotal×0.25），
  *     warCost/warGrain 同理。
  *
- * 验收：530/540 → 540/540 测试通过；batch errorRuns = 0；
- * 大明 vs 建州持久战从 ~3 月延长至 21 月达 50% control。
- * 大明崩盘时间从 1587 提前到 1582（v0.6 baseline 也是 0%，由 v0.8.2 单独修复）。
+ * v0.9.1 增量：
+ *  9. committedForce 三取小钳位 = min(maxCommit, poolCap, growth)。
+ *     反映"长期养兵"成本：大明开局 pool 11.6万，从首月就钳住 committedForce。
+ * 10. mobilizationPool 在 runFactionPhase 月度自然增长 5%（封顶 1.5× armyTotal）。
+ *
+ * 验收：549 tests 全过；hash:state 必漂移（v0.9.1 起所有存档不兼容）。
  * =========================================================================== */
 
 /**
@@ -155,12 +160,18 @@ export function advanceWar(
   // M1: committedForce（持久化在 attacker.warCommitments） + 动员期
   const currentCommitted = attacker.warCommitments?.[war.targetRegionId] ?? 0;
   const maxCommit = attacker.armyTotal * attacker.maxCommitRatio * distanceMult;
+  // v0.9.1: 第三个钳位 = 兵员上限池（长期养兵的成果）。三取小：
+  // min(累计增长, 投送比例上限, 现役动员池)
+  // 语义：即使你 armyTotal 580k、maxCommitRatio 0.30、distanceMult 1.0
+  // 也只能投送 max(mobilizationPool) —— 大明开局 pool 11.6 万，钳位生效
+  // 从首月就让 committedForce 不超 pool。
+  const poolCap = Math.max(0, attacker.mobilizationPool);
   const inMobilization = front.mobilizationMonths > 0;
   const committedGrowth = inMobilization ? 0 : Math.max(1000, Math.round(attacker.armyTotal * 0.05));
-  // 月度累加，封顶 maxCommit。动员期 committedForce 仍记 0（防止首月即决战）
+  // 月度累加，三取小封顶。动员期 committedForce 仍记 0（防止首月即决战）
   const nextCommitted = inMobilization
     ? 0
-    : Math.min(maxCommit, currentCommitted + committedGrowth);
+    : Math.min(maxCommit, Math.min(poolCap, currentCommitted + committedGrowth));
   const activeForce = inMobilization ? 0 : nextCommitted;
 
   // M3 + M4: 防守方 = (正规军 × fortMult + garrison × 0.5) × homeTurfMult

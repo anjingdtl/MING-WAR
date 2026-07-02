@@ -1,8 +1,13 @@
 /**
  * runFactionPhase — v0.6-stability §3.2 S3
  *
- * 势力循环：维护费（走账本）/ 征募 / 腐败累积。
+ * 势力循环：维护费（走账本）/ 征募 / 腐败累积 / v0.9.1 兵员上限增长。
  * 业务逻辑从原 simulation.ts L272-348 完整迁移。
+ *
+ * ⚠️ DETERMINISM-CHANGE (v0.9.1 — 2026-07-02)
+ * 新增 faction.mobilizationPool 月度自然增长（5% 上限 1.5x armyTotal）。
+ * 调用顺序在 army 征募之后、deficit 报告之前——保证征募/池 增长联动
+ * 模拟仍产出单一序列。
  */
 
 import { calculateFactionMaintenance } from "../economy";
@@ -28,6 +33,14 @@ export const runFactionPhase: PhaseFn = (ctx) => {
     applyLedgerToState(ctx.state, maintEntries);
     ctx.ledgerEntries.push(...maintEntries);
     const inDeficit = treasuryBefore < maintenance.treasuryCost;
+
+    // v0.9.1: 兵员上限池月度自然增长（5%/月，封顶 1.5× armyTotal）。
+    // 反映"长期养兵"的时间成本——大明 11.6 万 pool → 第 12 月爬到 ~19 万。
+    // 不需国库支持（与征募独立），与破坏 ratio 测度的稳定最小侵入。
+    if (faction.status === "active") {
+      const cap = faction.armyTotal * 1.5;
+      faction.mobilizationPool = Math.min(cap, faction.mobilizationPool + Math.max(100, Math.round(faction.armyTotal * 0.05)));
+    }
 
     // 和平期征募
     const controlledPop = Object.values(ctx.state.regions)
