@@ -24,7 +24,15 @@
     "perf:save": "tsx src/scripts/perfSave.ts",
     "perf:smoke": "tsx src/scripts/perfMonth.ts",
     "perf:report": "tsx src/scripts/perfFullGame.ts",
-    "hash:state": "tsx src/scripts/stateHash.ts"
+    "hash:state": "tsx src/scripts/stateHash.ts",
+    "diagnose:supply": "tsx src/scripts/diagnoseSupply.ts",
+    "diagnose:siege": "tsx src/scripts/diagnoseSiege.ts",
+    "diagnose:exhaustion": "tsx src/scripts/diagnoseExhaustion.ts",
+    "diagnose:war-months": "tsx src/scripts/diagnoseWarMonths.ts",
+    "diagnose:wars": "tsx src/scripts/diagnoseWars.ts",
+    "diagnose:ming-finances": "tsx src/scripts/diagnoseMingFinances.ts",
+    "validate:historical": "tsx src/scripts/validateHistorical.ts",
+    "tuning:export": "tsx src/scripts/exportTuningTable.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -44,6 +52,7 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "tsx": "^4.19.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "xlsx": "^0.18.5"
   }
 }
