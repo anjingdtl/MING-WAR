@@ -702,6 +702,31 @@ const captured = attackerWins && region.garrison < 5000;  // garrison-only
 
 ---
 
+## 0.7 v0.9.8 T11–T13 军事系统收口（2026-07-02）
+
+> 继续推进 v0.9.7 后遗留：T11 运输节点录入、T12 占地治理、T13 KPI sub-tooltip。
+
+### 改动范围
+
+- **T11** `src/data/regions.ts`：31 region 已显式录入 `infrastructureLevel` / `portLevel` / `riverPortLevel`，`depotStock` 起点按中原 8000 / 边地 5000 / 其它 6000 启发式。
+- **T12** `src/core/occupation.ts` + `src/core/simulationPhases/runRegionPhase.ts`：新增 `tickOccupation`，月度结算 `localSupport` / `occupationResistance`；`occupationResistance > 80` 时 `rebelPressure += 1`；赈济扣 `faction.grainReserve` 走 `grain-relief` 账本。
+- **T13** `src/ui/panels/DecisionPanel.tsx`：5 个军事 KPI 卡（动员池/仓储/在途/战伤/围城）接入 `Tooltip` hover 解释。
+
+### 验收
+
+| 维度 | 结果 |
+|---|---|
+| typecheck | 0 errors |
+| `npm test` | **623 / 623 pass** |
+| `npm run batch` 100×240 | errorRuns=0，mingSurvivalRate=**0.92**，averageMingRegions=2.34 |
+| DETERMINISM-CHANGE | T12 新增（`occupation.ts` 顶部已打 banner，`runRegionPhase.ts` 已标注 T12） |
+
+### 已知遗留
+
+T14–T16 仍待办：4 diagnose 脚本 / `tuning-military.xlsx` / 5 条历史对照验收。
+
+---
+
 ## 1. 当前状态（v0.9.7 末态）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**

@@ -1,4 +1,5 @@
 import { Swords } from "lucide-react";
+import type { ReactNode } from "react";
 import type {
   DomesticFocus,
   GameState,
@@ -11,6 +12,7 @@ import { isLawEnacted, lawLibrary } from "../../data/laws";
 import { Button } from "../common/Button";
 import { DecisionPrediction } from "./DecisionPrediction";
 import { DiplomacyPanel } from "./DiplomacyPanel";
+import { Tooltip } from "../common/Tooltip";
 
 interface DecisionPanelProps {
   state: GameState;
@@ -216,22 +218,49 @@ function MilitaryKpis({ state }: { state: GameState }) {
     <div className="military-kpis" data-testid="military-kpis">
       <h3>军事态势 (v0.9.5)</h3>
       <div className="kpi-grid">
-        <KpiCard label="动员池" value={`${poolPct}%`} hint={`${playerFaction.mobilizationPool.toLocaleString()} / ${poolCap.toLocaleString()}`} />
-        <KpiCard label="仓储" value={depotTotal.toLocaleString()} hint="本方控制区粮秣" />
-        <KpiCard label="在途" value={String(inFlight)} hint="补给车队" />
-        <KpiCard label="战伤" value={`${Math.round(fatigue)}`} hint={fatigueLabel} />
-        <KpiCard label="围城" value={String(underSiege)} hint="活跃战线" />
+        <KpiCard
+          label="动员池"
+          value={`${poolPct}%`}
+          hint={`${playerFaction.mobilizationPool.toLocaleString()} / ${poolCap.toLocaleString()}`}
+          tooltip="mobilizationPool / (armyTotal × 1.5)。反映当前可立即投入战线的兵员比例；受征募速度、财政与战争损耗影响。"
+        />
+        <KpiCard
+          label="仓储"
+          value={depotTotal.toLocaleString()}
+          hint="本方控制区粮秣"
+          tooltip="本方控制区 logisticsNode.depotStock 之和。仓储越高，前线围城与持续作战的补给压力越小。"
+        />
+        <KpiCard
+          label="在途"
+          value={String(inFlight)}
+          hint="补给车队"
+          tooltip="本方活跃 SupplyConvoy 数量。车队每月向目标地区 depotStock 注入粮秣，距离越远损耗越大。"
+        />
+        <KpiCard
+          label="战伤"
+          value={`${Math.round(fatigue)}`}
+          hint={fatigueLabel}
+          tooltip="faction.warFatigue 累计值。≥70 出现厌战苗头，≥100 触发 warWear 政治运动（稳定性下降、国库流失）。"
+        />
+        <KpiCard
+          label="围城"
+          value={String(underSiege)}
+          hint="活跃战线"
+          tooltip="玩家作为进攻方或防守方的活跃 war 数量。数量越高，同时维持的围城/战线压力越大。"
+        />
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function KpiCard({ label, value, hint, tooltip }: { label: string; value: string; hint: string; tooltip: ReactNode }) {
   return (
-    <div className="kpi-card" data-testid={`kpi-${label}`}>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
-      <div className="kpi-hint">{hint}</div>
-    </div>
+    <Tooltip content={tooltip} placement="top" variant="info">
+      <div className="kpi-card" data-testid={`kpi-${label}`}>
+        <div className="kpi-label">{label}</div>
+        <div className="kpi-value">{value}</div>
+        <div className="kpi-hint">{hint}</div>
+      </div>
+    </Tooltip>
   );
 }

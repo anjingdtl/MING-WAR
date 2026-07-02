@@ -20,6 +20,7 @@ import { updateRebellion } from "../rebellion";
 import { applyLedgerToState, type LedgerEntry } from "../ledger";
 import { calculatePopulation } from "../population";
 import { depositMonthlySupply } from "../supply";
+import { tickOccupation } from "../occupation";
 import { expireModifiers } from "../modifiers";
 import { tickSeasonalStates } from "../season";
 import {
@@ -98,6 +99,18 @@ export const runRegionPhase: PhaseFn = (ctx) => {
     // 若 region 没有 logisticsNode（context tile / 海面），no-op。
     if (economy.grainProduced > 0) {
       nextRegion = depositMonthlySupply(nextRegion, economy.grainProduced);
+    }
+
+    // v0.9.7 T12: 占地治理 —— "占下 != 守稳"
+    //   异族控制 / garrison 不足 / stability 低 / 补给差 4 个加速因子
+    //   occupationResistance > 80 → rebelPressure += 1
+    //   大明核心控制区 localSupport 每月小幅回升
+    //   赈济：localSupport < 30 时消耗 grainReserve（走账本）
+    const occupation = tickOccupation(ctx.state, nextRegion, region.controllerFactionId);
+    nextRegion = occupation.region;
+    if (occupation.entries.length > 0) {
+      applyLedgerToState(ctx.state, occupation.entries);
+      ctx.ledgerEntries.push(...occupation.entries);
     }
 
     // S2a: 统一商品流（产业 + 农业 → 市场供给，pop → 需求）

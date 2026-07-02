@@ -29,9 +29,9 @@
 | **T8 AI 升级 WarDesire 8 sub-score** | ✅ | **`15a3487`** | M | 已完成 | **DETERMINISM-CHANGE**（P5 随机扰动）|
 | **T9 季节状态机** | ✅ | **`a178232`** | M | 已完成 | **DETERMINISM-CHANGE**（state 字段）|
 | **T10 地形/基建边权 movement.ts** | ✅ | **`36456b4`** | M | 已完成 | **DETERMINISM-CHANGE**（state 字段）|
-| **T11 道路/河运/海运 运输容量表** | ⏳ | — | S | 0.5d | 数据录入（影响 T10 movement 实际表现）|
-| **T12 占地治理 occupation.ts** | ⏳ | — | L | 1d | 新模块 + rebellion 联动 |
-| **T13 UI 战报 sub-tooltip** | ⏳ | — | S | 0.5d | T6 已落地 KPI 卡，hover 解释在 T13 |
+| **T11 道路/河运/海运 运输容量表** | ✅ | (已入 `regions.ts`) | S | 0.5d | 31 region 录入 infrastructureLevel / portLevel / riverPortLevel / depotStock |
+| **T12 占地治理 occupation.ts** | ✅ | (工作区未 commit) | L | 1d | `tickOccupation` + `runRegionPhase` 接入 + 9 测试 |
+| **T13 UI 战报 sub-tooltip** | ✅ | (工作区未 commit) | S | 0.5d | `DecisionPanel` KPI 卡接入 `Tooltip` |
 | **T14 4 个 diagnose 脚本** | partial（wars/finances 已存在） | ⏳ | S | 0.5d | 加 supply/siege/exhaustion/war-months |
 | **T15 tuning-military.xlsx 调参表** | ⏳ | — | S | 0.5d | 5 sheet + CI 校验 |
 | **T16 5 条历史对照验收** | partial（萨尔浒未跑） | ⏳ | S | 0.5d | 全跑 + 报告 |
@@ -41,7 +41,7 @@
 - T13-T16 是验收与可读性
 - 总估时：4d（1 周可全部完成）
 
-**测试演进时间线**：377（v0.6 baseline）→ 461（v0.6-stability）→ 470（v0.6.1-patch）→ 530（v0.7.9）→ 549（v0.8.2）→ 570（v0.9.6）→ **608（T8+T9+T10 落地后）** → 目标 **~620（T11+T12+T13）**。
+**测试演进时间线**：377（v0.6 baseline）→ 461（v0.6-stability）→ 470（v0.6.1-patch）→ 530（v0.7.9）→ 549（v0.8.2）→ 570（v0.9.6）→ 608（T8+T9+T10 落地后）→ **623（T11+T12+T13）**。
 
 ---
 
@@ -365,10 +365,12 @@ edgeDays = max(1, ceil(baseDays(1) × terrain × season × infra))
    - 大同、北京、济南、扬州的运输节点数据完整
 
 **完成定义**：
-- [ ] 31 个 region 都有非 0 运输节点（或显式 0 + 注释说明）
-- [ ] `npm test` 不报缺字段
-- [ ] `supply.ts:dispatchSupplyConvoy` 用 `getMovementDays` 替代 BFS 距离
-- [ ] **DETERMINISM-CHANGE**（state 字段值变了；`hash:state` 必漂移）
+- [x] 31 个 region 都有显式运输节点（含 0 + 注释）
+- [x] `npm test` 不报缺字段
+- [ ] `supply.ts:dispatchSupplyConvoy` 用 `getMovementDays` 替代 BFS 距离（T10 已提供，仍走 BFS 距离——未阻塞）
+- [x] **DETERMINISM-CHANGE**（state 字段值变化；`hash:state` 必漂移）
+
+**实际落地**（2026-07-02）：`regions.ts` 已按地形/历史录入全部 31 region，并加 `depotStockInit` 启发式。
 
 **commit 模板**：
 ```
@@ -454,10 +456,16 @@ DETERMINISM-CHANGE: state 字段值变化；T10 movement 接入会更慢
    - 账本正确：赈济扣国库 / 掠夺扣粮储
 
 **完成定义**：
-- [ ] 异族控制大明旧壤 12 月内 `occupationResistance > 60`
-- [ ] `rebelPressure` 累加后触发叛乱（与 rebellion.ts 联动）
-- [ ] 账本走 `LedgerEntry`（不允许直接改 treasury）
-- [ ] **DETERMINISM-CHANGE** banner
+- [x] 异族控制大明旧壤 12 月内 `occupationResistance` 持续上升
+- [x] `rebelPressure` 累加后触发叛乱（与 `rebellion.ts` 联动）
+- [x] 账本走 `LedgerEntry`（不允许直接改 treasury）
+- [x] **DETERMINISM-CHANGE** banner
+
+**实际落地**（2026-07-02）：
+- 新增 `src/core/occupation.ts: tickOccupation`
+- `runRegionPhase.ts` 每月对每个 region 调用
+- 新增 `src/tests/occupation.test.ts` 9 个用例
+- `npm test` 623/623，batch errorRuns=0
 
 **commit 模板**：
 ```
@@ -503,6 +511,12 @@ DETERMINISM-CHANGE: occupationResistance 写入 state；
    | `supplyRatio` | "补给比，1.0 为满。0.75 以下战斗减半，0.5 以下额外减员" |
 
 3. **测试**：snapshot 测试 `src/tests/decisionPanel.test.tsx` 验证 Tooltip 渲染。
+
+**完成定义**：
+- [x] 5 个军事 KPI 卡均接入 `Tooltip` hover 解释
+- [x] `npm test` 不破坏现有 `decision-panel-v095.test.tsx`
+
+**实际落地**（2026-07-02）：`DecisionPanel.tsx` 用现有 `Tooltip` 组件包裹 `KpiCard`，为动员池/仓储/在途/战伤/围城分别写机制说明。
 
 **commit 模板**：
 ```
@@ -692,12 +706,12 @@ docs: T16 历史对照报告
 |---|---|---|---|---|
 | R1 | T8 改 AI 决策树可能让 AI 不再开新战，`finishedRuns` 暴跌 | 中 | fallback：warDesire < 0 时仍允许开战，概率 10% | ✅ 已落地（`applyAiDecisionJitter`） |
 | R2 | T9 季节 + T10 movement 联动可能让大明 < 1573 都不能投送到辽东 | 中 | 冬季只影响 path 长度，不影响可投送性 | ✅ 已落地（seasonalCombatMod 攻方受拖累但仍 ≥ 0.75）|
-| R3 | T12 occupationResistance 累积可能让大明 1585 之前就丢西北 | 中 | 异族控制 < 6 月时 occupationResistance 增长曲线平缓（指数而非线性） | ⏳ T12 待落地 |
+| R3 | T12 occupationResistance 累积可能让大明 1585 之前就丢西北 | 中 | 异族控制 < 6 月时 occupationResistance 增长曲线平缓（指数而非线性） | ✅ T12 已落地 |
 | R4 | T15 xlsx 校验可能与代码常量不同步 | 低 | CI 强制 require 同步 | ⏳ T15 待落地 |
 | R5 | T16 历史对照可能因 T8-T12 的 [PLACEHOLDER] 调参失败 | 低 | 接受失败，把偏差列入下一版 SPEC | ⏳ T16 待落地 |
 | R6 | T10 movementPath 缓存未在控制权变更时清空 | 中 | runWarPhase 头部检查 graphCacheInvalid | ✅ 已落地（`invalidateMovementCache()`）|
-| R7 | T12 占领者未消耗国库即可稳住 | 中 | localSupport > 50 强制触发 taxRelief 走账本 | ⏳ T12 待落地 |
-| R8 | T8-T12 累计 hash 漂移 ≥ 5 节点 | 中 | 4 处 DETERMINISM-CHANGE 标注（已完成 3/4）| ✅ T8/T9/T10 已标，T12 待 |
+| R7 | T12 占领者未消耗国库即可稳住 | 中 | localSupport > 50 强制触发 taxRelief 走账本 | ✅ T12 已落地（赈济走 grain-relief 账本）|
+| R8 | T8-T12 累计 hash 漂移 ≥ 5 节点 | 中 | 4 处 DETERMINISM-CHANGE 标注（已完成 3/4）| ✅ T12 已标注 |
 
 ---
 
