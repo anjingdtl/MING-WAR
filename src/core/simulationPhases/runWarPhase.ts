@@ -17,6 +17,12 @@
  *  4. capture 时把已有 war 移除（已被 createInitialWar 新建对象替代，
  *     避免重复条目）。
  * 与 v0.7.x 存档不兼容。详见 warfare.ts 顶部 DETERMINISM-CHANGE banner。
+ *
+ * ⚠️ DETERMINISM-CHANGE (T10 — 2026-07-02)
+ *  5. siegeWeeks 计算从 distanceFromCapital 跳数改为 getMovementDays 边权
+ *     （Dijkstra 缓存）。冬季 / 山地行军日数显著延长，siegeWeeks 也对应
+ *     拉长，supplyRatio 变低、supplyMult 下降。导致 committedForce 进一步
+ *     萎缩，持久战更艰苦。hash:state m=0 起漂移。
  */
 
 import { advanceWar, alliesJoinWar, resolveBattle } from "../warfare";
@@ -34,10 +40,14 @@ import {
   applySiegeMaintenance,
   tickSiegeDamage,
 } from "../siege";
+import { getMovementDays, invalidateMovementCache } from "../movement";
 import type { WarState } from "../types";
 import type { PhaseFn } from "../simulationContext";
 
 export const runWarPhase: PhaseFn = (ctx) => {
+  // T10: 月初清空路径缓存（控制权 / 基建 / 季节变化时强制重算）
+  invalidateMovementCache();
+
   // 玩家与 AI 当月决策
   const decisions: Record<string, import("../types").PlayerDecision> = {
     [ctx.state.playerFactionId]: ctx.playerDecision,
@@ -48,14 +58,15 @@ export const runWarPhase: PhaseFn = (ctx) => {
   // v0.9.2: 推进活跃补给车队（ETA-1，到期注入 depotStock；不消费 random）
   ctx.state = tickSupplyConvoys(ctx.state);
 
-  // v0.9.2: 预算本月的 supplyMult 映射（faction × targetRegion → mult）
+  // T10 + v0.9.2: 预算本月的 supplyMult 映射（faction × targetRegion → mult）
   // 持久战调用 advanceWar 之前用此值缩放 committedAfterLosses。
+  // T10: siegeWeeks 改用 getMovementDays（地形/季节边权）替代 distanceFromCapital 跳数。
   const supplyMultMap = new Map<string, number>();
   for (const war of ctx.state.wars) {
     const key = `${war.attackerFactionId}|${war.targetRegionId}`;
     if (supplyMultMap.has(key)) continue;
-    const distance = ctx.state.regions[war.targetRegionId]?.distanceFromCapital?.[war.attackerFactionId] ?? 1;
-    const siegeWeeks = Math.max(8, distance * 5);
+    const movementDays = getMovementDays(ctx.state, war.attackerFactionId, war.targetRegionId, ctx.state.currentDate);
+    const siegeWeeks = Math.max(8, movementDays * 5);
     const supplyRatio = computeSupplyRatio(ctx.state, war.attackerFactionId, war.targetRegionId, siegeWeeks);
     supplyMultMap.set(key, applySupplyPressureMultiplier(supplyRatio));
   }
