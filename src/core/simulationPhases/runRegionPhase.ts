@@ -6,6 +6,11 @@
  *
  * 业务逻辑从原 simulation.ts L64-258 完整迁移，**不改** random 消费顺序、
  * **不改** state 写入顺序、**不改** applyLedgerToState 调用顺序。
+ *
+ * ⚠️ DETERMINISM-CHANGE (T9 — 2026-07-02)
+ * 月初新增 tickSeasonalStates：在 generateDisasters 之后、地区循环之前
+ * 重算所有 region.military.seasonalState。顺序锁定：先季节 → 后灾害，
+ * 保证 1) 季节不消费 random；2) 不打乱原灾害 / pop 写入顺序。
  */
 
 import { applyDisasterEffects, generateDisasters } from "../disaster";
@@ -16,6 +21,7 @@ import { applyLedgerToState, type LedgerEntry } from "../ledger";
 import { calculatePopulation } from "../population";
 import { depositMonthlySupply } from "../supply";
 import { expireModifiers } from "../modifiers";
+import { tickSeasonalStates } from "../season";
 import {
   advancePopGroups,
   computeGrainPerCapita,
@@ -37,6 +43,8 @@ export const runRegionPhase: PhaseFn = (ctx) => {
   ctx.state.activeModifiers = expireModifiers(ctx.state.activeModifiers);
   // 生成当月灾害（会消费 random）
   generateDisasters(ctx.state.regions, ctx.random, ctx.state.currentDate);
+  // T9: 重算所有 region 的季节状态（不消费 random）
+  tickSeasonalStates(ctx.state);
 
   for (const region of Object.values(ctx.state.regions)) {
     const controller = ctx.state.factions[region.controllerFactionId];

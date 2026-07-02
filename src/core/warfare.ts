@@ -3,14 +3,22 @@ import type { RandomSource } from "./random";
 import { queryModifier } from "./modifiers";
 import { hasTruce, isAlly } from "./diplomacy";
 import { getValidMilitaryTargets } from "./decisions";
+import { SEASONAL_COMBAT_MOD } from "./season";
 
 /* ===========================================================================
  * ⚠️  DETERMINISM-CHANGE (v0.8 — 2026-07-02)
  * DETERMINISM-CHANGE (v0.9.1 — 2026-07-02)
+ * DETERMINISM-CHANGE (T9 — 2026-07-02)
  * ---------------------------------------------------------------------------
  * v0.8 已重写持久战公式与战斗结算语义。v0.9.1 新增 committedForce 第三钳位
  * （兵员上限池 mobilizationPool），使 committedForce = min(growth, maxCommit,
  * poolCap) 三取小。所有 seed 命运重新分配；hash:state 与 v0.8.2 不再一致。
+ *
+ * T9 增量（季节状态机）：
+ * 11. advanceWar 双方力量 × SEASONAL_COMBAT_MOD[region.military.seasonalState]。
+ *     winter=0.75, flood=0.80, mud=0.85, drought/harvest=0.95, normal=1.0。
+ *     让"冬季攻势"真实降低战斗力，让"夏季攻势"才有进展。
+ * 12. seasonalState 由 runRegionPhase 月初写入 state，hash:state m=0 起漂移。
  *
  * 历史变更摘要（v0.8）：
  *  1. createInitialFront(distance) 引入 mobilizationMonths（相邻=0，distance≥4=3）。
@@ -175,6 +183,13 @@ export function advanceWar(
   const activeForce = inMobilization ? 0 : nextCommitted;
 
   // M3 + M4: 防守方 = (正规军 × fortMult + garrison × 0.5) × homeTurfMult
+  // T9: 季节对战斗力的影响——**攻方受季节拖累更重**（行军在外/补给困难），
+  // 守方在地利 / 城防下影响较轻。这是历史"冬季攻势难"的核心。
+  // 设计：attackerSeasonalMod 来自 SEASONAL_COMBAT_MOD[seasonal]；
+  // defenderSeasonalMod 取 max(0.9, attackerSeasonalMod)（保留守军 10% 缓冲）。
+  // 例：winter attacker=0.75, defender=0.90 → ratio 受影响 progress 变慢。
+  const attackerSeasonalMod = SEASONAL_COMBAT_MOD[region.military?.seasonalState ?? "normal"] ?? 1.0;
+  const defenderSeasonalMod = Math.max(0.9, attackerSeasonalMod);
   const defenderCore =
     defender.armyTotal *
     (defender.militaryOrganization / 100) *
@@ -184,14 +199,15 @@ export function advanceWar(
   const defenderGarrison = region.garrison * 0.5;
   const defenderIsHome = region.controllerFactionId === defender.id;
   const homeMult = defenderIsHome ? defender.homeTurfMult : 1.0;
-  const defenderStrength = (defenderCore + defenderGarrison) * homeMult;
+  const defenderStrength = (defenderCore + defenderGarrison) * homeMult * defenderSeasonalMod;
 
   // M1: 攻方力量
   const attackerStrength =
     activeForce *
     (attacker.militaryOrganization / 100) *
     attackerOrgMult *
-    (1 - attacker.warExhaustion / 200);
+    (1 - attacker.warExhaustion / 200) *
+    attackerSeasonalMod;
 
   const strengthRatio = attackerStrength / Math.max(1, defenderStrength);
 
@@ -285,10 +301,13 @@ export function resolveBattle(
   // S1b: army-org-mult modifier (e.g. 军制改革/八旗组织) scales effective military organization.
   const attackerOrgMult = 1 + queryModifier(modifiers, "faction", attacker.id, "army-org-mult");
   const defenderOrgMult = 1 + queryModifier(modifiers, "faction", defender.id, "army-org-mult");
+  // T9: 季节对 resolveBattle 首战战斗力的影响——攻方受拖累更重（与 advanceWar 一致）
+  const attackerSeasonalMod = SEASONAL_COMBAT_MOD[region.military?.seasonalState ?? "normal"] ?? 1.0;
+  const defenderSeasonalMod = Math.max(0.9, attackerSeasonalMod);
   const attackerPower =
-    attackerCommitted * (attacker.militaryOrganization / 100) * attackerOrgMult * (1 - attacker.warExhaustion / 200) * (0.9 + random.next() * 0.25);
+    attackerCommitted * (attacker.militaryOrganization / 100) * attackerOrgMult * (1 - attacker.warExhaustion / 200) * attackerSeasonalMod * (0.9 + random.next() * 0.25);
   const defenderPower =
-    defenderCommitted * (defender.militaryOrganization / 100) * defenderOrgMult * terrainDefense * (region.fortification / 120 + 0.5) * (0.9 + random.next() * 0.25);
+    defenderCommitted * (defender.militaryOrganization / 100) * defenderOrgMult * terrainDefense * (region.fortification / 120 + 0.5) * defenderSeasonalMod * (0.9 + random.next() * 0.25);
   const attackerWins = attackerPower > defenderPower;
   const attackerLoss = Math.round(attackerCommitted * (attackerWins ? 0.08 : 0.18));
   const defenderLoss = Math.round(defenderCommitted * (attackerWins ? 0.18 : 0.08));
