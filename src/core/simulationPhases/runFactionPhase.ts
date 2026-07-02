@@ -81,5 +81,35 @@ export const runFactionPhase: PhaseFn = (ctx) => {
     if ((faction.type === "dynasty" || faction.type === "local") && faction.corruption < 80) {
       faction.corruption = Math.min(80, faction.corruption + 0.1);
     }
+
+    // v0.9.4: 战争疲劳累加。base 0.5 + 战月 × 0.2 - 胜奖励（无具体战月 → 0）。
+    // casualties 项留待 v0.9.6 AI 升级时接驳；本阶段仅启动累加，让大明 vs
+    // 多线 30+ 月的长期战争 fatigue 自然爬到 70+ 触发 deescalate。
+    const activeWarMonths = ctx.state.wars
+      .filter((w) => w.attackerFactionId === faction.id || w.defenderFactionId === faction.id)
+      .reduce((sum, w) => sum + (w.monthsActive > 0 ? 1 : 0), 0);
+    if (activeWarMonths > 0) {
+      const prev = faction.warFatigue ?? 0;
+      faction.warFatigue = Math.min(200, prev + 0.5 + 0.2 * activeWarMonths);
+      // 越过 100 阈值时施加 warWear 效果
+      if (prev < 100 && faction.warFatigue >= 100) {
+        const loss = Math.round(faction.treasury * 0.05);
+        if (loss > 0) {
+          faction.treasury = Math.max(0, faction.treasury - loss);
+          ctx.ledgerEntries.push({
+            category: "expense-court",
+            source: `${faction.name} 厌战消耗`,
+            amount: -loss,
+            factionId: faction.id,
+          });
+        }
+        // 减少全体控制区 stability 2
+        for (const r of Object.values(ctx.state.regions)) {
+          if (r.controllerFactionId === faction.id) {
+            r.stability = Math.max(0, r.stability - 2);
+          }
+        }
+      }
+    }
   }
 };

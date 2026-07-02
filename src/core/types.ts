@@ -309,6 +309,13 @@ export interface FactionState {
    * v0.9.1: 该势力的编队清单。默认空数组，v0.9.1 起由 warPreparation 填充。
    */
   formations: FormationState[];
+  /**
+   * v0.9.4: 战争疲劳累计（0..130+）。月增 base 0.5 + casualties × 0.4 + 持续
+   * 月数 × 0.2 - 胜利奖励 0.5。> 70 触发 AI deescalate 倾向，> 100 触发
+   * warWear 政治运动（stability -2 + treasury × 0.05/月）。
+   * 不参与 state hash 默认 0，与 v0.9.0/0.9.1/0.9.2/0.9.3 兼容。
+   */
+  warFatigue?: number;
 }
 
 export interface PlayerDecision {
