@@ -1,3 +1,21 @@
+/**
+ * ⚠️  DETERMINISM-CHANGE (T11 — 2026-07-02)
+ * ---------------------------------------------------------------------------
+ * 运输节点（道路/海港/河港/仓储）数据录入。
+ *
+ * - 31 region 显式赋值 infrastructureLevel / portLevel / riverPortLevel
+ * - logisticsNode.depotStock 按地区类型启发式（核心 8000 / 边地 5000 / 其它 6000）
+ * - 启发式规则与 `region()` 函数中的 CORE_REGIONS / PERIPHERY_REGIONS 常量同步
+ *
+ * 影响：state.military.infrastructureLevel 与 logisticsNode 字段值变化；
+ * movement.ts 的 INFRA_FACTOR 钳位 + supply.ts 的 dispatchSupplyConvoy
+ * 行为均受本改动影响（行为变化在 T10 已有，**数据**层面是本 T11 第一次
+ * 真正落地）。
+ *
+ * 必须跑：npm run hash:state + npm run batch
+ * 来源：docs/superpowers/specs/2026-07-02-military-refactor-executable-spec.md §4 T11
+ * ===========================================================================
+ */
 import type { ClimateType, FactionId, RegionMilitaryState, RegionState, TerrainType } from "../core/types";
 
 interface RegionTemplateInput {
@@ -20,6 +38,27 @@ interface RegionTemplateInput {
   coreFactionIds?: FactionId[];
   connections: string[];
   rebelPressure?: number;
+  /**
+   * v0.9.7 T11: 道路/基建等级 0..3 显式覆盖。0=草原/山野，1=泥路，
+   * 2=石板/车马道，3=驰道/官道。未指定则按 terrain 启发式（coast/river
+   * 默认 1，其余 0）。中原核心 2-3，南方省 1-2，草原/北疆 0。
+   */
+  infrastructureLevel?: 0 | 1 | 2 | 3;
+  /**
+   * v0.9.7 T11: 海港等级 0..3 显式覆盖。0=无，1=小渔港，2=市舶司级，
+   * 3=京畿/泉州/广州型。沿海 region 未指定默认 1。
+   */
+  portLevel?: 0 | 1 | 2 | 3;
+  /**
+   * v0.9.7 T11: 河港等级 0..3 显式覆盖。0=无，1=普通渡口，2=运河/长江
+   * 干流，3=京杭运河枢纽。river terrain 未指定默认 1。
+   */
+  riverPortLevel?: 0 | 1 | 2 | 3;
+  /**
+   * v0.9.7 T11: 仓储初始库存。中原核心 8000，边地 3000，海岛 5000。
+   * v0.9.2 旧默认值 8000 不变，未指定时按地区类型启发式。
+   */
+  depotStockInit?: number;
 }
 
 function region(input: RegionTemplateInput): RegionState {
@@ -28,7 +67,7 @@ function region(input: RegionTemplateInput): RegionState {
   // 形态差异化（如中原 1-3、草原 0-1）；本阶段确保 typecheck 通过且所有
   // region 都有必填字段。
   const military: RegionMilitaryState = {
-    infrastructureLevel: 0,
+    infrastructureLevel: input.infrastructureLevel ?? 0,
     seasonalState: "normal",
     localSupport: 50,
     occupationResistance: 0,
@@ -41,14 +80,34 @@ function region(input: RegionTemplateInput): RegionState {
   const isPlayable = input.id !== "northern-sea" && input.id !== "western-pacific" &&
     input.id !== "southeast-asia" && input.id !== "northeast-asia-edge" &&
     input.id !== "hami-corridor" && input.id !== "tibetan-plateau" && input.id !== "mongol-steppe";
+  // v0.9.7 T11: 港口/河港等级启发式 + 显式覆盖
+  const portLevel = input.portLevel ?? (input.terrain === "coast" ? 1 : 0);
+  const riverPortLevel = input.riverPortLevel ?? (input.terrain === "river" ? 1 : 0);
+  // v0.9.7 T11: 仓储初始库存启发式
+  //   中原（北/南直隶、山东、山西、河南、陕西）→ 8000
+  //   海岛/渔港/北疆/草原/山野 → 5000
+  //   其它（东南/西南/朝鲜/日本）→ 6000
+  const CORE_REGIONS = new Set([
+    "beizhili", "nanzhili", "shandong", "shanxi", "henan", "shaanxi"
+  ]);
+  const PERIPHERY_REGIONS = new Set([
+    "liaodong", "gansu", "ningxia", "haixi", "jianzhou", "chahar_steppe",
+    "tumed_steppe", "korchin_steppe", "hulunbuir", "amur_basin",
+    "nurgan_coast", "sakhalin", "ezo"
+  ]);
+  const depotStockInit = input.depotStockInit ?? (
+    CORE_REGIONS.has(input.id) ? 8000 :
+    PERIPHERY_REGIONS.has(input.id) ? 5000 :
+    6000
+  );
   const logisticsNode = isPlayable
     ? {
         regionId: input.id,
         depotLevel: 1,
-        depotStock: 8000, // v0.9.2 初始库存 = 1 月可产折算的中位值
+        depotStock: depotStockInit,
         throughput: 30000,
-        portLevel: input.terrain === "coast" ? 1 : 0,
-        riverPortLevel: input.terrain === "river" ? 1 : 0,
+        portLevel: portLevel as 0 | 1 | 2 | 3,
+        riverPortLevel: riverPortLevel as 0 | 1 | 2 | 3,
       }
     : null;
   return {
@@ -95,7 +154,11 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 88,
     grainStock: 2340000,
     garrison: 96000,
-    connections: ["liaodong", "shanxi", "shandong", "henan", "chahar_steppe"]
+    connections: ["liaodong", "shanxi", "shandong", "henan", "chahar_steppe"],
+    // v0.9.7 T11: 京畿——官道驰道+京杭运河北端+海运天津
+    infrastructureLevel: 3,
+    portLevel: 2,  // 天津
+    riverPortLevel: 3  // 京杭运河北端
   }),
   nanzhili: region({
     id: "nanzhili",
@@ -113,7 +176,11 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 60,
     grainStock: 4480000,
     garrison: 54000,
-    connections: ["shandong", "henan", "huguang", "jiangxi", "zhejiang"]
+    connections: ["shandong", "henan", "huguang", "jiangxi", "zhejiang"],
+    // v0.9.7 T11: 南京/扬州——江南官道+京杭运河中枢+长江
+    infrastructureLevel: 3,
+    portLevel: 2,  // 上海/松江
+    riverPortLevel: 3  // 京杭运河南端+长江
   }),
   shandong: region({
     id: "shandong",
@@ -131,7 +198,11 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 54,
     grainStock: 2470000,
     garrison: 42000,
-    connections: ["beizhili", "henan", "nanzhili"]
+    connections: ["beizhili", "henan", "nanzhili"],
+    // v0.9.7 T11: 齐鲁大道+京杭运河中段+登州海运
+    infrastructureLevel: 2,
+    portLevel: 2,  // 登州
+    riverPortLevel: 2  // 运河中段
   }),
   shanxi: region({
     id: "shanxi",
@@ -149,7 +220,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 78,
     grainStock: 1430000,
     garrison: 68000,
-    connections: ["beizhili", "shaanxi", "henan", "tumed_steppe", "chahar_steppe"]
+    connections: ["beizhili", "shaanxi", "henan", "tumed_steppe", "chahar_steppe"],
+    // v0.9.7 T11: 山西—晋商官道（北路通草原）
+    infrastructureLevel: 2
   }),
   henan: region({
     id: "henan",
@@ -168,7 +241,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 2860000,
     garrison: 38000,
     connections: ["beizhili", "shandong", "nanzhili", "shanxi", "shaanxi", "huguang"],
-    rebelPressure: 4
+    rebelPressure: 4,
+    // v0.9.7 T11: 中原核心——四方辐辏
+    infrastructureLevel: 3
   }),
   shaanxi: region({
     id: "shaanxi",
@@ -187,7 +262,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 1687500,
     garrison: 66000,
     connections: ["shanxi", "henan", "sichuan", "tumed_steppe", "chahar_steppe"],
-    rebelPressure: 8
+    rebelPressure: 8,
+    // v0.9.7 T11: 西安—西北驿道
+    infrastructureLevel: 2
   }),
   zhejiang: region({
     id: "zhejiang",
@@ -205,7 +282,11 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 46,
     grainStock: 2380000,
     garrison: 30000,
-    connections: ["nanzhili", "jiangxi", "fujian"]
+    connections: ["nanzhili", "jiangxi", "fujian"],
+    // v0.9.7 T11: 浙东驿道+明州/泉州海运
+    infrastructureLevel: 2,
+    portLevel: 3,  // 宁波/明州
+    riverPortLevel: 1  // 钱塘
   }),
   jiangxi: region({
     id: "jiangxi",
@@ -223,7 +304,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 42,
     grainStock: 2590000,
     garrison: 28000,
-    connections: ["nanzhili", "zhejiang", "fujian", "huguang", "guangdong"]
+    connections: ["nanzhili", "zhejiang", "fujian", "huguang", "guangdong"],
+    // v0.9.7 T11: 赣江—长江支流
+    infrastructureLevel: 1,
+    riverPortLevel: 2
   }),
   huguang: region({
     id: "huguang",
@@ -241,7 +325,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 45,
     grainStock: 3640000,
     garrison: 36000,
-    connections: ["henan", "nanzhili", "jiangxi", "sichuan", "guizhou", "guangxi"]
+    connections: ["henan", "nanzhili", "jiangxi", "sichuan", "guizhou", "guangxi"],
+    // v0.9.7 T11: 长江中游+汉水
+    infrastructureLevel: 1,
+    riverPortLevel: 2
   }),
   sichuan: region({
     id: "sichuan",
@@ -259,7 +346,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 58,
     grainStock: 2040000,
     garrison: 42000,
-    connections: ["shaanxi", "huguang", "guizhou", "bozhou", "yunnan"]
+    connections: ["shaanxi", "huguang", "guizhou", "bozhou", "yunnan"],
+    // v0.9.7 T11: 川蜀道难+长江上游
+    infrastructureLevel: 1,
+    riverPortLevel: 2
   }),
   fujian: region({
     id: "fujian",
@@ -277,7 +367,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 44,
     grainStock: 1260000,
     garrison: 26000,
-    connections: ["zhejiang", "jiangxi", "guangdong"]
+    connections: ["zhejiang", "jiangxi", "guangdong"],
+    // v0.9.7 T11: 泉州港（开海后远东第一港）
+    infrastructureLevel: 1,
+    portLevel: 3  // 泉州
   }),
   guangdong: region({
     id: "guangdong",
@@ -295,7 +388,11 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 42,
     grainStock: 1560000,
     garrison: 32000,
-    connections: ["fujian", "jiangxi", "guangxi"]
+    connections: ["fujian", "jiangxi", "guangxi"],
+    // v0.9.7 T11: 广州港+珠江
+    infrastructureLevel: 1,
+    portLevel: 3,  // 广州
+    riverPortLevel: 1  // 珠江
   }),
   guangxi: region({
     id: "guangxi",
@@ -313,7 +410,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 38,
     grainStock: 840000,
     garrison: 26000,
-    connections: ["huguang", "guangdong", "guizhou", "yunnan"]
+    connections: ["huguang", "guangdong", "guizhou", "yunnan"],
+    // v0.9.7 T11: 岭南—驿道稀疏
+    infrastructureLevel: 1
   }),
   yunnan: region({
     id: "yunnan",
@@ -331,7 +430,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 42,
     grainStock: 780000,
     garrison: 30000,
-    connections: ["sichuan", "guizhou", "guangxi"]
+    connections: ["sichuan", "guizhou", "guangxi"],
+    // v0.9.7 T11: 滇道险
+    infrastructureLevel: 0
   }),
   guizhou: region({
     id: "guizhou",
@@ -350,7 +451,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 624000,
     garrison: 24000,
     connections: ["sichuan", "huguang", "guangxi", "yunnan", "bozhou"],
-    rebelPressure: 3
+    rebelPressure: 3,
+    // v0.9.7 T11: 黔道
+    infrastructureLevel: 0
   }),
   liaodong: region({
     id: "liaodong",
@@ -369,7 +472,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 330000,
     garrison: 70000,
     coreFactionIds: ["ming", "jianzhou"],
-    connections: ["beizhili", "haixi", "jianzhou", "korchin_steppe", "joseon_north"]
+    connections: ["beizhili", "haixi", "jianzhou", "korchin_steppe", "joseon_north"],
+    // v0.9.7 T11: 辽东边墙—驿道
+    infrastructureLevel: 1
   }),
   chahar_steppe: region({
     id: "chahar_steppe",
@@ -387,7 +492,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 24,
     grainStock: 120000,
     garrison: 43000,
-    connections: ["beizhili", "shanxi", "shaanxi", "tumed_steppe", "korchin_steppe"]
+    connections: ["beizhili", "shanxi", "shaanxi", "tumed_steppe", "korchin_steppe"],
+    // v0.9.7 T11: 草原无官道
+    infrastructureLevel: 0
   }),
   tumed_steppe: region({
     id: "tumed_steppe",
@@ -405,7 +512,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 28,
     grainStock: 140000,
     garrison: 52000,
-    connections: ["shanxi", "shaanxi", "chahar_steppe"]
+    connections: ["shanxi", "shaanxi", "chahar_steppe"],
+    // v0.9.7 T11: 草原+归化城互市口
+    infrastructureLevel: 0
   }),
   haixi: region({
     id: "haixi",
@@ -424,7 +533,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 170000,
     garrison: 29000,
     coreFactionIds: ["haixi", "jianzhou"],
-    connections: ["liaodong", "jianzhou", "korchin_steppe", "hulunbuir", "amur_basin"]
+    connections: ["liaodong", "jianzhou", "korchin_steppe", "hulunbuir", "amur_basin"],
+    // v0.9.7 T11: 女真山路
+    infrastructureLevel: 0
   }),
   jianzhou: region({
     id: "jianzhou",
@@ -442,7 +553,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 35,
     grainStock: 180000,
     garrison: 32000,
-    connections: ["liaodong", "haixi", "joseon_north", "amur_basin", "nurgan_coast"]
+    connections: ["liaodong", "haixi", "joseon_north", "amur_basin", "nurgan_coast"],
+    // v0.9.7 T11: 建州老寨—佛阿拉/赫图阿拉山道
+    infrastructureLevel: 0
   }),
   korchin_steppe: region({
     id: "korchin_steppe",
@@ -460,7 +573,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 18,
     grainStock: 90000,
     garrison: 26000,
-    connections: ["chahar_steppe", "liaodong", "haixi", "hulunbuir"]
+    connections: ["chahar_steppe", "liaodong", "haixi", "hulunbuir"],
+    // v0.9.7 T11: 草原
+    infrastructureLevel: 0
   }),
   hulunbuir: region({
     id: "hulunbuir",
@@ -478,7 +593,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 14,
     grainStock: 70000,
     garrison: 18000,
-    connections: ["korchin_steppe", "haixi", "amur_basin"]
+    connections: ["korchin_steppe", "haixi", "amur_basin"],
+    // v0.9.7 T11: 极北草原
+    infrastructureLevel: 0
   }),
   amur_basin: region({
     id: "amur_basin",
@@ -496,7 +613,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 12,
     grainStock: 65000,
     garrison: 15000,
-    connections: ["hulunbuir", "haixi", "jianzhou", "nurgan_coast", "sakhalin"]
+    connections: ["hulunbuir", "haixi", "jianzhou", "nurgan_coast", "sakhalin"],
+    // v0.9.7 T11: 黑龙江水运（夏季）
+    infrastructureLevel: 0,
+    riverPortLevel: 2
   }),
   nurgan_coast: region({
     id: "nurgan_coast",
@@ -514,7 +634,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 12,
     grainStock: 50000,
     garrison: 12000,
-    connections: ["amur_basin", "jianzhou", "sakhalin", "ezo"]
+    connections: ["amur_basin", "jianzhou", "sakhalin", "ezo"],
+    // v0.9.7 T11: 苦夷岛
+    infrastructureLevel: 0,
+    portLevel: 1
   }),
   sakhalin: region({
     id: "sakhalin",
@@ -532,7 +655,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 8,
     grainStock: 18000,
     garrison: 3000,
-    connections: ["amur_basin", "nurgan_coast", "ezo"]
+    connections: ["amur_basin", "nurgan_coast", "ezo"],
+    // v0.9.7 T11: 海岛渔村
+    infrastructureLevel: 0,
+    portLevel: 1
   }),
   joseon_north: region({
     id: "joseon_north",
@@ -551,7 +677,9 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 520000,
     garrison: 22000,
     coreFactionIds: ["joseon", "ming"],
-    connections: ["liaodong", "jianzhou", "joseon_south"]
+    connections: ["liaodong", "jianzhou", "joseon_south"],
+    // v0.9.7 T11: 朝鲜驿道
+    infrastructureLevel: 1
   }),
   joseon_south: region({
     id: "joseon_south",
@@ -570,7 +698,10 @@ export const regionTemplates: Record<string, RegionState> = {
     grainStock: 980000,
     garrison: 26000,
     coreFactionIds: ["joseon", "ming"],
-    connections: ["joseon_north", "japan_west"]
+    connections: ["joseon_north", "japan_west"],
+    // v0.9.7 T11: 朝鲜—釜山港+洛东江
+    infrastructureLevel: 1,
+    portLevel: 1
   }),
   japan_west: region({
     id: "japan_west",
@@ -588,7 +719,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 46,
     grainStock: 1200000,
     garrison: 52000,
-    connections: ["joseon_south", "japan_east", "ezo"]
+    connections: ["joseon_south", "japan_east", "ezo"],
+    // v0.9.7 T11: 博多/平户港
+    infrastructureLevel: 1,
+    portLevel: 2  // 博多
   }),
   japan_east: region({
     id: "japan_east",
@@ -606,7 +740,9 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 48,
     grainStock: 1000000,
     garrison: 40000,
-    connections: ["japan_west", "ezo"]
+    connections: ["japan_west", "ezo"],
+    // v0.9.7 T11: 东国山道
+    infrastructureLevel: 1
   }),
   ezo: region({
     id: "ezo",
@@ -624,7 +760,10 @@ export const regionTemplates: Record<string, RegionState> = {
     fortification: 10,
     grainStock: 45000,
     garrison: 6000,
-    connections: ["japan_west", "japan_east", "nurgan_coast", "sakhalin"]
+    connections: ["japan_west", "japan_east", "nurgan_coast", "sakhalin"],
+    // v0.9.7 T11: 山夷猎道
+    infrastructureLevel: 0,
+    portLevel: 1
   }),
   bozhou: region({
     id: "bozhou",
@@ -644,6 +783,8 @@ export const regionTemplates: Record<string, RegionState> = {
     garrison: 25000,
     coreFactionIds: ["bozhou", "ming"],
     connections: ["sichuan", "guizhou"],
-    rebelPressure: 2
+    rebelPressure: 2,
+    // v0.9.7 T11: 播州土司—山道
+    infrastructureLevel: 0
   })
 };
