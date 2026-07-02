@@ -29,6 +29,11 @@ import {
   computeSupplyRatio,
   tickSupplyConvoys,
 } from "../supply";
+import {
+  applyCapturePlunder,
+  applySiegeMaintenance,
+  tickSiegeDamage,
+} from "../siege";
 import type { WarState } from "../types";
 import type { PhaseFn } from "../simulationContext";
 
@@ -64,6 +69,13 @@ export const runWarPhase: PhaseFn = (ctx) => {
     if (!attacker || !defender || attacker.id === defender.id) continue;
     const battle = resolveBattle(target, attacker, defender, decision.posture, ctx.random, ctx.state.activeModifiers);
     ctx.state.regions[target.id] = battle.region;
+    // v0.9.3: 围城成功 → 战利品 + stability-15 + rebelPressure+5
+    if (battle.war === null && battle.region.controllerFactionId === attacker.id) {
+      const capture = applyCapturePlunder(battle.region, attacker.id, attacker.name);
+      ctx.state.regions[battle.region.id] = capture.region;
+      applyLedgerToState(ctx.state, capture.entries);
+      ctx.ledgerEntries.push(...capture.entries);
+    }
     ctx.reports.push({
       id: `${ctx.state.currentDate}-${attacker.id}-${target.id}-battle`,
       date: ctx.state.currentDate,
@@ -160,6 +172,14 @@ export const runWarPhase: PhaseFn = (ctx) => {
       r.war.front.attackerWarSupport = computeWarSupport(ctx.state, r.war, attacker.id);
       r.war.front.defenderWarSupport = computeWarSupport(ctx.state, r.war, defender.id);
     }
+    // v0.9.3: 围城伤害 + 维护费。tickSiegeDamage 收 committedForce/8/fortLevel
+    // 扣 region.garrison；维护费 200/月走账本 'expense-construction'。
+    // 注：使用 pre-supplyMult 的 committedForce（r.nextCommittedForce），更反映"投入"。
+    const nextRegion = tickSiegeDamage(region, r.nextCommittedForce);
+    ctx.state.regions[region.id] = nextRegion;
+    const siegeEntries = applySiegeMaintenance(nextRegion, defender.id, defender.name);
+    applyLedgerToState(ctx.state, siegeEntries);
+    ctx.ledgerEntries.push(...siegeEntries);
     survivingWars.push(r.war);
   }
   ctx.state.wars = survivingWars;
