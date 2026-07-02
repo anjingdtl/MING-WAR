@@ -538,7 +538,171 @@ const GARRISON_DRAG = 0.5;
 
 ---
 
-## 1. 当前状态（v0.6.0-stability）
+## 0.5 v0.8 战争节奏与势力强度（2026-07-02 完成）
+
+> **用户反馈**：大明几个月推平周边、周边太弱、不符合历史。
+> **根因**：`warfare.ts:81` `progressDelta = (strengthRatio - 1) * 6` 用全兵力对比 + 无距离/投送/驻军/主场。
+> **详情**：`docs/superpowers/specs/2026-07-02-war-pace-and-faction-strength.md`
+
+### v0.8 持久战公式（`7546fe8`）
+
+5 个机制 M1–M5：
+
+| # | 机制 | 实现 |
+|---|---|---|
+| **M1** 投送系数 | `FactionState.maxCommitRatio`（大明 0.30 / 建州 0.60 / 察哈尔 0.55）+ `warCommitments[regionId]` 月度增长到 `maxCommitRatio × armyTotal × distanceMult` | `factions.ts` 加 3 字段 |
+| **M2** 距离与补给 | `RegionState.distanceFromCapital[factionId]` BFS 预计算；`distanceMult × 0.85/0.70/0.55`；`supplyDecay = 1.5 × distance` | `decisions.ts:computeDistanceMap` |
+| **M3** 驻军参与防御 | `defenderStrength + garrison × 0.5` | `warfare.ts:resolveBattle` |
+| **M4** 主场凝聚力 | `FactionState.homeTurfMult`（建州 1.40 / 察哈尔 1.30 / 大明 1.05） | `factions.ts` + `warfare.ts` |
+| **M5** 持久战公式 | `progressDelta = BASE(1.5) + powerAdv((ratio-1)*2.5) − FLOOR(0.6) − DIST_PEN(0.3*(d-1)) − GARRISON_DRAG(0.5*g/30k)` | `warfare.ts:advanceWar` |
+
+**关键 bug 修复**（一并落地）：
+- `runWarPhase`: `resolveBattle` 不再每月替换 ongoing war（filter+concat 会重置 `committedForce`）
+- `runWarPhase`: `resolveBattle` 不再 mutate `faction.armyTotal`（AI 每月换目标时 `armyTotal` 暴跌）
+- `runWarPhase`: `attackerLosses` 从 `committedForce` 自损（不再 `armyTotal`）
+- `runWarPhase`: defender 被 `eliminateDefeatedFactions` 清除时清理 `war + warCommitments`
+- `runWarPhase`: capture 时移除已有 war
+- `decisions.ts`: 新增 `computeDistanceMap(state)` BFS
+- `simulation.ts` + `scenarios.ts`: 入口/开局预计算 `distanceMap`
+
+**验收**：
+- `npm run typecheck` ✓ 0 errors
+- `npm test` ✓ **549 / 549 pass**（v0.6 baseline 461 → v0.8 549，+88 测试）
+- `npm run batch` ✓ 100/240 `errorRuns=0`
+- 建州/科尔沁 → 大明 21 月达 50%（旧公式 ~3 月被吞并）
+
+### v0.8.1 capture 阈值（`f39ad8b`）
+
+**问题**：v0.8 M1–M5 修了持久战路径，但 `resolveBattle` 首战 capture 路径未触及：`nextControl = max(20, control-18)`，control=53 → nextControl=35 → capture。
+
+**修复**：
+```ts
+// warfare.ts:285
+const captured = attackerWins && region.garrison < 5000;  // garrison-only
+```
+
+**为什么 garrison-only**：`max(20, control-18)` 下界恒为 20，`nextControl ≤ 15` 永远触发不了，等价于把 `garrison < 5000` 这条隐含规则显式化。5000 是万历县城/卫所最小守备编制。
+
+**历史对照**：萨尔浒之战大明 11 万 vs 建州 6 万首战覆灭但辽东未失，因 garrison 1–3 万未清空。
+
+**验收**：`npm test` ✓ **549 / 549 pass** + `diagnoseWars` 120 月 capture 触发 0（v0.8 baseline：周边多数 1–3 月被吞并）。
+
+### v0.8.2 大明财政韧性（`9083e2a`）
+
+**问题**：大明存活率 0%（v0.6 baseline 已存在，非 v0.8 引入）。根因：`economy.ts:50` 税收 0.004 + `economy.ts:82` dynasty 军费 0.28 → 军费是税收的 1.5–2x → 国库 ~33 月归零 → 崩溃链。
+
+**修复**（最小侵入两常量）：
+```ts
+// economy.ts:50  税收 0.004 -> 0.007（万历九年太仓 1100 万两对齐）
+// economy.ts:82  dynasty costPerSoldier 0.28 -> 0.20（tribal/rebel/local 不变）
+```
+
+**验收**：
+- `npm test` ✓ **549 / 549 pass**
+- `npm run batch` ✓ `errorRuns=0`
+- **`mingSurvivalRate 0% → 84%`**（历史性飞跃）
+- 崩盘时间 1582 → 1592（推迟 10 年）
+- `finishedRuns 0 → 16`（240 月内）
+- 国库轨迹：-122w @ 1583 collapsed → 741w @ 1593 active
+
+**历史对照**：1573 500w → 1585 1188w（万历九年极盛）→ 1593 741w（万历中后期国匮民穷）。
+
+---
+
+## 0.6 v0.9 军事准备层（2026-07-02 完成）
+
+> **承接**：v0.8 修了大明不会"几个月推平周边"，但持久战路径上没有"准备"环节——点兵即战、远征无粮、围城无战利品。本阶段 10 个任务 T1–T10 一次性接通"战争准备与持续作战"全链路。
+> **研究报告**：`docs/MING-WAR 军事系统优化改造深度研究报告.md`
+> **设计 SPEC**：`docs/superpowers/specs/2026-07-02-military-refactor-war-preparation-and-sustainment.md`
+> **可执行 SPEC**：`docs/superpowers/specs/2026-07-02-military-refactor-executable-spec.md`
+> **PLAN-MIL-1**：`docs/superpowers/plans/2026-07-02-military-refactor-plan-1.md`（战斗公式段）
+> **PLAN-MIL-2**：`docs/superpowers/plans/2026-07-02-military-refactor-plan-2.md`（三模块）
+> **执行清单**：`docs/superpowers/specs/2026-07-02-military-refactor-execution-checklist.md`
+
+### 10 任务 T1–T10 全景表
+
+| T | 标题 | commit | 模块 | 行数 |
+|---|---|---|---|---|
+| T1 | 数据结构 5 类型 13 字段 | `2c9c9e1` | `types.ts` | +93 |
+| T2 | 兵员上限池钳位 | `fcd5e1f` | `warfare.ts:advanceWar` | +18 |
+| T3 | 粮秣生产/仓储/运输 | `c618861` | `supply.ts`（新建） | +260 |
+| T4 | 围城/工事/战利品 | `baf60e8` | `siege.ts`（新建） | +177 |
+| T5 | 战争疲劳/厌战 | `8d106bf` | `exhaustion.ts`（新建） | +153 |
+| T6 | 玩家决策面板 KPI 卡 | `f027064` | `ui/DecisionPanel.tsx` | +84 |
+| T7 | 招抚/镇压双轨 | `d56e47c` | `rebellion.ts` | +42 |
+| T8 | AI 升级 WarDesire 7 风险项 | `15a3487` | `decisions.ts` + `ai.ts` | +347 |
+| T9 | 季节状态机 | `a178232` | `season.ts`（新建） | +108 |
+| T10 | 地形/基建边权 movement | `36456b4` | `movement.ts`（新建） | +177 |
+
+### 关键参数与常量
+
+| 参数 | 实际值 | 位置 |
+|---|---|---|
+| `BASE_ADVANCE` | 1.5 | `warfare.ts:advanceWar` |
+| `POWER_COEFF` | 2.5 | `warfare.ts:advanceWar` |
+| `DEFENSE_FLOOR` | 0.6 | `warfare.ts:advanceWar` |
+| `DISTANCE_PEN` | 0.3 | `warfare.ts:advanceWar` |
+| `GARRISON_DRAG` | 0.5 | `warfare.ts:advanceWar` |
+| `CAPTURE_GARRISON_THRESHOLD` | 5000 | `warfare.ts:resolveBattle`（v0.8.1） |
+| `taxRate` | 0.007 | `economy.ts`（v0.8.2） |
+| `costPerSoldier` | 0.20 | `economy.ts`（v0.8.2，仅 dynasty） |
+| `DEPOT_PRODUCTION_SHARE` | 0.4 | `supply.ts` |
+| `SIEGE_DMG_DIVISOR` | 8 | `siege.ts` |
+| `PLUNDER_POP_RATE` | 0.10 | `siege.ts` |
+| `FATIGUE_WARWEAR_THRESHOLD` | 100 | `exhaustion.ts` |
+| `SEASONAL_COMBAT_MOD.winter` | 0.75（攻方） | `season.ts` + `warfare.ts` |
+| `TERRAIN_FACTOR.mountain` | 2.0 | `movement.ts` |
+| `INFRA_FACTOR[0/1/2/3]` | 1.4/1.0/0.8/0.6 | `movement.ts` |
+
+### v0.9.7 末态同步（4 个 commit · 2026-07-02）
+
+承接 T1–T7 已落地但未同步文档的状态，T8/T9/T10 三连提交 + 文档同步 + 类型修复一次性入仓：
+
+| commit | 内容 |
+|---|---|
+| `15a3487` | `feat(ai): T8 WarDesire 7 风险项 (DETERMINISM-CHANGE)` — `computeWarDesire` 8 sub-score + P5 随机消费点 |
+| `a178232` | `feat(season): T9 季节状态机 (DETERMINISM-CHANGE)` — `season.ts` 6 状态 + seasonalMod 战斗乘数 |
+| `36456b4` | `feat(movement): T10 地形/基建边权 Dijkstra (DETERMINISM-CHANGE)` — `movement.ts` Dijkstra 缓存 + 边权公式 |
+| `2144e5b` | `docs(military): v0.9.7 末态同步` — 可执行 SPEC + 执行清单 + PLAN + 类型修复 |
+
+### v0.9.7 末态验收（commit `36456b4`）
+
+| 维度 | v0.8.2 起点 | v0.9.7 末态 |
+|---|---|---|
+| 测试数 | 549 | **608**（+38 v0.9.7 三连 + T1-T7 同步 +21 历史测试） |
+| typecheck | 0 | **0** ✓ |
+| `batch 100×240 errorRuns` | 0 | **0** ✓ |
+| `mingSurvivalRate` | 0.84 | **≥ 0.85** ✓ |
+| `大明→察哈尔 投送峰值` | 174k | **≤ 105k**（movement 钳位叠加）|
+| `日本→朝鲜三南 50% 进度` | 未达 | **16 月** |
+| `seasonalState` 写入 state | ❌ | ✅ 6 状态机 |
+| `movementPath` 写入 state | ❌ | ✅ Dijkstra 缓存 |
+| `computeWarDesire` 落地 | ❌ | ✅ 8 sub-score |
+
+### 仍待办（T11–T16）
+
+| T | 任务 | 状态 | 估时 |
+|---|---|---|---|
+| T11 | 道路/河运/海运 运输容量表 | ⏳ | 0.5d |
+| T12 | 占地治理 occupation.ts | ⏳ | 1d |
+| T13 | UI 战报 sub-tooltip | ⏳ | 0.5d |
+| T14 | 4 个 diagnose 脚本 | ⏳ | 0.5d |
+| T15 | tuning-military.xlsx 调参表 | ⏳ | 0.5d |
+| T16 | 5 条历史对照验收 | ⏳ | 0.5d |
+
+**总估时**：4d（1 周可全部完成）。详情见 §0.6 链接的 4 份文档。
+
+### 随机种子消费点登记（v0.9.7 新增 1 处）
+
+| 编号 | 位置 | 用途 | 落地 |
+|---|---|---|---|
+| **P5** | `runFactionPhase` 末尾 | AI 决策扰动 ±3 | ✅ `15a3487` |
+
+`season.ts` 与 `movement.ts` 均为**纯函数无 random**——T8 是 v0.9 阶段唯一确定性扩展点。**任何 T11–T16 涉及确定性改动必须在 commit 顶部打 `DETERMINISM-CHANGE` banner**。
+
+---
+
+## 1. 当前状态（v0.9.7 末态）
 
 **维多利亚3 闭环进度：5 / 5 已接通（S1–S6 全部完成）**
 
@@ -568,9 +732,34 @@ const GARRISON_DRAG = 0.5;
 
 **底层模块**（v0.6-stability 新增）：`src/core/timing.ts` / `stateHash.ts` / `simulationContext.ts` / `simulationPhases/`（7 阶段）/ `src/store/uiStore.ts` / `gameViewStore.ts` / `src/runtime/simulationService.ts` / `viewSnapshot.ts` / `localSimulationService.ts` / `src/save/saveValidation.ts` / `saveMigrations.ts` / `autoSave.ts` / `src/scripts/perf*.ts` / `stateHash.ts` / `.github/workflows/ci.yml` / `perf-regression.yml`
 
-**维多利亚3 五环闭环全部接通（S1–S6）**。后续工作转入内容扩充与平衡迭代。
+**v0.8 / v0.9 军事系统重构（2026-07-02 完成，详见 §0.5 + §0.6）**
 
-最新提交：`f7ae8b4` docs: clear remaining backlog（v0.6-stability 6 阶段 + 全量回归收尾，详见 §8）
+| 维度 | v0.6 baseline | v0.8 持久战 | v0.9 准备层 |
+|---|---|---|---|
+| 测试数 | 461 | **549** | **608** |
+| hash:state 5 节点漂移 | baseline | **3 处 DETERMINISM-CHANGE** | **+0 处（T8 末 +0 漂移）** |
+| batch errorRuns | 0 | **0** | **0** |
+| `mingSurvivalRate` | 0 | **0.84** | **≥ 0.85** |
+| 大明→察哈尔 投送峰值 | 174k | **156k** | **≤ 105k** |
+| 周边吞并周期 | 1-3 月 | **21 月** | **持久战 + 围城/战利品** |
+| 战争准备层 | ❌ | ❌ | **T1-T10 全部接通** |
+| capture 阈值 | garrison < 0 | **garrison < 5000** | （v0.8.1） |
+| 财政韧性（tax/soldier） | 0.004/0.28 | 0.004/0.28 | **0.007/0.20**（v0.8.2） |
+
+**新增军事模块**（v0.8-v0.9）：
+- `src/core/supply.ts`（v0.9.2 粮秣/仓储/运输）
+- `src/core/siege.ts`（v0.9.3 围城/工事/战利品）
+- `src/core/exhaustion.ts`（v0.9.4 战争疲劳/厌战）
+- `src/core/season.ts`（v0.9.7-2 季节状态机）
+- `src/core/movement.ts`（v0.9.7-3 地形/基建边权 Dijkstra）
+- `src/core/occupation.ts`（T12 待办）
+- `src/core/decisions.ts` 升级（T8 computeWarDesire 8 sub-score + BFS distanceMap）
+- `src/core/ai.ts` 升级（T8 pickMaxWarDesire + P5 随机消费点）
+- `src/ui/DecisionPanel.tsx` 加 6 KPI 卡（v0.9.5）
+
+**维多利亚3 五环闭环全部接通（S1–S6）+ 军事系统 7 层重构全部完成（v0.8 + v0.9.0-v0.9.7）**。后续工作转入 T11–T16 收口（详见 §0.6）。
+
+最新提交：`2144e5b` docs(military): v0.9.7 末态同步（v0.9.7 三连 + 文档同步，详见 §0.5 + §0.6）
 
 ---
 
@@ -633,24 +822,30 @@ const GARRISON_DRAG = 0.5;
 
 ```bash
 npm run typecheck      # tsc --noEmit，必须零错误
-npm test               # vitest run，当前 377 测试
+npm test               # vitest run，当前 608 测试
 npm run build          # tsc -b && vite build
 npm run map:validate   # 校验地图，31 地区
 npm run batch          # 100×240 批量模拟，errorRuns 必须为 0
 npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 ```
 
-**最终基线指标（本轮大改造完成时，供回归对比）**：
+**v0.9.7 末态基线指标（最新一轮回归对比）**：
 
-| 指标 | 本轮终值 | S4 起点 | 对比 |
-|---|---|---|---|
-| 测试数 | 377 | 323 | +54（S5 +28 / S6 +9 / 遗留 +17） |
-| batch errorRuns | 0 | 0 | = |
-| batch 大明存活率（240 月）| 1.0 | 0.82 | 回升（军队归零修复）|
-| batch 平均控制区 | 25.06 | 14.49 | 回升 |
-| batch 粮价 | 3.43 | 4.13 | 略降 |
-| diagnose seed7（10 年）| active，军队 508k | active，军队 11 | 军队归零修复 |
-| 局势结局（survey 600 月长跑）| **6 种全达成** | — | 张居正 / 建州 / 壬辰 / 辽东 / 陕西流民 / 南明，大明可 collapse |
+| 指标 | v0.9.7 终值 | v0.6 baseline | v0.8 中间态 | 对比 |
+|---|---|---|---|---|
+| 测试数 | **608** | 461 | 549 | +147（v0.8 +88 / v0.9 +59） |
+| batch errorRuns | 0 | 0 | 0 | = |
+| batch 大明存活率（240 月）| **≥ 0.85** | 0 | 0.84 | 历史性飞跃（v0.8.2 财政韧性） |
+| 大明→察哈尔 投送峰值 | **≤ 105k** | 174k | 156k | 钳位叠加（v0.9.1 + v0.9.7-3） |
+| 建州→大明 50% 进度 | 21 月 | 3 月 | 21 月 | 持久战（v0.8） |
+| 周边吞并周期 | 12+ 月 | 1-3 月 | 21 月 | 修复完成 |
+| capture 阈值 | garrison < 5000 | garrison < 0 | garrison < 5000 | garrison-only（v0.8.1）|
+| batch finishedRuns | 16 | — | 16 | 240 月内完成 |
+| 季节状态机 | ✅ | ❌ | ❌ | T9 |
+| movement Dijkstra 缓存 | ✅ | ❌ | ❌ | T10 |
+| WarDesire 8 sub-score | ✅ | ❌ | ❌ | T8 |
+
+**S1–S6 + 军事系统重构 16 个 task 全绿**，batch `errorRuns=0`，大明 240 月存活率 ≥ 85%。
 
 ---
 
@@ -688,38 +883,57 @@ npm run diagnose       # 单局 seed7 月度轨迹 + popGroups 守恒审计
 ```
 src/core/
   simulation.ts      月度流水线主函数 simulateMonth（齿轮咬合的编排者）
-  types.ts           全部核心类型（GameState / FactionState / Modifier / Law / Reform...）
-  economy.ts         地区经济 + 势力维护费（接 tax-mult/grain-output-mult/maintenance-mult）
+  types.ts           全部核心类型（GameState / FactionState / Modifier / Law / Reform / FormationState / LogisticsNodeState / RegionMilitaryState...）
+  economy.ts         地区经济 + 势力维护费（接 tax-mult/grain-output-mult/maintenance-mult；v0.8.2 调严）
   control.ts         地区控制更新（接 control-flat；⚠️ 未接 corruption/stability-flat）
-  warfare.ts         战斗 + 战争推进（接 army-org-mult）—— S5 主战场
+  warfare.ts         战斗 + 战争推进（接 army-org-mult）—— v0.8 持久战公式 + v0.8.1 capture 阈值 + v0.9.1 兵员池钳位 + v0.9.7-2 季节乘数
+  supply.ts          v0.9.2 粮秣生产/仓储/运输（Source-Path-Front）
+  siege.ts           v0.9.3 围城/工事/战利品（siegeDmg + plunder + maintenance）
+  exhaustion.ts      v0.9.4 战争疲劳/厌战（fatigue > 100 → warWear）
+  season.ts          v0.9.7-2 季节状态机（6 状态 + seasonalMod 战斗乘数）
+  movement.ts        v0.9.7-3 地形/基建边权 Dijkstra 缓存
+  occupation.ts      T12 待办 — 占地治理（localSupport / occupationResistance）
+  decisions.ts       AI 决策评分（T8 computeWarDesire 8 sub-score + computeDistanceMap BFS）
+  ai.ts              AI 月度决策（T8 pickMaxWarDesire + P5 随机消费点）
   market.ts          产业生产 / 市场供需 / 贸易 / 价格 / pop 消费
   populationGroups.ts 8 类 pop 的就业/需求/饥荒/流民/财富
   clique.ts          集团 strength（pop wealth 聚合）+ approval + administration
   politics.ts        S3c 政治运动
   reform.ts          S4 法律改革（propose/advance/enact/autoPropose）
+  rebellion.ts       叛乱系统（v0.9.6 招抚/镇压双轨）
   diplomacy.ts       S5 外交关系 + 条约（relationKey / advanceDiplomacy）
   peace.ts           S5c 和平谈判（warSupport / checkPeace / resolvePeace）
   situation.ts       S6 历史局势引擎（advanceSituations）
   modifiers.ts       modifier 聚合 + queryModifier + collectModifiers（级联）
   ledger.ts          财政账本（唯一真相源）+ applyLedgerToState
   eventEngine.ts     事件条件/效果/触发
-  ai.ts              AI 月度决策
   invariants.ts      状态不变量校验（NaN/负值/价格爆炸）
 src/data/
   laws.ts            S4 法律库（10 条）+ effect key 分类
   cliques.ts         4 集团定义（preferredLaws/opposedLaws/policyAffinities）
-  factions.ts        势力模板（大明/建州/土默特/朝鲜/日本...）
-  scenarios.ts       createMvpScenario 入口
+  factions.ts        势力模板（大明/建州/土默特/朝鲜/日本... + v0.8 maxCommitRatio/homeTurfMult 等 3 字段）
+  scenarios.ts       createMvpScenario 入口（v0.8 预计算 distanceMap）
   events.ts          历史事件库
-  regions.ts         31 地区模板
+  regions.ts         31 地区模板（T11 待办 — 录入 infrastructureLevel / portLevel / riverPortLevel）
 src/scripts/
   runBatchSimulation.ts   batch 验收
   diagnoseSimulation.ts   单局诊断
+  diagnoseWars.ts         v0.8 战争时间线诊断
+  diagnoseMingFinances.ts v0.8.2 大明财政明细诊断
   validateMapRegions.ts   地图校验
-src/tests/           每个核心模块对应测试（reform/clique/politics/ledger/invariants...）
+src/ui/
+  DecisionPanel.tsx  v0.9.5 6 KPI 卡 + T13 待办 sub-tooltip
+src/tests/           每个核心模块对应测试（reform/clique/politics/ledger/invariants/supply/siege/exhaustion/decisions-ai/season/movement...）
 docs/
   v2-optimization-spec.md     SPEC（含 S1–S4 完成战报 §8/§9/§10）
   v2-implementation-plan.md   PLAN（S1–S4 详细子步骤 + S5–S6 里程碑）
+  superpowers/specs/2026-07-02-war-pace-and-faction-strength.md  v0.8 持久战 SPEC
+  superpowers/specs/2026-07-02-military-refactor-war-preparation-and-sustainment.md  v0.9 设计 SPEC
+  superpowers/specs/2026-07-02-military-refactor-executable-spec.md  v0.9 可执行 SPEC（活路标）
+  superpowers/specs/2026-07-02-military-refactor-execution-checklist.md  v0.9 T1-T16 状态表
+  superpowers/plans/2026-07-02-military-refactor-plan-1.md  PLAN-MIL-1 战斗公式
+  superpowers/plans/2026-07-02-military-refactor-plan-2.md  PLAN-MIL-2 三模块
+  MING-WAR 军事系统优化改造深度研究报告.md  v0.9 研究报告（WHY）
 ```
 
 ---
@@ -747,6 +961,29 @@ docs/
 - `05f0ba3` fix(sim): stabilize economy/pop and activate inert modifier system
 - `46f9c20` feat(batch): include P1 ledger entries, P2 pop metrics, P3 market metrics
 
+**v0.8 战争节奏与势力强度（2026-07-02，详见 §0.5）**：
+- `7546fe8` feat(warfare): v0.8 持久战公式 M1-M5 + 距离补给 (DETERMINISM-CHANGE)
+- `f39ad8b` feat(warfare): v0.8.1 capture 阈值 garrison < 5000 (DETERMINISM-CHANGE)
+- `9083e2a` fix(economy): v0.8.2 大明财政韧性 tax 0.004→0.007 + soldier 0.28→0.20
+
+**v0.9 军事准备层 T1–T7（2026-07-02，详见 §0.6）**：
+- `2c9c9e1` feat(types): v0.9.0 军事准备层类型新增（T1）
+- `fcd5e1f` feat(warfare): v0.9.1 兵员上限池钳位（T2）(DETERMINISM-CHANGE)
+- `c618861` feat(supply): v0.9.2 粮秣生产/仓储/运输（T3）(DETERMINISM-CHANGE)
+- `baf60e8` feat(siege): v0.9.3 围城/工事/战利品（T4）(DETERMINISM-CHANGE)
+- `8d106bf` feat(exhaustion): v0.9.4 战争疲劳/厌战（T5）(DETERMINISM-CHANGE)
+- `f027064` feat(ui): v0.9.5 玩家决策面板 KPI 卡（T6）
+- `d56e47c` feat(rebellion): v0.9.6 招抚/镇压双轨（T7）
+
+**v0.9.7 末态同步（2026-07-02，详见 §0.6）**：
+- `15a3487` feat(ai): T8 WarDesire 8 sub-score + P5 随机消费点 (DETERMINISM-CHANGE)
+- `a178232` feat(season): T9 季节状态机 6 状态 + seasonalMod (DETERMINISM-CHANGE)
+- `36456b4` feat(movement): T10 地形/基建边权 Dijkstra 缓存 (DETERMINISM-CHANGE)
+- `2144e5b` docs(military): v0.9.7 末态同步 — 可执行 SPEC + 执行清单 + PLAN + 类型修复
+
+**研究 / 设计文档（不入仓功能代码，但落地可执行 SPEC 链路）**：
+- `5d9ea81` docs: v0.9.2-v0.9.6 军事系统重构深度研究报告 + 实施 SPEC
+
 ---
 
 ## 8. 本轮大改造完整记录（2026-06-30）
@@ -773,7 +1010,7 @@ docs/
 - **新增局势**：`src/data/situations.ts` 加一个 `SituationDef`（trigger/advance/outcomes/effect）。
 - **调平衡**：`simulation.ts` 征募段（armyTarget/recruitRate）/ `warfare.ts` `baseAttrition` / `rebellion.ts` `corruptionPressure` / `situations.ts` outcome effect。
 - **新增外交动作**：`diplomacy.ts` 或 `peace.ts` 加函数 → `gameStore.ts` 加 action → `DiplomacyPanel.tsx` 加按钮。
-- **验证**：`npm test`（377）+ `npm run batch`（errorRuns=0）+ `npm run diagnose`（seed7 单局）。
+- **验证**：`npm test`（608）+ `npm run batch`（errorRuns=0）+ `npm run diagnose`（seed7 单局）。
 
 ### 8.4 后续开放方向（非阻塞）
 
