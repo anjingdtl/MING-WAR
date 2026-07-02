@@ -24,6 +24,11 @@ import { checkPeace, computeWarSupport, resolvePeace } from "../peace";
 import { applyLedgerToState, type LedgerEntry } from "../ledger";
 import { findTriggeredEvents } from "../eventEngine";
 import { mvpEvents } from "../../data/events";
+import {
+  applySupplyPressureMultiplier,
+  computeSupplyRatio,
+  tickSupplyConvoys,
+} from "../supply";
 import type { WarState } from "../types";
 import type { PhaseFn } from "../simulationContext";
 
@@ -34,6 +39,21 @@ export const runWarPhase: PhaseFn = (ctx) => {
     ...ctx.aiDecisions
   };
   const endedWarRegionIds: string[] = []; // v0.8: 战争结束后清理 warCommitments
+
+  // v0.9.2: 推进活跃补给车队（ETA-1，到期注入 depotStock；不消费 random）
+  ctx.state = tickSupplyConvoys(ctx.state);
+
+  // v0.9.2: 预算本月的 supplyMult 映射（faction × targetRegion → mult）
+  // 持久战调用 advanceWar 之前用此值缩放 committedAfterLosses。
+  const supplyMultMap = new Map<string, number>();
+  for (const war of ctx.state.wars) {
+    const key = `${war.attackerFactionId}|${war.targetRegionId}`;
+    if (supplyMultMap.has(key)) continue;
+    const distance = ctx.state.regions[war.targetRegionId]?.distanceFromCapital?.[war.attackerFactionId] ?? 1;
+    const siegeWeeks = Math.max(8, distance * 5);
+    const supplyRatio = computeSupplyRatio(ctx.state, war.attackerFactionId, war.targetRegionId, siegeWeeks);
+    supplyMultMap.set(key, applySupplyPressureMultiplier(supplyRatio));
+  }
 
   // 战斗（resolveBattle 消费 random）
   for (const [factionId, decision] of Object.entries(decisions)) {
@@ -124,7 +144,9 @@ export const runWarPhase: PhaseFn = (ctx) => {
     defender.warExhaustion = Math.min(100, defender.warExhaustion + r.defenderExhaustionDelta);
     // v0.8: 应用 committedForce（先扣损失，再写入）
     if (!attacker.warCommitments) attacker.warCommitments = {};
-    const committedAfterLosses = Math.max(0, r.nextCommittedForce - r.attackerLosses);
+    // v0.9.2: 补给压力乘数（supplyRatio < 0.5 → × 0.5，< 0.75 → × 0.7）
+    const supplyMult = supplyMultMap.get(`${war.attackerFactionId}|${war.targetRegionId}`) ?? 1.0;
+    const committedAfterLosses = Math.max(0, Math.round((r.nextCommittedForce - r.attackerLosses) * supplyMult));
     attacker.warCommitments[war.targetRegionId] = committedAfterLosses;
     const warEntries: LedgerEntry[] = [
       { category: "expense-army-pay", source: `${attacker.name} 战地军费`, amount: -r.attackerSilverCost, factionId: attacker.id },

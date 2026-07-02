@@ -554,6 +554,8 @@ export interface GameState {
   diplomacy?: Record<string, DiplomaticRelation>;
   /** S6: 进行中的历史局势（系统驱动的长期叙事）。 */
   activeSituations?: SituationState[];
+  /** v0.9.2: 进行中的补给车队（每月 ETA 递减，到期注入目的地 depotStock）。 */
+  activeConvoys?: import("./supply").SupplyConvoy[];
 }
 
 export interface SimulationInput {

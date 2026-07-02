@@ -14,6 +14,7 @@ import { updateControl } from "../control";
 import { updateRebellion } from "../rebellion";
 import { applyLedgerToState, type LedgerEntry } from "../ledger";
 import { calculatePopulation } from "../population";
+import { depositMonthlySupply } from "../supply";
 import { expireModifiers } from "../modifiers";
 import {
   advancePopGroups,
@@ -84,6 +85,12 @@ export const runRegionPhase: PhaseFn = (ctx) => {
     }
     applyLedgerToState(ctx.state, econEntries);
     ctx.ledgerEntries.push(...econEntries);
+
+    // v0.9.2: 把当月经济产出的 40% 注入 logisticsNode.depotStock（军用粮秣折算）。
+    // 若 region 没有 logisticsNode（context tile / 海面），no-op。
+    if (economy.grainProduced > 0) {
+      nextRegion = depositMonthlySupply(nextRegion, economy.grainProduced);
+    }
 
     // S2a: 统一商品流（产业 + 农业 → 市场供给，pop → 需求）
     if (nextRegion.market) {

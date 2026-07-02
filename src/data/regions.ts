@@ -35,6 +35,22 @@ function region(input: RegionTemplateInput): RegionState {
     forageCapacity: 0.5,
     strategicValue: 30,
   };
+  // v0.9.2: 所有可玩 region 启用 logisticsNode（context tile / 海面 留 null）。
+  // 默认 depotLevel/portLevel/riverPortLevel 都按 terrain 启发式（仅占位）；
+  // 实际差异化由 v0.9.3 围城阶段（§3 调参）追加。
+  const isPlayable = input.id !== "northern-sea" && input.id !== "western-pacific" &&
+    input.id !== "southeast-asia" && input.id !== "northeast-asia-edge" &&
+    input.id !== "hami-corridor" && input.id !== "tibetan-plateau" && input.id !== "mongol-steppe";
+  const logisticsNode = isPlayable
+    ? {
+        regionId: input.id,
+        depotLevel: 1,
+        depotStock: 8000, // v0.9.2 初始库存 = 1 月可产折算的中位值
+        throughput: 30000,
+        portLevel: input.terrain === "coast" ? 1 : 0,
+        riverPortLevel: input.terrain === "river" ? 1 : 0,
+      }
+    : null;
   return {
     id: input.id,
     name: input.name,
@@ -56,8 +72,8 @@ function region(input: RegionTemplateInput): RegionState {
     connections: input.connections,
     activeDisasters: [],
     rebelPressure: input.rebelPressure ?? 0,
-    // v0.9: 物流节点默认 null（不读）；军事子结构必填中性值。
-    logisticsNode: null,
+    // v0.9.2: 物流节点（可玩 region 默认 1 级仓 + 8k 库存）
+    logisticsNode,
     military,
   };
 }
